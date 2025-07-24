@@ -59,6 +59,19 @@ mvn test
 mvn spring-boot:run
 ```
 
+## AWS Deployment
+
+For production deployment to AWS:
+
+1. **Setup AWS Infrastructure**: Follow `AWS_DEPLOYMENT.md`
+2. **Deploy**: Run `./deploy-aws.sh`
+
+**AWS Architecture**:
+- ECS Fargate (containerized)
+- RDS MySQL (database)
+- Application Load Balancer
+- CloudWatch (monitoring)
+
 ## Project Structure
 
 ```
