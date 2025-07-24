@@ -1,0 +1,43 @@
+trigger:
+- main
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  AZURE_WEBAPP_NAME: 'healthapp-backend'
+  AZURE_RESOURCE_GROUP: 'healthapp-rg'
+
+steps:
+- task: JavaToolInstaller@0
+  inputs:
+    versionSpec: '17'
+    jdkArchitectureOption: 'x64'
+    jdkSourceOption: 'PreInstalled'
+  displayName: 'Install JDK 17'
+
+- script: |
+    mvn clean compile test
+  displayName: 'Build and Test with Maven'
+
+- script: |
+    mvn clean package -DskipTests
+  displayName: 'Build JAR'
+
+- task: PublishBuildArtifacts@1
+  inputs:
+    PathtoPublish: 'target'
+    ArtifactName: 'drop'
+    publishLocation: 'Container'
+  displayName: 'Publish Build Artifacts'
+
+- task: AzureWebApp@1
+  inputs:
+    azureSubscription: 'Your-Azure-Subscription'
+    appName: $(AZURE_WEBAPP_NAME)
+    resourceGroupName: $(AZURE_RESOURCE_GROUP)
+    package: 'target/*.jar'
+    appType: 'webAppLinux'
+    runtimeStack: 'JAVA|17-java17'
+    startupCommand: 'java -jar target/healthapp-backend-1.0.0.jar'
+  displayName: 'Deploy to Azure Web App' 

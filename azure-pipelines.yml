@@ -1,0 +1,95 @@
+trigger:
+- main
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  AZURE_WEBAPP_NAME: 'healthapp-backend'
+  AZURE_RESOURCE_GROUP: 'healthapp-rg'
+  KEY_VAULT_NAME: 'healthapp-kv'
+  MYSQL_SERVER: 'healthapp-mysql'
+  MAVEN_CACHE_FOLDER: $(Pipeline.Workspace)/.m2/repository
+  MAVEN_OPTS: '-Dmaven.repo.local=$(MAVEN_CACHE_FOLDER)'
+
+stages:
+- stage: Build
+  displayName: 'Build and Test'
+  jobs:
+  - job: Build
+    displayName: 'Build'
+    steps:
+    - task: Cache@2
+      inputs:
+        key: 'maven | "$(Agent.OS)" | **/pom.xml'
+        restoreKeys: |
+          maven | "$(Agent.OS)"
+        path: $(MAVEN_CACHE_FOLDER)
+      displayName: 'Cache Maven packages'
+
+    - task: JavaToolInstaller@0
+      inputs:
+        versionSpec: '17'
+        jdkArchitectureOption: 'x64'
+        jdkSourceOption: 'PreInstalled'
+      displayName: 'Install JDK 17'
+
+    - script: |
+        mvn clean compile test
+      displayName: 'Build and Test with Maven'
+
+    - script: |
+        mvn clean package -DskipTests
+      displayName: 'Build JAR'
+
+    - task: PublishBuildArtifacts@1
+      inputs:
+        PathtoPublish: 'target'
+        ArtifactName: 'drop'
+        publishLocation: 'Container'
+      displayName: 'Publish Build Artifacts'
+
+- stage: Deploy
+  displayName: 'Deploy to Azure'
+  dependsOn: Build
+  condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+  jobs:
+  - deployment: Deploy
+    displayName: 'Deploy to Azure Web App'
+    environment: 'production'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - task: JavaToolInstaller@0
+            inputs:
+              versionSpec: '17'
+              jdkArchitectureOption: 'x64'
+              jdkSourceOption: 'PreInstalled'
+            displayName: 'Install JDK 17'
+
+          - script: |
+              mvn clean package -DskipTests
+            displayName: 'Build JAR for deployment'
+
+          - task: AzureWebApp@1
+            inputs:
+              azureSubscription: 'Your-Azure-Subscription'
+              appName: $(AZURE_WEBAPP_NAME)
+              resourceGroupName: $(AZURE_RESOURCE_GROUP)
+              package: 'target/*.jar'
+              appType: 'webAppLinux'
+              runtimeStack: 'JAVA|17-java17'
+              startupCommand: 'java -jar target/healthapp-backend-1.0.0.jar'
+            displayName: 'Deploy to Azure Web App'
+
+          - script: |
+              echo "Waiting for deployment to complete..."
+              sleep 60
+            displayName: 'Wait for deployment'
+
+          - script: |
+              echo "Testing deployment..."
+              curl -f https://$(AZURE_WEBAPP_NAME).azurewebsites.net/api/actuator/health || exit 1
+              echo "✅ Deployment successful!"
+            displayName: 'Test deployment' 
