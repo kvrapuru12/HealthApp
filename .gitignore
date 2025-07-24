@@ -50,6 +50,7 @@ buildNumber.properties
 Thumbs.db
 
 # Application specific
-application-dev.properties
-application-prod.properties
 *.env
+.env.local
+.env.production
+env.properties

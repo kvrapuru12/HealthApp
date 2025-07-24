@@ -28,7 +28,7 @@ public class SecurityConfig {
             .authorizeHttpRequests(authz -> authz
                 .requestMatchers("/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                 .requestMatchers("/actuator/**").permitAll()
-                .requestMatchers("/users/**").permitAll() // For now, allow all user endpoints
+                .requestMatchers("/users/**", "/food-entries/**", "/activity-entries/**").permitAll() // Allow all endpoints for testing
                 .anyRequest().authenticated()
             );
         
