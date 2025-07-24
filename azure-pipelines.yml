@@ -92,4 +92,4 @@ stages:
               echo "Testing deployment..."
               curl -f https://$(AZURE_WEBAPP_NAME).azurewebsites.net/api/actuator/health || exit 1
               echo "✅ Deployment successful!"
-            displayName: 'Test deployment' 
+            displayName: 'Test deployment'
