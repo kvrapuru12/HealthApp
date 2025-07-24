@@ -18,18 +18,11 @@ cp .env.example .env
 mvn spring-boot:run
 ```
 
-### Azure Deployment
-```bash
-# Follow the Azure setup guide
-./deploy-azure.sh
-```
-
 ## 📋 Prerequisites
 
 - **Java 17+**
 - **Maven 3.6+**
-- **MySQL 8.0+** (local) or **Azure Database for MySQL** (production)
-- **Azure CLI** (for Azure deployment)
+- **MySQL 8.0+**
 
 ## 🏗️ Technology Stack
 
@@ -52,8 +45,7 @@ src/
 │   ├── service/         # Business logic
 │   └── HealthAppApplication.java
 └── resources/
-    ├── application.properties      # Local configuration
-    └── application-azure.properties # Azure configuration
+    └── application.properties      # Local configuration
 ```
 
 ## 🔧 Configuration
@@ -67,16 +59,10 @@ JWT_SECRET=your-secret-key
 JWT_EXPIRATION=86400000
 ```
 
-### Azure Production
-- Uses Azure Key Vault for secrets
-- Environment variables configured via Azure App Service
-- Application Insights for monitoring
-
 ## 🌐 API Endpoints
 
 ### Base URL
 - **Local**: `http://localhost:8080/api`
-- **Azure**: `https://healthapp-backend.azurewebsites.net/api`
 
 ### Key Endpoints
 - **Swagger UI**: `/swagger-ui.html`
@@ -92,11 +78,6 @@ JWT_EXPIRATION=86400000
 mvn spring-boot:run
 ```
 
-### Azure Production
-1. **Manual Setup**: Follow `AZURE_SETUP_CHECKLIST.md`
-2. **Automated**: Run `./deploy-azure.sh`
-3. **CI/CD**: Push to main branch (GitHub Actions)
-
 ## 📊 Features
 
 - **User Management**: CRUD operations with fitness profiles
@@ -111,7 +92,6 @@ mvn spring-boot:run
 
 - JWT-based authentication
 - Secure password storage
-- Azure Key Vault integration (production)
 - SSL/TLS encryption
 - CORS configuration
 
@@ -119,7 +99,6 @@ mvn spring-boot:run
 
 - **Health Checks**: `/actuator/health`
 - **Metrics**: `/actuator/metrics`
-- **Application Insights**: Azure monitoring
 - **Logging**: Structured logging with different levels
 
 ## 🛠️ Development
@@ -143,7 +122,6 @@ mvn test
 ## 📚 Documentation
 
 - **API Docs**: Swagger UI at `/swagger-ui.html`
-- **Azure Setup**: `AZURE_SETUP_CHECKLIST.md`
 - **Local Setup**: See Quick Start section
 
 ## 🤝 Contributing
@@ -157,9 +135,8 @@ mvn test
 ## 📞 Support
 
 - **Issues**: Create GitHub issue
-- **Azure**: Check Azure documentation
 - **Local**: Check troubleshooting section
 
 ---
 
-**🎉 Ready to deploy!** Choose your deployment method and follow the setup guides.
+**🎉 Ready to deploy!** Follow the local setup guide to get started.
