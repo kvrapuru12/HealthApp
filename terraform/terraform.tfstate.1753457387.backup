@@ -1,0 +1,1517 @@
+{
+  "version": 4,
+  "terraform_version": "1.5.7",
+  "serial": 39,
+  "lineage": "ac22ec78-5a77-305f-e8fa-69dacd633a59",
+  "outputs": {
+    "alb_dns_name": {
+      "value": "healthapp-alb-1571435665.us-east-1.elb.amazonaws.com",
+      "type": "string"
+    },
+    "alb_zone_id": {
+      "value": "Z35SXDOTRQ7X7K",
+      "type": "string"
+    },
+    "application_urls": {
+      "value": {
+        "api_base": "http://healthapp-alb-1571435665.us-east-1.elb.amazonaws.com/api",
+        "health_check": "http://healthapp-alb-1571435665.us-east-1.elb.amazonaws.com/api/actuator/health",
+        "swagger_ui": "http://healthapp-alb-1571435665.us-east-1.elb.amazonaws.com/api/swagger-ui.html"
+      },
+      "type": [
+        "object",
+        {
+          "api_base": "string",
+          "health_check": "string",
+          "swagger_ui": "string"
+        }
+      ]
+    },
+    "ecr_repository_url": {
+      "value": "114749311002.dkr.ecr.us-east-1.amazonaws.com/healthapp",
+      "type": "string"
+    },
+    "ecs_cluster_name": {
+      "value": "healthapp-cluster",
+      "type": "string"
+    },
+    "ecs_service_name": {
+      "value": "healthapp-service",
+      "type": "string"
+    },
+    "private_subnets": {
+      "value": [
+        "subnet-08697f9f6147ca6dd",
+        "subnet-0b2bdf72116405208"
+      ],
+      "type": [
+        "tuple",
+        [
+          "string",
+          "string"
+        ]
+      ]
+    },
+    "public_subnets": {
+      "value": [
+        "subnet-086135edb4c380c8f",
+        "subnet-0350ced83a2575ba1"
+      ],
+      "type": [
+        "tuple",
+        [
+          "string",
+          "string"
+        ]
+      ]
+    },
+    "rds_endpoint": {
+      "value": "healthapp-db.cg3mu4uec4gj.us-east-1.rds.amazonaws.com:3306",
+      "type": "string"
+    },
+    "vpc_id": {
+      "value": "vpc-01739f4aaac8dc6ba",
+      "type": "string"
+    }
+  },
+  "resources": [
+    {
+      "mode": "managed",
+      "type": "aws_cloudwatch_log_group",
+      "name": "healthapp_logs",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "arn": "arn:aws:logs:us-east-1:114749311002:log-group:/ecs/healthapp",
+            "id": "/ecs/healthapp",
+            "kms_key_id": "",
+            "name": "/ecs/healthapp",
+            "name_prefix": "",
+            "retention_in_days": 30,
+            "skip_destroy": false,
+            "tags": {
+              "Name": "healthapp-logs"
+            },
+            "tags_all": {
+              "Name": "healthapp-logs"
+            }
+          },
+          "sensitive_attributes": [],
+          "private": "bnVsbA=="
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_db_instance",
+      "name": "healthapp_db",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 1,
+          "attributes": {
+            "address": "healthapp-db.cg3mu4uec4gj.us-east-1.rds.amazonaws.com",
+            "allocated_storage": 20,
+            "allow_major_version_upgrade": null,
+            "apply_immediately": false,
+            "arn": "arn:aws:rds:us-east-1:114749311002:db:healthapp-db",
+            "auto_minor_version_upgrade": true,
+            "availability_zone": "us-east-1a",
+            "backup_retention_period": 0,
+            "backup_window": "07:11-07:41",
+            "blue_green_update": [],
+            "ca_cert_identifier": "rds-ca-rsa2048-g1",
+            "character_set_name": "",
+            "copy_tags_to_snapshot": false,
+            "custom_iam_instance_profile": "",
+            "customer_owned_ip_enabled": false,
+            "db_name": "healthapp",
+            "db_subnet_group_name": "healthapp-db-subnet",
+            "delete_automated_backups": true,
+            "deletion_protection": false,
+            "domain": "",
+            "domain_iam_role_name": "",
+            "enabled_cloudwatch_logs_exports": null,
+            "endpoint": "healthapp-db.cg3mu4uec4gj.us-east-1.rds.amazonaws.com:3306",
+            "engine": "mysql",
+            "engine_version": "8.0.35",
+            "engine_version_actual": "8.0.35",
+            "final_snapshot_identifier": null,
+            "hosted_zone_id": "Z2R2ITUGPM61AM",
+            "iam_database_authentication_enabled": false,
+            "id": "healthapp-db",
+            "identifier": "healthapp-db",
+            "identifier_prefix": "",
+            "instance_class": "db.t3.micro",
+            "iops": 0,
+            "kms_key_id": "arn:aws:kms:us-east-1:114749311002:key/3b519fba-50a9-4dfe-9913-824ec1e23e9c",
+            "latest_restorable_time": "",
+            "license_model": "general-public-license",
+            "listener_endpoint": [],
+            "maintenance_window": "fri:04:54-fri:05:24",
+            "manage_master_user_password": null,
+            "master_user_secret": [],
+            "master_user_secret_kms_key_id": null,
+            "max_allocated_storage": 0,
+            "monitoring_interval": 0,
+            "monitoring_role_arn": "",
+            "multi_az": false,
+            "name": "healthapp",
+            "nchar_character_set_name": "",
+            "network_type": "IPV4",
+            "option_group_name": "default:mysql-8-0",
+            "parameter_group_name": "default.mysql8.0",
+            "password": "HealthApp2024!SecurePassword123",
+            "performance_insights_enabled": false,
+            "performance_insights_kms_key_id": "",
+            "performance_insights_retention_period": 0,
+            "port": 3306,
+            "publicly_accessible": false,
+            "replica_mode": "",
+            "replicas": [],
+            "replicate_source_db": "",
+            "resource_id": "db-HCCCYHJFEIN6E4Z57DU5QLLZV4",
+            "restore_to_point_in_time": [],
+            "s3_import": [],
+            "security_group_names": null,
+            "skip_final_snapshot": true,
+            "snapshot_identifier": null,
+            "status": "available",
+            "storage_encrypted": true,
+            "storage_throughput": 0,
+            "storage_type": "gp2",
+            "tags": {
+              "Name": "healthapp-db"
+            },
+            "tags_all": {
+              "Name": "healthapp-db"
+            },
+            "timeouts": null,
+            "timezone": "",
+            "username": "admin",
+            "vpc_security_group_ids": [
+              "sg-02323c2d3d6330ed8"
+            ]
+          },
+          "sensitive_attributes": [
+            [
+              {
+                "type": "get_attr",
+                "value": "password"
+              }
+            ]
+          ],
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiY3JlYXRlIjoyNDAwMDAwMDAwMDAwLCJkZWxldGUiOjM2MDAwMDAwMDAwMDAsInVwZGF0ZSI6NDgwMDAwMDAwMDAwMH0sInNjaGVtYV92ZXJzaW9uIjoiMSJ9",
+          "dependencies": [
+            "aws_db_subnet_group.healthapp_db_subnet",
+            "aws_security_group.rds_sg"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_db_subnet_group",
+      "name": "healthapp_db_subnet",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "arn": "arn:aws:rds:us-east-1:114749311002:subgrp:healthapp-db-subnet",
+            "description": "Managed by Terraform",
+            "id": "healthapp-db-subnet",
+            "name": "healthapp-db-subnet",
+            "name_prefix": "",
+            "subnet_ids": [
+              "subnet-08697f9f6147ca6dd",
+              "subnet-0b2bdf72116405208"
+            ],
+            "supported_network_types": [
+              "IPV4"
+            ],
+            "tags": {
+              "Name": "healthapp-db-subnet"
+            },
+            "tags_all": {
+              "Name": "healthapp-db-subnet"
+            },
+            "vpc_id": "vpc-01739f4aaac8dc6ba"
+          },
+          "sensitive_attributes": [],
+          "private": "bnVsbA==",
+          "dependencies": [
+            "aws_subnet.private_1a",
+            "aws_subnet.private_1b",
+            "aws_vpc.healthapp_vpc"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_ecr_repository",
+      "name": "healthapp",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "arn": "arn:aws:ecr:us-east-1:114749311002:repository/healthapp",
+            "encryption_configuration": [
+              {
+                "encryption_type": "AES256",
+                "kms_key": ""
+              }
+            ],
+            "force_delete": null,
+            "id": "healthapp",
+            "image_scanning_configuration": [
+              {
+                "scan_on_push": true
+              }
+            ],
+            "image_tag_mutability": "MUTABLE",
+            "name": "healthapp",
+            "registry_id": "114749311002",
+            "repository_url": "114749311002.dkr.ecr.us-east-1.amazonaws.com/healthapp",
+            "tags": {
+              "Name": "healthapp"
+            },
+            "tags_all": {
+              "Name": "healthapp"
+            },
+            "timeouts": null
+          },
+          "sensitive_attributes": [],
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiZGVsZXRlIjoxMjAwMDAwMDAwMDAwfX0="
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_ecs_cluster",
+      "name": "healthapp_cluster",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "arn": "arn:aws:ecs:us-east-1:114749311002:cluster/healthapp-cluster",
+            "capacity_providers": [],
+            "configuration": [],
+            "default_capacity_provider_strategy": [],
+            "id": "arn:aws:ecs:us-east-1:114749311002:cluster/healthapp-cluster",
+            "name": "healthapp-cluster",
+            "service_connect_defaults": [],
+            "setting": [
+              {
+                "name": "containerInsights",
+                "value": "enabled"
+              }
+            ],
+            "tags": {
+              "Name": "healthapp-cluster"
+            },
+            "tags_all": {
+              "Name": "healthapp-cluster"
+            }
+          },
+          "sensitive_attributes": [],
+          "private": "bnVsbA=="
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_ecs_service",
+      "name": "healthapp_service",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": []
+    },
+    {
+      "mode": "managed",
+      "type": "aws_ecs_task_definition",
+      "name": "healthapp_task",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 1,
+          "attributes": {
+            "arn": "arn:aws:ecs:us-east-1:114749311002:task-definition/healthapp-task:1",
+            "arn_without_revision": "arn:aws:ecs:us-east-1:114749311002:task-definition/healthapp-task",
+            "container_definitions": "[{\"cpu\":0,\"environment\":[{\"name\":\"SPRING_PROFILES_ACTIVE\",\"value\":\"aws\"}],\"essential\":true,\"image\":\"114749311002.dkr.ecr.us-east-1.amazonaws.com/healthapp:latest\",\"logConfiguration\":{\"logDriver\":\"awslogs\",\"options\":{\"awslogs-group\":\"/ecs/healthapp\",\"awslogs-region\":\"us-east-1\",\"awslogs-stream-prefix\":\"ecs\"}},\"mountPoints\":[],\"name\":\"healthapp\",\"portMappings\":[{\"containerPort\":8080,\"hostPort\":8080,\"protocol\":\"tcp\"}],\"secrets\":[{\"name\":\"SPRING_DATASOURCE_PASSWORD\",\"valueFrom\":\"arn:aws:secretsmanager:us-east-1:114749311002:secret:healthapp/db-password-W7FEsE\"},{\"name\":\"JWT_SECRET\",\"valueFrom\":\"arn:aws:secretsmanager:us-east-1:114749311002:secret:healthapp/jwt-secret-j5x8zE\"}],\"systemControls\":[],\"volumesFrom\":[]}]",
+            "cpu": "256",
+            "ephemeral_storage": [],
+            "execution_role_arn": "arn:aws:iam::114749311002:role/ecsTaskExecutionRole",
+            "family": "healthapp-task",
+            "id": "healthapp-task",
+            "inference_accelerator": [],
+            "ipc_mode": "",
+            "memory": "512",
+            "network_mode": "awsvpc",
+            "pid_mode": "",
+            "placement_constraints": [],
+            "proxy_configuration": [],
+            "requires_compatibilities": [
+              "FARGATE"
+            ],
+            "revision": 1,
+            "runtime_platform": [],
+            "skip_destroy": false,
+            "tags": {
+              "Name": "healthapp-task"
+            },
+            "tags_all": {
+              "Name": "healthapp-task"
+            },
+            "task_role_arn": "",
+            "volume": []
+          },
+          "sensitive_attributes": [],
+          "private": "eyJzY2hlbWFfdmVyc2lvbiI6IjEifQ==",
+          "dependencies": [
+            "aws_cloudwatch_log_group.healthapp_logs",
+            "aws_ecr_repository.healthapp",
+            "aws_iam_role.ecs_task_execution_role",
+            "aws_secretsmanager_secret.db_password",
+            "aws_secretsmanager_secret.jwt_secret"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_eip",
+      "name": "nat_eip",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "address": null,
+            "allocation_id": "eipalloc-0266ad47b614add74",
+            "associate_with_private_ip": null,
+            "association_id": "eipassoc-0541cde75927bbf9a",
+            "carrier_ip": "",
+            "customer_owned_ip": "",
+            "customer_owned_ipv4_pool": "",
+            "domain": "vpc",
+            "id": "eipalloc-0266ad47b614add74",
+            "instance": "",
+            "network_border_group": "us-east-1",
+            "network_interface": "eni-0666d0cfa71ca10ad",
+            "private_dns": "ip-10-0-1-167.ec2.internal",
+            "private_ip": "10.0.1.167",
+            "public_dns": "ec2-44-198-236-31.compute-1.amazonaws.com",
+            "public_ip": "44.198.236.31",
+            "public_ipv4_pool": "amazon",
+            "tags": {
+              "Name": "healthapp-nat-eip"
+            },
+            "tags_all": {
+              "Name": "healthapp-nat-eip"
+            },
+            "timeouts": null,
+            "vpc": true
+          },
+          "sensitive_attributes": [],
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiZGVsZXRlIjoxODAwMDAwMDAwMDAsInJlYWQiOjkwMDAwMDAwMDAwMCwidXBkYXRlIjozMDAwMDAwMDAwMDB9fQ=="
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_iam_role",
+      "name": "ecs_task_execution_role",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "arn": "arn:aws:iam::114749311002:role/ecsTaskExecutionRole",
+            "assume_role_policy": "{\"Statement\":[{\"Action\":\"sts:AssumeRole\",\"Effect\":\"Allow\",\"Principal\":{\"Service\":\"ecs-tasks.amazonaws.com\"}}],\"Version\":\"2012-10-17\"}",
+            "create_date": "2025-07-25T15:17:45Z",
+            "description": "",
+            "force_detach_policies": false,
+            "id": "ecsTaskExecutionRole",
+            "inline_policy": [],
+            "managed_policy_arns": [
+              "arn:aws:iam::aws:policy/SecretsManagerReadWrite",
+              "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
+            ],
+            "max_session_duration": 3600,
+            "name": "ecsTaskExecutionRole",
+            "name_prefix": "",
+            "path": "/",
+            "permissions_boundary": null,
+            "role_last_used": [
+              {
+                "last_used_date": "",
+                "region": ""
+              }
+            ],
+            "tags": {},
+            "tags_all": {},
+            "unique_id": "AROARVN4XRANGMAEK6BTE"
+          },
+          "sensitive_attributes": [],
+          "private": "bnVsbA=="
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_iam_role_policy_attachment",
+      "name": "ecs_task_execution_role_policy",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "id": "ecsTaskExecutionRole-20250725151746177700000001",
+            "policy_arn": "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy",
+            "role": "ecsTaskExecutionRole"
+          },
+          "sensitive_attributes": [],
+          "private": "bnVsbA==",
+          "dependencies": [
+            "aws_iam_role.ecs_task_execution_role"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_iam_role_policy_attachment",
+      "name": "ecs_task_execution_role_secrets",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "id": "ecsTaskExecutionRole-20250725151746317200000002",
+            "policy_arn": "arn:aws:iam::aws:policy/SecretsManagerReadWrite",
+            "role": "ecsTaskExecutionRole"
+          },
+          "sensitive_attributes": [],
+          "private": "bnVsbA==",
+          "dependencies": [
+            "aws_iam_role.ecs_task_execution_role"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_internet_gateway",
+      "name": "healthapp_igw",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "arn": "arn:aws:ec2:us-east-1:114749311002:internet-gateway/igw-09a11ae474cce5dd0",
+            "id": "igw-09a11ae474cce5dd0",
+            "owner_id": "114749311002",
+            "tags": {
+              "Name": "healthapp-igw"
+            },
+            "tags_all": {
+              "Name": "healthapp-igw"
+            },
+            "timeouts": null,
+            "vpc_id": "vpc-01739f4aaac8dc6ba"
+          },
+          "sensitive_attributes": [],
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiY3JlYXRlIjoxMjAwMDAwMDAwMDAwLCJkZWxldGUiOjEyMDAwMDAwMDAwMDAsInVwZGF0ZSI6MTIwMDAwMDAwMDAwMH19",
+          "dependencies": [
+            "aws_vpc.healthapp_vpc"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_lb",
+      "name": "healthapp_alb",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "access_logs": [
+              {
+                "bucket": "",
+                "enabled": false,
+                "prefix": ""
+              }
+            ],
+            "arn": "arn:aws:elasticloadbalancing:us-east-1:114749311002:loadbalancer/app/healthapp-alb/7838a20dc8a9084b",
+            "arn_suffix": "app/healthapp-alb/7838a20dc8a9084b",
+            "customer_owned_ipv4_pool": "",
+            "desync_mitigation_mode": "defensive",
+            "dns_name": "healthapp-alb-1571435665.us-east-1.elb.amazonaws.com",
+            "drop_invalid_header_fields": false,
+            "enable_cross_zone_load_balancing": true,
+            "enable_deletion_protection": false,
+            "enable_http2": true,
+            "enable_tls_version_and_cipher_suite_headers": false,
+            "enable_waf_fail_open": false,
+            "enable_xff_client_port": false,
+            "id": "arn:aws:elasticloadbalancing:us-east-1:114749311002:loadbalancer/app/healthapp-alb/7838a20dc8a9084b",
+            "idle_timeout": 60,
+            "internal": false,
+            "ip_address_type": "ipv4",
+            "load_balancer_type": "application",
+            "name": "healthapp-alb",
+            "name_prefix": null,
+            "preserve_host_header": false,
+            "security_groups": [
+              "sg-008d41230f5a6659c"
+            ],
+            "subnet_mapping": [
+              {
+                "allocation_id": "",
+                "ipv6_address": "",
+                "outpost_id": "",
+                "private_ipv4_address": "",
+                "subnet_id": "subnet-0350ced83a2575ba1"
+              },
+              {
+                "allocation_id": "",
+                "ipv6_address": "",
+                "outpost_id": "",
+                "private_ipv4_address": "",
+                "subnet_id": "subnet-086135edb4c380c8f"
+              }
+            ],
+            "subnets": [
+              "subnet-0350ced83a2575ba1",
+              "subnet-086135edb4c380c8f"
+            ],
+            "tags": {
+              "Name": "healthapp-alb"
+            },
+            "tags_all": {
+              "Name": "healthapp-alb"
+            },
+            "timeouts": null,
+            "vpc_id": "vpc-01739f4aaac8dc6ba",
+            "xff_header_processing_mode": "append",
+            "zone_id": "Z35SXDOTRQ7X7K"
+          },
+          "sensitive_attributes": [],
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiY3JlYXRlIjo2MDAwMDAwMDAwMDAsImRlbGV0ZSI6NjAwMDAwMDAwMDAwLCJ1cGRhdGUiOjYwMDAwMDAwMDAwMH19",
+          "dependencies": [
+            "aws_security_group.alb_sg",
+            "aws_subnet.public_1a",
+            "aws_subnet.public_1b",
+            "aws_vpc.healthapp_vpc"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_lb_listener",
+      "name": "healthapp_listener",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "alpn_policy": null,
+            "arn": "arn:aws:elasticloadbalancing:us-east-1:114749311002:listener/app/healthapp-alb/7838a20dc8a9084b/b9285f7c42538ded",
+            "certificate_arn": null,
+            "default_action": [
+              {
+                "authenticate_cognito": [],
+                "authenticate_oidc": [],
+                "fixed_response": [],
+                "forward": [],
+                "order": 1,
+                "redirect": [],
+                "target_group_arn": "arn:aws:elasticloadbalancing:us-east-1:114749311002:targetgroup/healthapp-tg/5c4c38d497eee7ff",
+                "type": "forward"
+              }
+            ],
+            "id": "arn:aws:elasticloadbalancing:us-east-1:114749311002:listener/app/healthapp-alb/7838a20dc8a9084b/b9285f7c42538ded",
+            "load_balancer_arn": "arn:aws:elasticloadbalancing:us-east-1:114749311002:loadbalancer/app/healthapp-alb/7838a20dc8a9084b",
+            "port": 80,
+            "protocol": "HTTP",
+            "ssl_policy": "",
+            "tags": {},
+            "tags_all": {},
+            "timeouts": null
+          },
+          "sensitive_attributes": [],
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsicmVhZCI6NjAwMDAwMDAwMDAwfX0=",
+          "dependencies": [
+            "aws_lb.healthapp_alb",
+            "aws_lb_target_group.healthapp_tg",
+            "aws_security_group.alb_sg",
+            "aws_subnet.public_1a",
+            "aws_subnet.public_1b",
+            "aws_vpc.healthapp_vpc"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_lb_target_group",
+      "name": "healthapp_tg",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "arn": "arn:aws:elasticloadbalancing:us-east-1:114749311002:targetgroup/healthapp-tg/5c4c38d497eee7ff",
+            "arn_suffix": "targetgroup/healthapp-tg/5c4c38d497eee7ff",
+            "connection_termination": false,
+            "deregistration_delay": "300",
+            "health_check": [
+              {
+                "enabled": true,
+                "healthy_threshold": 2,
+                "interval": 30,
+                "matcher": "200",
+                "path": "/api/actuator/health",
+                "port": "traffic-port",
+                "protocol": "HTTP",
+                "timeout": 5,
+                "unhealthy_threshold": 2
+              }
+            ],
+            "id": "arn:aws:elasticloadbalancing:us-east-1:114749311002:targetgroup/healthapp-tg/5c4c38d497eee7ff",
+            "ip_address_type": "ipv4",
+            "lambda_multi_value_headers_enabled": false,
+            "load_balancing_algorithm_type": "round_robin",
+            "load_balancing_cross_zone_enabled": "use_load_balancer_configuration",
+            "name": "healthapp-tg",
+            "name_prefix": null,
+            "port": 8080,
+            "preserve_client_ip": null,
+            "protocol": "HTTP",
+            "protocol_version": "HTTP1",
+            "proxy_protocol_v2": false,
+            "slow_start": 0,
+            "stickiness": [
+              {
+                "cookie_duration": 86400,
+                "cookie_name": "",
+                "enabled": false,
+                "type": "lb_cookie"
+              }
+            ],
+            "tags": {
+              "Name": "healthapp-tg"
+            },
+            "tags_all": {
+              "Name": "healthapp-tg"
+            },
+            "target_failover": [
+              {
+                "on_deregistration": null,
+                "on_unhealthy": null
+              }
+            ],
+            "target_type": "instance",
+            "vpc_id": "vpc-01739f4aaac8dc6ba"
+          },
+          "sensitive_attributes": [],
+          "private": "bnVsbA==",
+          "dependencies": [
+            "aws_vpc.healthapp_vpc"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_nat_gateway",
+      "name": "healthapp_nat",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "allocation_id": "eipalloc-0266ad47b614add74",
+            "association_id": "eipassoc-0541cde75927bbf9a",
+            "connectivity_type": "public",
+            "id": "nat-05d53c49083ad6d35",
+            "network_interface_id": "eni-0666d0cfa71ca10ad",
+            "private_ip": "10.0.1.167",
+            "public_ip": "44.198.236.31",
+            "subnet_id": "subnet-086135edb4c380c8f",
+            "tags": {
+              "Name": "healthapp-nat"
+            },
+            "tags_all": {
+              "Name": "healthapp-nat"
+            }
+          },
+          "sensitive_attributes": [],
+          "private": "bnVsbA==",
+          "dependencies": [
+            "aws_eip.nat_eip",
+            "aws_internet_gateway.healthapp_igw",
+            "aws_subnet.public_1a",
+            "aws_vpc.healthapp_vpc"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_route_table",
+      "name": "private",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "arn": "arn:aws:ec2:us-east-1:114749311002:route-table/rtb-05520d86354d99d8f",
+            "id": "rtb-05520d86354d99d8f",
+            "owner_id": "114749311002",
+            "propagating_vgws": [],
+            "route": [
+              {
+                "carrier_gateway_id": "",
+                "cidr_block": "0.0.0.0/0",
+                "core_network_arn": "",
+                "destination_prefix_list_id": "",
+                "egress_only_gateway_id": "",
+                "gateway_id": "",
+                "instance_id": "",
+                "ipv6_cidr_block": "",
+                "local_gateway_id": "",
+                "nat_gateway_id": "nat-05d53c49083ad6d35",
+                "network_interface_id": "",
+                "transit_gateway_id": "",
+                "vpc_endpoint_id": "",
+                "vpc_peering_connection_id": ""
+              }
+            ],
+            "tags": {
+              "Name": "healthapp-private-rt"
+            },
+            "tags_all": {
+              "Name": "healthapp-private-rt"
+            },
+            "timeouts": null,
+            "vpc_id": "vpc-01739f4aaac8dc6ba"
+          },
+          "sensitive_attributes": [],
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiY3JlYXRlIjozMDAwMDAwMDAwMDAsImRlbGV0ZSI6MzAwMDAwMDAwMDAwLCJ1cGRhdGUiOjEyMDAwMDAwMDAwMH19",
+          "dependencies": [
+            "aws_eip.nat_eip",
+            "aws_internet_gateway.healthapp_igw",
+            "aws_nat_gateway.healthapp_nat",
+            "aws_subnet.public_1a",
+            "aws_vpc.healthapp_vpc"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_route_table",
+      "name": "public",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "arn": "arn:aws:ec2:us-east-1:114749311002:route-table/rtb-0e53c4dc183ce2565",
+            "id": "rtb-0e53c4dc183ce2565",
+            "owner_id": "114749311002",
+            "propagating_vgws": [],
+            "route": [
+              {
+                "carrier_gateway_id": "",
+                "cidr_block": "0.0.0.0/0",
+                "core_network_arn": "",
+                "destination_prefix_list_id": "",
+                "egress_only_gateway_id": "",
+                "gateway_id": "igw-09a11ae474cce5dd0",
+                "instance_id": "",
+                "ipv6_cidr_block": "",
+                "local_gateway_id": "",
+                "nat_gateway_id": "",
+                "network_interface_id": "",
+                "transit_gateway_id": "",
+                "vpc_endpoint_id": "",
+                "vpc_peering_connection_id": ""
+              }
+            ],
+            "tags": {
+              "Name": "healthapp-public-rt"
+            },
+            "tags_all": {
+              "Name": "healthapp-public-rt"
+            },
+            "timeouts": null,
+            "vpc_id": "vpc-01739f4aaac8dc6ba"
+          },
+          "sensitive_attributes": [],
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiY3JlYXRlIjozMDAwMDAwMDAwMDAsImRlbGV0ZSI6MzAwMDAwMDAwMDAwLCJ1cGRhdGUiOjEyMDAwMDAwMDAwMH19",
+          "dependencies": [
+            "aws_internet_gateway.healthapp_igw",
+            "aws_vpc.healthapp_vpc"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_route_table_association",
+      "name": "private_1a",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "gateway_id": "",
+            "id": "rtbassoc-09e1eb1e4cccec238",
+            "route_table_id": "rtb-05520d86354d99d8f",
+            "subnet_id": "subnet-08697f9f6147ca6dd",
+            "timeouts": null
+          },
+          "sensitive_attributes": [],
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiY3JlYXRlIjozMDAwMDAwMDAwMDAsImRlbGV0ZSI6MzAwMDAwMDAwMDAwLCJ1cGRhdGUiOjEyMDAwMDAwMDAwMH19",
+          "dependencies": [
+            "aws_eip.nat_eip",
+            "aws_internet_gateway.healthapp_igw",
+            "aws_nat_gateway.healthapp_nat",
+            "aws_route_table.private",
+            "aws_subnet.private_1a",
+            "aws_subnet.public_1a",
+            "aws_vpc.healthapp_vpc"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_route_table_association",
+      "name": "private_1b",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "gateway_id": "",
+            "id": "rtbassoc-0db675204f77ea72a",
+            "route_table_id": "rtb-05520d86354d99d8f",
+            "subnet_id": "subnet-0b2bdf72116405208",
+            "timeouts": null
+          },
+          "sensitive_attributes": [],
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiY3JlYXRlIjozMDAwMDAwMDAwMDAsImRlbGV0ZSI6MzAwMDAwMDAwMDAwLCJ1cGRhdGUiOjEyMDAwMDAwMDAwMH19",
+          "dependencies": [
+            "aws_eip.nat_eip",
+            "aws_internet_gateway.healthapp_igw",
+            "aws_nat_gateway.healthapp_nat",
+            "aws_route_table.private",
+            "aws_subnet.private_1b",
+            "aws_subnet.public_1a",
+            "aws_vpc.healthapp_vpc"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_route_table_association",
+      "name": "public_1a",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "gateway_id": "",
+            "id": "rtbassoc-0d5f3ac709fcd88be",
+            "route_table_id": "rtb-0e53c4dc183ce2565",
+            "subnet_id": "subnet-086135edb4c380c8f",
+            "timeouts": null
+          },
+          "sensitive_attributes": [],
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiY3JlYXRlIjozMDAwMDAwMDAwMDAsImRlbGV0ZSI6MzAwMDAwMDAwMDAwLCJ1cGRhdGUiOjEyMDAwMDAwMDAwMH19",
+          "dependencies": [
+            "aws_internet_gateway.healthapp_igw",
+            "aws_route_table.public",
+            "aws_subnet.public_1a",
+            "aws_vpc.healthapp_vpc"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_route_table_association",
+      "name": "public_1b",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "gateway_id": "",
+            "id": "rtbassoc-04fd24c86c0b0e616",
+            "route_table_id": "rtb-0e53c4dc183ce2565",
+            "subnet_id": "subnet-0350ced83a2575ba1",
+            "timeouts": null
+          },
+          "sensitive_attributes": [],
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiY3JlYXRlIjozMDAwMDAwMDAwMDAsImRlbGV0ZSI6MzAwMDAwMDAwMDAwLCJ1cGRhdGUiOjEyMDAwMDAwMDAwMH19",
+          "dependencies": [
+            "aws_internet_gateway.healthapp_igw",
+            "aws_route_table.public",
+            "aws_subnet.public_1b",
+            "aws_vpc.healthapp_vpc"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_secretsmanager_secret",
+      "name": "db_password",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "arn": "arn:aws:secretsmanager:us-east-1:114749311002:secret:healthapp/db-password-W7FEsE",
+            "description": "HealthApp Database Password",
+            "force_overwrite_replica_secret": false,
+            "id": "arn:aws:secretsmanager:us-east-1:114749311002:secret:healthapp/db-password-W7FEsE",
+            "kms_key_id": "",
+            "name": "healthapp/db-password",
+            "name_prefix": "",
+            "policy": "",
+            "recovery_window_in_days": 30,
+            "replica": [],
+            "rotation_enabled": false,
+            "rotation_lambda_arn": "",
+            "rotation_rules": [],
+            "tags": {},
+            "tags_all": {}
+          },
+          "sensitive_attributes": [],
+          "private": "bnVsbA=="
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_secretsmanager_secret",
+      "name": "jwt_secret",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "arn": "arn:aws:secretsmanager:us-east-1:114749311002:secret:healthapp/jwt-secret-j5x8zE",
+            "description": "HealthApp JWT Secret",
+            "force_overwrite_replica_secret": false,
+            "id": "arn:aws:secretsmanager:us-east-1:114749311002:secret:healthapp/jwt-secret-j5x8zE",
+            "kms_key_id": "",
+            "name": "healthapp/jwt-secret",
+            "name_prefix": "",
+            "policy": "",
+            "recovery_window_in_days": 30,
+            "replica": [],
+            "rotation_enabled": false,
+            "rotation_lambda_arn": "",
+            "rotation_rules": [],
+            "tags": {},
+            "tags_all": {}
+          },
+          "sensitive_attributes": [],
+          "private": "bnVsbA=="
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_secretsmanager_secret_version",
+      "name": "db_password",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "arn": "arn:aws:secretsmanager:us-east-1:114749311002:secret:healthapp/db-password-W7FEsE",
+            "id": "arn:aws:secretsmanager:us-east-1:114749311002:secret:healthapp/db-password-W7FEsE|7D5CCCEF-E015-4826-8A09-B06D99311110",
+            "secret_binary": "",
+            "secret_id": "arn:aws:secretsmanager:us-east-1:114749311002:secret:healthapp/db-password-W7FEsE",
+            "secret_string": "HealthApp2024!SecurePassword123",
+            "version_id": "7D5CCCEF-E015-4826-8A09-B06D99311110",
+            "version_stages": [
+              "AWSCURRENT"
+            ]
+          },
+          "sensitive_attributes": [],
+          "private": "bnVsbA==",
+          "dependencies": [
+            "aws_secretsmanager_secret.db_password"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_secretsmanager_secret_version",
+      "name": "jwt_secret",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "arn": "arn:aws:secretsmanager:us-east-1:114749311002:secret:healthapp/jwt-secret-j5x8zE",
+            "id": "arn:aws:secretsmanager:us-east-1:114749311002:secret:healthapp/jwt-secret-j5x8zE|4D2439A2-44F4-446D-B564-36541F98FDEF",
+            "secret_binary": "",
+            "secret_id": "arn:aws:secretsmanager:us-east-1:114749311002:secret:healthapp/jwt-secret-j5x8zE",
+            "secret_string": "a2c62a62ee714b602644a39d7ff0787039df81e5c41688772164fd856d20c002",
+            "version_id": "4D2439A2-44F4-446D-B564-36541F98FDEF",
+            "version_stages": [
+              "AWSCURRENT"
+            ]
+          },
+          "sensitive_attributes": [
+            [
+              {
+                "type": "get_attr",
+                "value": "secret_string"
+              }
+            ]
+          ],
+          "private": "bnVsbA==",
+          "dependencies": [
+            "aws_secretsmanager_secret.jwt_secret"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_security_group",
+      "name": "alb_sg",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 1,
+          "attributes": {
+            "arn": "arn:aws:ec2:us-east-1:114749311002:security-group/sg-008d41230f5a6659c",
+            "description": "Security group for ALB",
+            "egress": [
+              {
+                "cidr_blocks": [
+                  "0.0.0.0/0"
+                ],
+                "description": "",
+                "from_port": 0,
+                "ipv6_cidr_blocks": [],
+                "prefix_list_ids": [],
+                "protocol": "-1",
+                "security_groups": [],
+                "self": false,
+                "to_port": 0
+              }
+            ],
+            "id": "sg-008d41230f5a6659c",
+            "ingress": [
+              {
+                "cidr_blocks": [
+                  "0.0.0.0/0"
+                ],
+                "description": "",
+                "from_port": 443,
+                "ipv6_cidr_blocks": [],
+                "prefix_list_ids": [],
+                "protocol": "tcp",
+                "security_groups": [],
+                "self": false,
+                "to_port": 443
+              },
+              {
+                "cidr_blocks": [
+                  "0.0.0.0/0"
+                ],
+                "description": "",
+                "from_port": 80,
+                "ipv6_cidr_blocks": [],
+                "prefix_list_ids": [],
+                "protocol": "tcp",
+                "security_groups": [],
+                "self": false,
+                "to_port": 80
+              }
+            ],
+            "name": "healthapp-alb-sg",
+            "name_prefix": "",
+            "owner_id": "114749311002",
+            "revoke_rules_on_delete": false,
+            "tags": {
+              "Name": "healthapp-alb-sg"
+            },
+            "tags_all": {
+              "Name": "healthapp-alb-sg"
+            },
+            "timeouts": null,
+            "vpc_id": "vpc-01739f4aaac8dc6ba"
+          },
+          "sensitive_attributes": [],
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiY3JlYXRlIjo2MDAwMDAwMDAwMDAsImRlbGV0ZSI6OTAwMDAwMDAwMDAwfSwic2NoZW1hX3ZlcnNpb24iOiIxIn0=",
+          "dependencies": [
+            "aws_vpc.healthapp_vpc"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_security_group",
+      "name": "ecs_sg",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 1,
+          "attributes": {
+            "arn": "arn:aws:ec2:us-east-1:114749311002:security-group/sg-0e58b0d4b9688416c",
+            "description": "Security group for ECS tasks",
+            "egress": [
+              {
+                "cidr_blocks": [
+                  "0.0.0.0/0"
+                ],
+                "description": "",
+                "from_port": 0,
+                "ipv6_cidr_blocks": [],
+                "prefix_list_ids": [],
+                "protocol": "-1",
+                "security_groups": [],
+                "self": false,
+                "to_port": 0
+              }
+            ],
+            "id": "sg-0e58b0d4b9688416c",
+            "ingress": [
+              {
+                "cidr_blocks": [],
+                "description": "",
+                "from_port": 8080,
+                "ipv6_cidr_blocks": [],
+                "prefix_list_ids": [],
+                "protocol": "tcp",
+                "security_groups": [
+                  "sg-008d41230f5a6659c"
+                ],
+                "self": false,
+                "to_port": 8080
+              }
+            ],
+            "name": "healthapp-ecs-sg",
+            "name_prefix": "",
+            "owner_id": "114749311002",
+            "revoke_rules_on_delete": false,
+            "tags": {
+              "Name": "healthapp-ecs-sg"
+            },
+            "tags_all": {
+              "Name": "healthapp-ecs-sg"
+            },
+            "timeouts": null,
+            "vpc_id": "vpc-01739f4aaac8dc6ba"
+          },
+          "sensitive_attributes": [],
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiY3JlYXRlIjo2MDAwMDAwMDAwMDAsImRlbGV0ZSI6OTAwMDAwMDAwMDAwfSwic2NoZW1hX3ZlcnNpb24iOiIxIn0=",
+          "dependencies": [
+            "aws_security_group.alb_sg",
+            "aws_vpc.healthapp_vpc"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_security_group",
+      "name": "rds_sg",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 1,
+          "attributes": {
+            "arn": "arn:aws:ec2:us-east-1:114749311002:security-group/sg-02323c2d3d6330ed8",
+            "description": "Security group for RDS",
+            "egress": [],
+            "id": "sg-02323c2d3d6330ed8",
+            "ingress": [
+              {
+                "cidr_blocks": [],
+                "description": "",
+                "from_port": 3306,
+                "ipv6_cidr_blocks": [],
+                "prefix_list_ids": [],
+                "protocol": "tcp",
+                "security_groups": [
+                  "sg-0e58b0d4b9688416c"
+                ],
+                "self": false,
+                "to_port": 3306
+              }
+            ],
+            "name": "healthapp-rds-sg",
+            "name_prefix": "",
+            "owner_id": "114749311002",
+            "revoke_rules_on_delete": false,
+            "tags": {
+              "Name": "healthapp-rds-sg"
+            },
+            "tags_all": {
+              "Name": "healthapp-rds-sg"
+            },
+            "timeouts": null,
+            "vpc_id": "vpc-01739f4aaac8dc6ba"
+          },
+          "sensitive_attributes": [],
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiY3JlYXRlIjo2MDAwMDAwMDAwMDAsImRlbGV0ZSI6OTAwMDAwMDAwMDAwfSwic2NoZW1hX3ZlcnNpb24iOiIxIn0=",
+          "dependencies": [
+            "aws_security_group.alb_sg",
+            "aws_security_group.ecs_sg",
+            "aws_vpc.healthapp_vpc"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_subnet",
+      "name": "private_1a",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 1,
+          "attributes": {
+            "arn": "arn:aws:ec2:us-east-1:114749311002:subnet/subnet-08697f9f6147ca6dd",
+            "assign_ipv6_address_on_creation": false,
+            "availability_zone": "us-east-1a",
+            "availability_zone_id": "use1-az1",
+            "cidr_block": "10.0.3.0/24",
+            "customer_owned_ipv4_pool": "",
+            "enable_dns64": false,
+            "enable_lni_at_device_index": 0,
+            "enable_resource_name_dns_a_record_on_launch": false,
+            "enable_resource_name_dns_aaaa_record_on_launch": false,
+            "id": "subnet-08697f9f6147ca6dd",
+            "ipv6_cidr_block": "",
+            "ipv6_cidr_block_association_id": "",
+            "ipv6_native": false,
+            "map_customer_owned_ip_on_launch": false,
+            "map_public_ip_on_launch": false,
+            "outpost_arn": "",
+            "owner_id": "114749311002",
+            "private_dns_hostname_type_on_launch": "ip-name",
+            "tags": {
+              "Name": "healthapp-private-1a"
+            },
+            "tags_all": {
+              "Name": "healthapp-private-1a"
+            },
+            "timeouts": null,
+            "vpc_id": "vpc-01739f4aaac8dc6ba"
+          },
+          "sensitive_attributes": [],
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiY3JlYXRlIjo2MDAwMDAwMDAwMDAsImRlbGV0ZSI6MTIwMDAwMDAwMDAwMH0sInNjaGVtYV92ZXJzaW9uIjoiMSJ9",
+          "dependencies": [
+            "aws_vpc.healthapp_vpc"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_subnet",
+      "name": "private_1b",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 1,
+          "attributes": {
+            "arn": "arn:aws:ec2:us-east-1:114749311002:subnet/subnet-0b2bdf72116405208",
+            "assign_ipv6_address_on_creation": false,
+            "availability_zone": "us-east-1b",
+            "availability_zone_id": "use1-az2",
+            "cidr_block": "10.0.4.0/24",
+            "customer_owned_ipv4_pool": "",
+            "enable_dns64": false,
+            "enable_lni_at_device_index": 0,
+            "enable_resource_name_dns_a_record_on_launch": false,
+            "enable_resource_name_dns_aaaa_record_on_launch": false,
+            "id": "subnet-0b2bdf72116405208",
+            "ipv6_cidr_block": "",
+            "ipv6_cidr_block_association_id": "",
+            "ipv6_native": false,
+            "map_customer_owned_ip_on_launch": false,
+            "map_public_ip_on_launch": false,
+            "outpost_arn": "",
+            "owner_id": "114749311002",
+            "private_dns_hostname_type_on_launch": "ip-name",
+            "tags": {
+              "Name": "healthapp-private-1b"
+            },
+            "tags_all": {
+              "Name": "healthapp-private-1b"
+            },
+            "timeouts": null,
+            "vpc_id": "vpc-01739f4aaac8dc6ba"
+          },
+          "sensitive_attributes": [],
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiY3JlYXRlIjo2MDAwMDAwMDAwMDAsImRlbGV0ZSI6MTIwMDAwMDAwMDAwMH0sInNjaGVtYV92ZXJzaW9uIjoiMSJ9",
+          "dependencies": [
+            "aws_vpc.healthapp_vpc"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_subnet",
+      "name": "public_1a",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 1,
+          "attributes": {
+            "arn": "arn:aws:ec2:us-east-1:114749311002:subnet/subnet-086135edb4c380c8f",
+            "assign_ipv6_address_on_creation": false,
+            "availability_zone": "us-east-1a",
+            "availability_zone_id": "use1-az1",
+            "cidr_block": "10.0.1.0/24",
+            "customer_owned_ipv4_pool": "",
+            "enable_dns64": false,
+            "enable_lni_at_device_index": 0,
+            "enable_resource_name_dns_a_record_on_launch": false,
+            "enable_resource_name_dns_aaaa_record_on_launch": false,
+            "id": "subnet-086135edb4c380c8f",
+            "ipv6_cidr_block": "",
+            "ipv6_cidr_block_association_id": "",
+            "ipv6_native": false,
+            "map_customer_owned_ip_on_launch": false,
+            "map_public_ip_on_launch": true,
+            "outpost_arn": "",
+            "owner_id": "114749311002",
+            "private_dns_hostname_type_on_launch": "ip-name",
+            "tags": {
+              "Name": "healthapp-public-1a"
+            },
+            "tags_all": {
+              "Name": "healthapp-public-1a"
+            },
+            "timeouts": null,
+            "vpc_id": "vpc-01739f4aaac8dc6ba"
+          },
+          "sensitive_attributes": [],
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiY3JlYXRlIjo2MDAwMDAwMDAwMDAsImRlbGV0ZSI6MTIwMDAwMDAwMDAwMH0sInNjaGVtYV92ZXJzaW9uIjoiMSJ9",
+          "dependencies": [
+            "aws_vpc.healthapp_vpc"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_subnet",
+      "name": "public_1b",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 1,
+          "attributes": {
+            "arn": "arn:aws:ec2:us-east-1:114749311002:subnet/subnet-0350ced83a2575ba1",
+            "assign_ipv6_address_on_creation": false,
+            "availability_zone": "us-east-1b",
+            "availability_zone_id": "use1-az2",
+            "cidr_block": "10.0.2.0/24",
+            "customer_owned_ipv4_pool": "",
+            "enable_dns64": false,
+            "enable_lni_at_device_index": 0,
+            "enable_resource_name_dns_a_record_on_launch": false,
+            "enable_resource_name_dns_aaaa_record_on_launch": false,
+            "id": "subnet-0350ced83a2575ba1",
+            "ipv6_cidr_block": "",
+            "ipv6_cidr_block_association_id": "",
+            "ipv6_native": false,
+            "map_customer_owned_ip_on_launch": false,
+            "map_public_ip_on_launch": true,
+            "outpost_arn": "",
+            "owner_id": "114749311002",
+            "private_dns_hostname_type_on_launch": "ip-name",
+            "tags": {
+              "Name": "healthapp-public-1b"
+            },
+            "tags_all": {
+              "Name": "healthapp-public-1b"
+            },
+            "timeouts": null,
+            "vpc_id": "vpc-01739f4aaac8dc6ba"
+          },
+          "sensitive_attributes": [],
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiY3JlYXRlIjo2MDAwMDAwMDAwMDAsImRlbGV0ZSI6MTIwMDAwMDAwMDAwMH0sInNjaGVtYV92ZXJzaW9uIjoiMSJ9",
+          "dependencies": [
+            "aws_vpc.healthapp_vpc"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_vpc",
+      "name": "healthapp_vpc",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 1,
+          "attributes": {
+            "arn": "arn:aws:ec2:us-east-1:114749311002:vpc/vpc-01739f4aaac8dc6ba",
+            "assign_generated_ipv6_cidr_block": false,
+            "cidr_block": "10.0.0.0/16",
+            "default_network_acl_id": "acl-0f2968ebe6a148848",
+            "default_route_table_id": "rtb-0b6128668e66158c2",
+            "default_security_group_id": "sg-013ef4174600b3f1d",
+            "dhcp_options_id": "dopt-025bd4b4334d370b7",
+            "enable_classiclink": false,
+            "enable_classiclink_dns_support": false,
+            "enable_dns_hostnames": true,
+            "enable_dns_support": true,
+            "enable_network_address_usage_metrics": false,
+            "id": "vpc-01739f4aaac8dc6ba",
+            "instance_tenancy": "default",
+            "ipv4_ipam_pool_id": null,
+            "ipv4_netmask_length": null,
+            "ipv6_association_id": "",
+            "ipv6_cidr_block": "",
+            "ipv6_cidr_block_network_border_group": "",
+            "ipv6_ipam_pool_id": "",
+            "ipv6_netmask_length": 0,
+            "main_route_table_id": "rtb-0b6128668e66158c2",
+            "owner_id": "114749311002",
+            "tags": {
+              "Name": "healthapp-vpc"
+            },
+            "tags_all": {
+              "Name": "healthapp-vpc"
+            }
+          },
+          "sensitive_attributes": [],
+          "private": "eyJzY2hlbWFfdmVyc2lvbiI6IjEifQ=="
+        }
+      ]
+    }
+  ],
+  "check_results": null
+}
