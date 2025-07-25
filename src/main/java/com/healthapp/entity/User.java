@@ -35,14 +35,18 @@ public class User {
     private String password;
     
     @Size(max = 50)
+    @Column(name = "first_name")
     private String firstName;
     
     @Size(max = 50)
+    @Column(name = "last_name")
     private String lastName;
     
     @Size(max = 20)
+    @Column(name = "phone_number")
     private String phoneNumber;
     
+    @Column(name = "date_of_birth")
     private LocalDateTime dateOfBirth;
     
     @Enumerated(EnumType.STRING)
@@ -66,8 +70,10 @@ public class User {
     private Integer dailyCalorieGoal;
     
     @Enumerated(EnumType.STRING)
+    @Column(name = "role")
     private UserRole role = UserRole.USER;
     
+    @Column(name = "enabled")
     private boolean enabled = true;
     
     @CreatedDate
