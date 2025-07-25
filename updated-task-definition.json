@@ -1,0 +1,97 @@
+{
+    "taskDefinitionArn": "arn:aws:ecs:us-east-1:114749311002:task-definition/healthapp-task:11",
+    "containerDefinitions": [
+        {
+            "name": "healthapp",
+            "image": "114749311002.dkr.ecr.us-east-1.amazonaws.com/healthapp:ad3026e2ec579dcc08edd35e3ebc692265bd70ca",
+            "cpu": 0,
+            "portMappings": [
+                {
+                    "containerPort": 8080,
+                    "hostPort": 8080,
+                    "protocol": "tcp"
+                }
+            ],
+            "essential": true,
+            "environment": [
+                {
+                    "name": "DB_USERNAME",
+                    "value": "admin"
+                },
+                {
+                    "name": "DB_HOST",
+                    "value": "healthapp-db.cg3mu4uec4gj.us-east-1.rds.amazonaws.com"
+                },
+                {
+                    "name": "SPRING_PROFILES_ACTIVE",
+                    "value": "aws"
+                }
+            ],
+            "mountPoints": [],
+            "volumesFrom": [],
+            "secrets": [
+                {
+                    "name": "SPRING_DATASOURCE_PASSWORD",
+                    "valueFrom": "arn:aws:secretsmanager:us-east-1:114749311002:secret:healthapp/db-password-W7FEsE"
+                },
+                {
+                    "name": "JWT_SECRET",
+                    "valueFrom": "arn:aws:secretsmanager:us-east-1:114749311002:secret:healthapp/jwt-secret-j5x8zE"
+                }
+            ],
+            "logConfiguration": {
+                "logDriver": "awslogs",
+                "options": {
+                    "awslogs-group": "/ecs/healthapp",
+                    "awslogs-region": "us-east-1",
+                    "awslogs-stream-prefix": "ecs"
+                }
+            },
+            "systemControls": []
+        }
+    ],
+    "family": "healthapp-task",
+    "executionRoleArn": "arn:aws:iam::114749311002:role/ecsTaskExecutionRole",
+    "networkMode": "awsvpc",
+    "revision": 11,
+    "volumes": [],
+    "status": "ACTIVE",
+    "requiresAttributes": [
+        {
+            "name": "com.amazonaws.ecs.capability.logging-driver.awslogs"
+        },
+        {
+            "name": "ecs.capability.execution-role-awslogs"
+        },
+        {
+            "name": "com.amazonaws.ecs.capability.ecr-auth"
+        },
+        {
+            "name": "com.amazonaws.ecs.capability.docker-remote-api.1.19"
+        },
+        {
+            "name": "ecs.capability.secrets.asm.environment-variables"
+        },
+        {
+            "name": "ecs.capability.execution-role-ecr-pull"
+        },
+        {
+            "name": "com.amazonaws.ecs.capability.docker-remote-api.1.18"
+        },
+        {
+            "name": "ecs.capability.task-eni"
+        }
+    ],
+    "placementConstraints": [],
+    "compatibilities": [
+        "EC2",
+        "FARGATE"
+    ],
+    "requiresCompatibilities": [
+        "FARGATE"
+    ],
+    "cpu": "256",
+    "memory": "512",
+    "registeredAt": "2025-07-25T20:08:08.961000+01:00",
+    "registeredBy": "arn:aws:iam::114749311002:user/Krishna"
+} 
