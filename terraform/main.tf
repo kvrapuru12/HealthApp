@@ -399,6 +399,14 @@ resource "aws_ecs_task_definition" "healthapp_task" {
         {
           name  = "SPRING_PROFILES_ACTIVE"
           value = "aws"
+        },
+        {
+          name  = "DB_HOST"
+          value = aws_db_instance.healthapp_db.endpoint
+        },
+        {
+          name  = "DB_USERNAME"
+          value = "admin"
         }
       ]
       secrets = [
