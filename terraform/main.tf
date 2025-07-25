@@ -3,7 +3,7 @@ terraform {
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = "~> 5.0"
+      version = "~> 4.67.0"
     }
   }
 }
@@ -85,7 +85,6 @@ resource "aws_nat_gateway" "healthapp_nat" {
 }
 
 resource "aws_eip" "nat_eip" {
-  domain = "vpc"
   tags = {
     Name = "healthapp-nat-eip"
   }
@@ -304,7 +303,7 @@ resource "aws_secretsmanager_secret" "db_password" {
 
 resource "aws_secretsmanager_secret_version" "db_password" {
   secret_id     = aws_secretsmanager_secret.db_password.id
-  secret_string = var.db_password
+  secret_string = "HealthApp2024!SecurePassword123"
 }
 
 resource "aws_secretsmanager_secret" "jwt_secret" {
@@ -333,10 +332,11 @@ resource "aws_lb" "healthapp_alb" {
 }
 
 resource "aws_lb_target_group" "healthapp_tg" {
-  name     = "healthapp-tg"
-  port     = 8080
-  protocol = "HTTP"
-  vpc_id   = aws_vpc.healthapp_vpc.id
+  name        = "healthapp-tg"
+  port        = 8080
+  protocol    = "HTTP"
+  vpc_id      = aws_vpc.healthapp_vpc.id
+  target_type = "ip"
 
   health_check {
     enabled             = true

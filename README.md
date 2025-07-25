@@ -115,3 +115,4 @@ src/main/resources/
 ├── application.properties
 └── application-aws.properties
 ```
+# Infrastructure deployed successfully! Ready for first application deployment.
