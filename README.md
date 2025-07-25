@@ -45,6 +45,7 @@ jwt.secret=your-secret-key
 - Activity tracking and calorie burn
 - JWT authentication
 - API documentation with Swagger
+- Automated database migrations with Flyway
 
 ## Development
 
@@ -59,18 +60,44 @@ mvn test
 mvn spring-boot:run
 ```
 
+## CI/CD Pipeline
+
+### Automated Deployment
+
+The application has a complete CI/CD pipeline that automatically:
+
+1. **Tests** - Runs all unit tests
+2. **Builds** - Creates JAR file and Docker image
+3. **Deploys** - Pushes to ECR and updates ECS
+4. **Migrates** - Runs database migrations automatically
+5. **Tests** - Verifies deployment health
+
+### Trigger Deployment
+
+Simply push to the main branch:
+```bash
+git push origin main
+```
+
+### Setup Required
+
+1. **AWS Infrastructure**: Follow `AWS_DEPLOYMENT.md`
+2. **GitHub Secrets**: Follow `GITHUB_SECRETS_SETUP.md`
+
 ## AWS Deployment
 
 For production deployment to AWS:
 
 1. **Setup AWS Infrastructure**: Follow `AWS_DEPLOYMENT.md`
-2. **Deploy**: Run `./deploy-aws.sh`
+2. **Configure GitHub Secrets**: Follow `GITHUB_SECRETS_SETUP.md`
+3. **Deploy**: Push to main branch or run `./deploy-aws.sh`
 
 **AWS Architecture**:
 - ECS Fargate (containerized)
 - RDS MySQL (database)
 - Application Load Balancer
 - CloudWatch (monitoring)
+- Flyway (database migrations)
 
 ## Project Structure
 
@@ -82,4 +109,9 @@ src/main/java/com/healthapp/
 ├── repository/      # Data access layer
 ├── service/         # Business logic
 └── HealthAppApplication.java
+
+src/main/resources/
+├── db/migration/    # Database migration scripts
+├── application.properties
+└── application-aws.properties
 ```
