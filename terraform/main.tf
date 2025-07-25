@@ -204,6 +204,13 @@ resource "aws_security_group" "rds_sg" {
     security_groups = [aws_security_group.ecs_sg.id]
   }
 
+  ingress {
+    from_port       = 3306
+    to_port         = 3306
+    protocol        = "tcp"
+    security_groups = [aws_security_group.alb_sg.id]
+  }
+
   egress {
     from_port   = 0
     to_port     = 0
@@ -238,6 +245,7 @@ resource "aws_db_instance" "healthapp_db" {
   password             = var.db_password
   db_name              = "healthapp"
   skip_final_snapshot  = true
+  publicly_accessible  = true
   db_subnet_group_name = aws_db_subnet_group.healthapp_db_subnet.name
   vpc_security_group_ids = [aws_security_group.rds_sg.id]
 
