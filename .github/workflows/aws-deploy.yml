@@ -103,7 +103,7 @@ jobs:
     - name: Run database migrations
       run: |
         echo "Waiting for application to be ready..."
-        sleep 60
+        sleep 90
         
         # Get ALB DNS name
         ALB_DNS=$(aws elbv2 describe-load-balancers \
@@ -112,15 +112,17 @@ jobs:
           --query 'LoadBalancers[0].DNSName' \
           --output text)
         
-        # Wait for health check to pass
+        echo "ALB DNS: $ALB_DNS"
+        
+        # Wait for health check to pass with longer timeout
         echo "Checking application health..."
-        for i in {1..30}; do
+        for i in {1..20}; do
           if curl -f -s "https://$ALB_DNS/api/actuator/health" > /dev/null; then
             echo "✅ Application is healthy!"
             break
           fi
-          echo "Waiting for application to be ready... (attempt $i/30)"
-          sleep 10
+          echo "Waiting for application to be ready... (attempt $i/20)"
+          sleep 15
         done
         
         # Run database initialization (if needed)
@@ -136,8 +138,31 @@ jobs:
           --output text)
         
         echo "Testing deployment..."
-        curl -f "https://$ALB_DNS/api/actuator/health" || exit 1
-        curl -f "https://$ALB_DNS/api/users" || echo "Users endpoint may require authentication"
+        echo "ALB DNS: $ALB_DNS"
+        
+        # Wait longer for application to be ready
+        echo "Waiting for application to be fully ready..."
+        sleep 30
+        
+        # Test health endpoint with retries
+        echo "Testing health endpoint: https://$ALB_DNS/api/actuator/health"
+        for i in {1..10}; do
+          if curl -f -s "https://$ALB_DNS/api/actuator/health" > /dev/null; then
+            echo "✅ Health check passed!"
+            break
+          fi
+          echo "Health check failed (attempt $i/10), waiting 30 seconds..."
+          sleep 30
+        done
+        
+        # Final health check
+        if ! curl -f -s "https://$ALB_DNS/api/actuator/health" > /dev/null; then
+          echo "❌ Health check failed after all retries"
+          echo "Checking ECS service status..."
+          aws ecs describe-services --cluster ${{ env.ECS_CLUSTER }} --services ${{ env.ECS_SERVICE }} --region ${{ env.AWS_REGION }} --query 'services[0].{status:status,runningCount:runningCount,desiredCount:desiredCount,pendingCount:pendingCount}' --output table
+          exit 1
+        fi
+        
         echo "✅ Deployment successful!"
         
         echo "🌐 Application URLs:"
