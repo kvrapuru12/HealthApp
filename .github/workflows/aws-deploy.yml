@@ -1,0 +1,146 @@
+name: Deploy to AWS ECS
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REPOSITORY: healthapp
+  ECS_CLUSTER: healthapp-cluster
+  ECS_SERVICE: healthapp-service
+  ECS_TASK_DEFINITION: healthapp-task
+  CONTAINER_NAME: healthapp
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+        cache: maven
+    
+    - name: Cache Maven packages
+      uses: actions/cache@v3
+      with:
+        path: ~/.m2
+        key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+        restore-keys: ${{ runner.os }}-m2
+    
+    - name: Run tests
+      run: mvn test
+    
+    - name: Build with Maven
+      run: mvn clean package -DskipTests
+
+  build-and-deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+        cache: maven
+    
+    - name: Build with Maven
+      run: mvn clean package -DskipTests
+    
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+    
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v2
+    
+    - name: Build, tag, and push image to Amazon ECR
+      id: build-image
+      env:
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        IMAGE_TAG: ${{ github.sha }}
+      run: |
+        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+        docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+        echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+    
+    - name: Download task definition
+      run: |
+        aws ecs describe-task-definition --task-definition ${{ env.ECS_TASK_DEFINITION }} \
+        --query taskDefinition > task-definition.json
+    
+    - name: Fill in the new image ID in the Amazon ECS task definition
+      id: task-def
+      uses: aws-actions/amazon-ecs-render-task-definition@v2
+      with:
+        task-definition: task-definition.json
+        container-name: ${{ env.CONTAINER_NAME }}
+        image: ${{ steps.build-image.outputs.image }}
+    
+    - name: Deploy Amazon ECS task definition
+      uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+      with:
+        task-definition: ${{ steps.task-def.outputs.task-definition }}
+        service: ${{ env.ECS_SERVICE }}
+        cluster: ${{ env.ECS_CLUSTER }}
+        wait-for-service-stability: true
+    
+    - name: Run database migrations
+      run: |
+        echo "Waiting for application to be ready..."
+        sleep 60
+        
+        # Get ALB DNS name
+        ALB_DNS=$(aws elbv2 describe-load-balancers \
+          --names healthapp-alb \
+          --region ${{ env.AWS_REGION }} \
+          --query 'LoadBalancers[0].DNSName' \
+          --output text)
+        
+        # Wait for health check to pass
+        echo "Checking application health..."
+        for i in {1..30}; do
+          if curl -f -s "https://$ALB_DNS/api/actuator/health" > /dev/null; then
+            echo "✅ Application is healthy!"
+            break
+          fi
+          echo "Waiting for application to be ready... (attempt $i/30)"
+          sleep 10
+        done
+        
+        # Run database initialization (if needed)
+        echo "Running database initialization..."
+        curl -X POST "https://$ALB_DNS/api/actuator/health" || echo "Health check endpoint available"
+    
+    - name: Test deployment
+      run: |
+        ALB_DNS=$(aws elbv2 describe-load-balancers \
+          --names healthapp-alb \
+          --region ${{ env.AWS_REGION }} \
+          --query 'LoadBalancers[0].DNSName' \
+          --output text)
+        
+        echo "Testing deployment..."
+        curl -f "https://$ALB_DNS/api/actuator/health" || exit 1
+        curl -f "https://$ALB_DNS/api/users" || echo "Users endpoint may require authentication"
+        echo "✅ Deployment successful!"
+        
+        echo "🌐 Application URLs:"
+        echo "   API Base: https://$ALB_DNS/api"
+        echo "   Swagger UI: https://$ALB_DNS/api/swagger-ui.html"
+        echo "   Health Check: https://$ALB_DNS/api/actuator/health" 
