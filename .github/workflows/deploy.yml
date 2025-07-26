@@ -128,8 +128,8 @@ jobs:
     - name: Test deployment
       run: |
         ALB_DNS=${{ steps.alb-dns.outputs.alb-dns }}
-        echo "Testing health endpoint: https://$ALB_DNS/api/actuator/health"
-        curl -f -s "https://$ALB_DNS/api/actuator/health" || exit 1
+        echo "Testing health endpoint: http://$ALB_DNS/api/actuator/health"
+        curl -f -s "http://$ALB_DNS/api/actuator/health" || exit 1
         echo "Health check passed!"
         
     - name: Deployment Summary
@@ -137,9 +137,9 @@ jobs:
         echo "🎉 Deployment completed successfully!"
         echo ""
         echo "🌐 Application URLs:"
-        echo "   API Base: https://${{ steps.alb-dns.outputs.alb-dns }}/api"
-        echo "   Swagger UI: https://${{ steps.alb-dns.outputs.alb-dns }}/api/swagger-ui.html"
-        echo "   Health Check: https://${{ steps.alb-dns.outputs.alb-dns }}/api/actuator/health"
+        echo "   API Base: http://${{ steps.alb-dns.outputs.alb-dns }}/api"
+        echo "   Swagger UI: http://${{ steps.alb-dns.outputs.alb-dns }}/api/swagger-ui/index.html"
+        echo "   Health Check: http://${{ steps.alb-dns.outputs.alb-dns }}/api/actuator/health"
         echo ""
         echo "📊 Monitoring:"
         echo "   ECS Console: https://console.aws.amazon.com/ecs/home?region=${{ env.AWS_REGION }}#/clusters/${{ env.ECS_CLUSTER }}"

@@ -189,5 +189,5 @@ jobs:
         
         echo "🌐 Application URLs:"
         echo "   API Base: http://$ALB_DNS/api"
-        echo "   Swagger UI: http://$ALB_DNS/api/swagger-ui.html"
+        echo "   Swagger UI: http://$ALB_DNS/api/swagger-ui/index.html"
         echo "   Health Check: http://$ALB_DNS/api/actuator/health" 

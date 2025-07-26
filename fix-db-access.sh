@@ -1,55 +1,92 @@
 #!/bin/bash
 
-# Quick fix script to update RDS security group for development access
-# WARNING: This opens RDS to the internet - use only for development!
+# HealthApp AWS Database Security Group Fix Script
+set -e
 
-echo "=== Quick Fix for RDS Access ==="
-echo "This will add your current IP to the RDS security group"
-echo
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
 
-# Get current public IP
-CURRENT_IP=$(curl -s ifconfig.me)
-echo "Your current public IP: $CURRENT_IP"
+print_status() {
+    echo -e "${BLUE}[INFO]${NC} $1"
+}
 
-# Get security group ID
-SG_ID=$(aws ec2 describe-security-groups \
-  --filters "Name=group-name,Values=healthapp-rds-sg" \
-  --query 'SecurityGroups[0].GroupId' \
-  --output text 2>/dev/null)
+print_success() {
+    echo -e "${GREEN}[SUCCESS]${NC} $1"
+}
 
-if [ "$SG_ID" = "None" ] || [ -z "$SG_ID" ]; then
-    echo "✗ Could not find security group 'healthapp-rds-sg'"
-    echo "Please ensure your Terraform infrastructure is deployed"
+print_warning() {
+    echo -e "${YELLOW}[WARNING]${NC} $1"
+}
+
+print_error() {
+    echo -e "${RED}[ERROR]${NC} $1"
+}
+
+# Configuration
+AWS_REGION="us-east-1"
+DB_INSTANCE_ID="healthapp-db"
+
+print_status "Getting database security group information..."
+
+# Get the security group ID
+SECURITY_GROUP_ID=$(aws rds describe-db-instances \
+    --db-instance-identifier $DB_INSTANCE_ID \
+    --region $AWS_REGION \
+    --query 'DBInstances[0].VpcSecurityGroups[0].VpcSecurityGroupId' \
+    --output text)
+
+if [ -z "$SECURITY_GROUP_ID" ] || [ "$SECURITY_GROUP_ID" == "None" ]; then
+    print_error "Could not retrieve security group ID."
     exit 1
 fi
 
-echo "Found security group: $SG_ID"
+print_success "Security Group ID: $SECURITY_GROUP_ID"
 
-# Add ingress rule for current IP
-echo "Adding ingress rule for $CURRENT_IP/32..."
+# Get current IP address
+CURRENT_IP=$(curl -s https://checkip.amazonaws.com/)
+print_status "Your current IP address: $CURRENT_IP"
+
+# Check current security group rules
+print_status "Checking current security group rules..."
+aws ec2 describe-security-groups \
+    --group-ids $SECURITY_GROUP_ID \
+    --region $AWS_REGION \
+    --query 'SecurityGroups[0].IpPermissions[?FromPort==`3306`]' \
+    --output table
+
+echo ""
+print_status "Adding your IP address to the security group..."
+
+# Add your IP to the security group
 aws ec2 authorize-security-group-ingress \
-  --group-id $SG_ID \
-  --protocol tcp \
-  --port 3306 \
-  --cidr $CURRENT_IP/32
+    --group-id $SECURITY_GROUP_ID \
+    --protocol tcp \
+    --port 3306 \
+    --cidr $CURRENT_IP/32 \
+    --region $AWS_REGION
 
-if [ $? -eq 0 ]; then
-    echo "✓ Successfully added access for your IP"
-    echo
-    echo "Now try connecting to the database:"
-    echo "mysql -h healthapp-db.cg3mu4uec4gj.us-east-1.rds.amazonaws.com -P 3306 -u admin --ssl-mode=REQUIRED --password=\$(cat /tmp/db_password.txt) -e \"SELECT 1 as test_connection;\""
+print_success "Added your IP ($CURRENT_IP) to the security group!"
+
+echo ""
+print_warning "Security Note:"
+echo "   - This allows access from your current IP address only"
+echo "   - If your IP changes, you'll need to run this script again"
+echo "   - For production, consider using VPN or bastion hosts"
+echo ""
+
+# Test connection again
+print_status "Testing database connection..."
+sleep 5
+
+if ./connect-mysql.sh; then
+    print_success "Database connection successful!"
 else
-    echo "✗ Failed to add security group rule"
-    echo "You may need to run: terraform apply"
-fi
-
-echo
-echo "=== Alternative Solutions ==="
-echo "1. Use AWS Systems Manager Session Manager (recommended for production):"
-echo "   aws ssm start-session --target <instance-id>"
-echo
-echo "2. Deploy the bastion host:"
-echo "   terraform apply -target=aws_instance.bastion"
-echo
-echo "3. Update Terraform and redeploy:"
-echo "   terraform apply" 
+    print_error "Connection still failed. Please check:"
+    echo "   1. Your internet connection"
+    echo "   2. AWS credentials"
+    echo "   3. Database instance status"
+fi 
