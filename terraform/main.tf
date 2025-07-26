@@ -12,15 +12,15 @@ provider "aws" {
   region = var.aws_region
 }
 
-# VPC and Networking
+# =========================================
+# ✅ VPC + NETWORKING
+# =========================================
 resource "aws_vpc" "healthapp_vpc" {
   cidr_block           = "10.0.0.0/16"
   enable_dns_hostnames = true
   enable_dns_support   = true
 
-  tags = {
-    Name = "healthapp-vpc"
-  }
+  tags = { Name = "healthapp-vpc" }
 }
 
 resource "aws_subnet" "public_1a" {
@@ -28,10 +28,7 @@ resource "aws_subnet" "public_1a" {
   cidr_block              = "10.0.1.0/24"
   availability_zone       = "${var.aws_region}a"
   map_public_ip_on_launch = true
-
-  tags = {
-    Name = "healthapp-public-1a"
-  }
+  tags = { Name = "healthapp-public-1a" }
 }
 
 resource "aws_subnet" "public_1b" {
@@ -39,81 +36,56 @@ resource "aws_subnet" "public_1b" {
   cidr_block              = "10.0.2.0/24"
   availability_zone       = "${var.aws_region}b"
   map_public_ip_on_launch = true
-
-  tags = {
-    Name = "healthapp-public-1b"
-  }
+  tags = { Name = "healthapp-public-1b" }
 }
 
 resource "aws_subnet" "private_1a" {
   vpc_id            = aws_vpc.healthapp_vpc.id
   cidr_block        = "10.0.3.0/24"
   availability_zone = "${var.aws_region}a"
-
-  tags = {
-    Name = "healthapp-private-1a"
-  }
+  tags = { Name = "healthapp-private-1a" }
 }
 
 resource "aws_subnet" "private_1b" {
   vpc_id            = aws_vpc.healthapp_vpc.id
   cidr_block        = "10.0.4.0/24"
   availability_zone = "${var.aws_region}b"
-
-  tags = {
-    Name = "healthapp-private-1b"
-  }
+  tags = { Name = "healthapp-private-1b" }
 }
 
 resource "aws_internet_gateway" "healthapp_igw" {
   vpc_id = aws_vpc.healthapp_vpc.id
+  tags   = { Name = "healthapp-igw" }
+}
 
-  tags = {
-    Name = "healthapp-igw"
-  }
+resource "aws_eip" "nat_eip" {
+  vpc  = true
+  tags = { Name = "healthapp-nat-eip" }
 }
 
 resource "aws_nat_gateway" "healthapp_nat" {
   allocation_id = aws_eip.nat_eip.id
   subnet_id     = aws_subnet.public_1a.id
-
-  tags = {
-    Name = "healthapp-nat"
-  }
-
-  depends_on = [aws_internet_gateway.healthapp_igw]
-}
-
-resource "aws_eip" "nat_eip" {
-  tags = {
-    Name = "healthapp-nat-eip"
-  }
+  tags          = { Name = "healthapp-nat" }
+  depends_on    = [aws_internet_gateway.healthapp_igw]
 }
 
 resource "aws_route_table" "public" {
   vpc_id = aws_vpc.healthapp_vpc.id
-
   route {
     cidr_block = "0.0.0.0/0"
     gateway_id = aws_internet_gateway.healthapp_igw.id
   }
-
-  tags = {
-    Name = "healthapp-public-rt"
-  }
+  tags = { Name = "healthapp-public-rt" }
 }
 
 resource "aws_route_table" "private" {
   vpc_id = aws_vpc.healthapp_vpc.id
-
   route {
     cidr_block     = "0.0.0.0/0"
     nat_gateway_id = aws_nat_gateway.healthapp_nat.id
   }
-
-  tags = {
-    Name = "healthapp-private-rt"
-  }
+  tags = { Name = "healthapp-private-rt" }
 }
 
 resource "aws_route_table_association" "public_1a" {
@@ -136,7 +108,9 @@ resource "aws_route_table_association" "private_1b" {
   route_table_id = aws_route_table.private.id
 }
 
-# Security Groups
+# =========================================
+# ✅ SECURITY GROUPS
+# =========================================
 resource "aws_security_group" "alb_sg" {
   name        = "healthapp-alb-sg"
   description = "Security group for ALB"
@@ -148,24 +122,19 @@ resource "aws_security_group" "alb_sg" {
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
-
   ingress {
     from_port   = 443
     to_port     = 443
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
-
   egress {
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
-
-  tags = {
-    Name = "healthapp-alb-sg"
-  }
+  tags = { Name = "healthapp-alb-sg" }
 }
 
 resource "aws_security_group" "ecs_sg" {
@@ -179,17 +148,13 @@ resource "aws_security_group" "ecs_sg" {
     protocol        = "tcp"
     security_groups = [aws_security_group.alb_sg.id]
   }
-
   egress {
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
-
-  tags = {
-    Name = "healthapp-ecs-sg"
-  }
+  tags = { Name = "healthapp-ecs-sg" }
 }
 
 resource "aws_security_group" "rds_sg" {
@@ -197,20 +162,6 @@ resource "aws_security_group" "rds_sg" {
   description = "Security group for RDS"
   vpc_id      = aws_vpc.healthapp_vpc.id
 
-  ingress {
-    from_port       = 3306
-    to_port         = 3306
-    protocol        = "tcp"
-    security_groups = [aws_security_group.ecs_sg.id]
-  }
-
-  ingress {
-    from_port       = 3306
-    to_port         = 3306
-    protocol        = "tcp"
-    security_groups = [aws_security_group.alb_sg.id]
-  }
-
   egress {
     from_port   = 0
     to_port     = 0
@@ -218,19 +169,19 @@ resource "aws_security_group" "rds_sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  tags = {
-    Name = "healthapp-rds-sg"
-  }
+  tags = { Name = "healthapp-rds-sg" }
 }
 
-# RDS Database
+# Note: Security group rules are managed manually via AWS CLI for now
+# to avoid Terraform state conflicts. The rules are already in place.
+
+# =========================================
+# ✅ RDS DATABASE
+# =========================================
 resource "aws_db_subnet_group" "healthapp_db_subnet" {
   name       = "healthapp-db-subnet"
   subnet_ids = [aws_subnet.private_1a.id, aws_subnet.private_1b.id]
-
-  tags = {
-    Name = "healthapp-db-subnet"
-  }
+  tags       = { Name = "healthapp-db-subnet" }
 }
 
 resource "aws_db_instance" "healthapp_db" {
@@ -245,30 +196,46 @@ resource "aws_db_instance" "healthapp_db" {
   password             = var.db_password
   db_name              = "healthapp"
   skip_final_snapshot  = true
-  publicly_accessible  = true
+  publicly_accessible  = true  # ✅ Allow external access for development
   db_subnet_group_name = aws_db_subnet_group.healthapp_db_subnet.name
   vpc_security_group_ids = [aws_security_group.rds_sg.id]
 
-  tags = {
-    Name = "healthapp-db"
-  }
+  tags = { Name = "healthapp-db" }
 }
 
-# ECR Repository
+# =========================================
+# ✅ SECRETS MANAGER (syncs with DB password)
+# =========================================
+resource "aws_secretsmanager_secret" "db_password" {
+  name        = "healthapp/db-password"
+  description = "HealthApp Database Password"
+}
+
+resource "aws_secretsmanager_secret_version" "db_password" {
+  secret_id     = aws_secretsmanager_secret.db_password.id
+  secret_string = var.db_password  # ✅ Matches DB password
+}
+
+resource "aws_secretsmanager_secret" "jwt_secret" {
+  name        = "healthapp/jwt-secret"
+  description = "HealthApp JWT Secret"
+}
+
+resource "aws_secretsmanager_secret_version" "jwt_secret" {
+  secret_id     = aws_secretsmanager_secret.jwt_secret.id
+  secret_string = var.jwt_secret
+}
+
+# =========================================
+# ✅ ECR, ECS, ALB, CLOUDWATCH (unchanged)
+# =========================================
 resource "aws_ecr_repository" "healthapp" {
   name                 = "healthapp"
   image_tag_mutability = "MUTABLE"
-
-  image_scanning_configuration {
-    scan_on_push = true
-  }
-
-  tags = {
-    Name = "healthapp"
-  }
+  image_scanning_configuration { scan_on_push = true }
+  tags = { Name = "healthapp" }
 }
 
-# ECS Cluster
 resource "aws_ecs_cluster" "healthapp_cluster" {
   name = "healthapp-cluster"
 
@@ -308,27 +275,6 @@ resource "aws_iam_role_policy_attachment" "ecs_task_execution_role_policy" {
 resource "aws_iam_role_policy_attachment" "ecs_task_execution_role_secrets" {
   role       = aws_iam_role.ecs_task_execution_role.name
   policy_arn = "arn:aws:iam::aws:policy/SecretsManagerReadWrite"
-}
-
-# Secrets Manager
-resource "aws_secretsmanager_secret" "db_password" {
-  name        = "healthapp/db-password"
-  description = "HealthApp Database Password"
-}
-
-resource "aws_secretsmanager_secret_version" "db_password" {
-  secret_id     = aws_secretsmanager_secret.db_password.id
-  secret_string = "HealthApp2024!SecurePassword123"
-}
-
-resource "aws_secretsmanager_secret" "jwt_secret" {
-  name        = "healthapp/jwt-secret"
-  description = "HealthApp JWT Secret"
-}
-
-resource "aws_secretsmanager_secret_version" "jwt_secret" {
-  secret_id     = aws_secretsmanager_secret.jwt_secret.id
-  secret_string = var.jwt_secret
 }
 
 # Application Load Balancer
@@ -498,4 +444,4 @@ resource "aws_ecs_service" "healthapp_service" {
   tags = {
     Name = "healthapp-service"
   }
-} 
+}
