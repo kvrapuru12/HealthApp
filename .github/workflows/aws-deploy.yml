@@ -58,12 +58,65 @@ jobs:
     - name: Build with Maven
       run: mvn clean package -DskipTests
     
+    - name: Install MySQL client
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y mysql-client
+    
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v4
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws-region: ${{ env.AWS_REGION }}
+    
+    - name: Clean up AWS RDS database
+      run: |
+        echo "🧹 Cleaning up AWS RDS database..."
+        
+        # Get database password from AWS Secrets Manager
+        DB_PASSWORD=$(aws secretsmanager get-secret-value \
+          --secret-id healthapp/db-password \
+          --region ${{ env.AWS_REGION }} \
+          --query 'SecretString' \
+          --output text)
+        
+        # Get RDS endpoint
+        RDS_ENDPOINT=$(aws rds describe-db-instances \
+          --db-instance-identifier healthapp-db \
+          --region ${{ env.AWS_REGION }} \
+          --query 'DBInstances[0].Endpoint.Address' \
+          --output text)
+        
+        echo "RDS Endpoint: $RDS_ENDPOINT"
+        
+        # Create cleanup SQL script
+        cat > cleanup_aws_db.sql << 'EOF'
+        USE healthapp;
+        
+        -- Disable foreign key checks temporarily
+        SET FOREIGN_KEY_CHECKS = 0;
+        
+        -- Drop all tables
+        DROP TABLE IF EXISTS activity_entries;
+        DROP TABLE IF EXISTS food_entries;
+        DROP TABLE IF EXISTS users;
+        DROP TABLE IF EXISTS flyway_schema_history;
+        
+        -- Re-enable foreign key checks
+        SET FOREIGN_KEY_CHECKS = 1;
+        
+        -- Verify tables are dropped
+        SHOW TABLES;
+        EOF
+        
+        # Execute cleanup script
+        mysql -h $RDS_ENDPOINT -P 3306 -u admin --ssl-mode=REQUIRED --password="$DB_PASSWORD" < cleanup_aws_db.sql
+        
+        echo "✅ AWS RDS database cleaned successfully!"
+        
+        # Clean up temporary file
+        rm -f cleanup_aws_db.sql
     
     - name: Login to Amazon ECR
       id: login-ecr
