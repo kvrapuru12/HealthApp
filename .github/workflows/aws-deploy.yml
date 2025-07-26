@@ -171,7 +171,7 @@ jobs:
         # Wait for health check to pass with longer timeout
         echo "Checking application health..."
         for i in {1..30}; do
-          if curl -f -s "http://$ALB_DNS/actuator/health" > /dev/null; then
+          if curl -f -s "http://$ALB_DNS/api/actuator/health" > /dev/null; then
             echo "✅ Application is healthy!"
             break
           fi
@@ -181,7 +181,7 @@ jobs:
         
         # Run database initialization (if needed)
         echo "Running database initialization..."
-        curl -X GET "http://$ALB_DNS/actuator/health" || echo "Health check endpoint available"
+        curl -X GET "http://$ALB_DNS/api/actuator/health" || echo "Health check endpoint available"
     
     - name: Test deployment
       run: |
@@ -196,24 +196,38 @@ jobs:
         
         # Wait longer for application to be ready
         echo "Waiting for application to be fully ready..."
-        sleep 30
+        sleep 60
         
-        # Test health endpoint with retries
-        echo "Testing health endpoint: http://$ALB_DNS/actuator/health"
-        for i in {1..15}; do
-          if curl -f -s "http://$ALB_DNS/actuator/health" > /dev/null; then
+        # Check ECS service status first
+        echo "Checking ECS service status..."
+        aws ecs describe-services --cluster ${{ env.ECS_CLUSTER }} --services ${{ env.ECS_SERVICE }} --region ${{ env.AWS_REGION }} --query 'services[0].{status:status,runningCount:runningCount,desiredCount:desiredCount,pendingCount:pendingCount}' --output table
+        
+        # Test health endpoint with retries and better error handling
+        echo "Testing health endpoint: http://$ALB_DNS/api/actuator/health"
+        for i in {1..20}; do
+          echo "Attempt $i/20: Testing health endpoint..."
+          if curl -f -s "http://$ALB_DNS/api/actuator/health" > /dev/null; then
             echo "✅ Health check passed!"
             break
           fi
-          echo "Health check failed (attempt $i/15), waiting 30 seconds..."
+          echo "Health check failed (attempt $i/20), waiting 30 seconds..."
+          echo "Response details:"
+          curl -v "http://$ALB_DNS/api/actuator/health" || echo "Connection failed"
           sleep 30
         done
         
-        # Final health check
-        if ! curl -f -s "http://$ALB_DNS/actuator/health" > /dev/null; then
-          echo "❌ Health check failed after all retries"
+        # Final health check with detailed output
+        echo "Final health check..."
+        if curl -f -s "http://$ALB_DNS/api/actuator/health" > /dev/null; then
+          echo "✅ Final health check passed!"
+        else
+          echo "❌ Final health check failed"
+          echo "Response details:"
+          curl -v "http://$ALB_DNS/api/actuator/health" || echo "Connection failed"
           echo "Checking ECS service status..."
           aws ecs describe-services --cluster ${{ env.ECS_CLUSTER }} --services ${{ env.ECS_SERVICE }} --region ${{ env.AWS_REGION }} --query 'services[0].{status:status,runningCount:runningCount,desiredCount:desiredCount,pendingCount:pendingCount}' --output table
+          echo "Checking ECS task logs..."
+          aws logs tail /ecs/healthapp --since 10m || echo "Could not retrieve logs"
           exit 1
         fi
         
@@ -221,5 +235,5 @@ jobs:
         
         echo "🌐 Application URLs:"
         echo "   API Base: http://$ALB_DNS/api"
-        echo "   Swagger UI: http://$ALB_DNS/swagger-ui.html"
-        echo "   Health Check: http://$ALB_DNS/actuator/health" 
+        echo "   Swagger UI: http://$ALB_DNS/api/swagger-ui.html"
+        echo "   Health Check: http://$ALB_DNS/api/actuator/health" 
