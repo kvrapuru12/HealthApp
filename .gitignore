@@ -59,3 +59,9 @@ env.properties
 terraform/.terraform/
 terraform/.terraform.tfstate.lock.info
 terraform/*.tfstate.backup.*
+
+# Terraform state files
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
