@@ -355,14 +355,14 @@ resource "aws_lb_target_group" "healthapp_tg" {
 
   health_check {
     enabled             = true
-    healthy_threshold   = 2
-    interval            = 30
+    healthy_threshold   = 3
+    interval            = 60
     matcher             = "200"
-    path                = "/api/actuator/health"
+    path                = "/actuator/health"
     port                = "traffic-port"
     protocol            = "HTTP"
-    timeout             = 5
-    unhealthy_threshold = 2
+    timeout             = 30
+    unhealthy_threshold = 5
   }
 
   tags = {
@@ -396,8 +396,8 @@ resource "aws_ecs_task_definition" "healthapp_task" {
   family                   = "healthapp-task"
   network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
-  cpu                      = 256
-  memory                   = 512
+  cpu                      = 512
+  memory                   = 1024
   execution_role_arn       = aws_iam_role.ecs_task_execution_role.arn
 
   container_definitions = jsonencode([
@@ -422,6 +422,14 @@ resource "aws_ecs_task_definition" "healthapp_task" {
         {
           name  = "DB_USERNAME"
           value = "admin"
+        },
+        {
+          name  = "DB_NAME"
+          value = "healthapp"
+        },
+        {
+          name  = "DB_PORT"
+          value = "3306"
         }
       ]
       secrets = [
@@ -434,6 +442,13 @@ resource "aws_ecs_task_definition" "healthapp_task" {
           valueFrom = aws_secretsmanager_secret.jwt_secret.arn
         }
       ]
+      healthCheck = {
+        command     = ["CMD-SHELL", "curl -f http://localhost:8080/actuator/health || exit 1"]
+        interval    = 30
+        timeout     = 5
+        retries     = 3
+        startPeriod = 60
+      }
       logConfiguration = {
         logDriver = "awslogs"
         options = {
@@ -457,6 +472,13 @@ resource "aws_ecs_service" "healthapp_service" {
   task_definition = aws_ecs_task_definition.healthapp_task.arn
   desired_count   = 2
   launch_type     = "FARGATE"
+
+  # Health check grace period - gives containers time to start up
+  health_check_grace_period_seconds = 300
+
+  # Deployment configuration
+  deployment_maximum_percent         = 200
+  deployment_minimum_healthy_percent = 50
 
   network_configuration {
     subnets          = [aws_subnet.private_1a.id, aws_subnet.private_1b.id]
