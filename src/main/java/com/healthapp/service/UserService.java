@@ -2,6 +2,8 @@ package com.healthapp.service;
 
 import com.healthapp.entity.User;
 import com.healthapp.repository.UserRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -11,6 +13,8 @@ import java.util.Optional;
 
 @Service
 public class UserService {
+    
+    private static final Logger logger = LoggerFactory.getLogger(UserService.class);
     
     @Autowired
     private UserRepository userRepository;
@@ -35,21 +39,37 @@ public class UserService {
     }
     
     public User createUser(User user) {
-        // Check if username or email already exists
-        if (userRepository.existsByUsername(user.getUsername())) {
-            throw new RuntimeException("Username already exists");
-        }
-        if (userRepository.existsByEmail(user.getEmail())) {
-            throw new RuntimeException("Email already exists");
-        }
+        logger.info("Creating user with username: {}", user.getUsername());
         
-        // Encode password before saving
-        user.setPassword(passwordEncoder.encode(user.getPassword()));
-        
-        return userRepository.save(user);
+        try {
+            // Check if username or email already exists
+            if (userRepository.existsByUsername(user.getUsername())) {
+                logger.warn("Username already exists: {}", user.getUsername());
+                throw new RuntimeException("Username already exists");
+            }
+            if (userRepository.existsByEmail(user.getEmail())) {
+                logger.warn("Email already exists: {}", user.getEmail());
+                throw new RuntimeException("Email already exists");
+            }
+            
+            logger.info("Encoding password for user: {}", user.getUsername());
+            // Encode password before saving
+            user.setPassword(passwordEncoder.encode(user.getPassword()));
+            
+            logger.info("Saving user to database: {}", user.getUsername());
+            User savedUser = userRepository.save(user);
+            logger.info("User created successfully with ID: {}", savedUser.getId());
+            
+            return savedUser;
+        } catch (Exception e) {
+            logger.error("Error creating user: {}", e.getMessage(), e);
+            throw e;
+        }
     }
     
     public User updateUser(Long id, User userDetails) {
+        logger.info("Updating user with ID: {}", id);
+        
         return userRepository.findById(id)
                 .map(user -> {
                     user.setFirstName(userDetails.getFirstName());
