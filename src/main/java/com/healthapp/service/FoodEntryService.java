@@ -86,7 +86,7 @@ public class FoodEntryService {
         }
         
         User user = userOpt.get();
-        Integer dailyGoal = user.getDailyCalorieGoal();
+        Integer dailyGoal = user.getDailyCalorieIntakeTarget();
         if (dailyGoal == null) {
             dailyGoal = 2000; // Default daily calorie goal
         }
