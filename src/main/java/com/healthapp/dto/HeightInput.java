@@ -1,6 +1,7 @@
 package com.healthapp.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 public class HeightInput {
     
@@ -69,6 +70,7 @@ public class HeightInput {
     }
     
     // Validation method
+    @JsonIgnore
     public boolean isValid() {
         if (value == null || unit == null) {
             return false;
@@ -85,6 +87,7 @@ public class HeightInput {
     }
     
     // Get validation error message
+    @JsonIgnore
     public String getValidationErrorMessage() {
         if (value == null || unit == null) {
             return "Height value and unit are required";
