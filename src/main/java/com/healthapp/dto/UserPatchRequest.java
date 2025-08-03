@@ -3,70 +3,66 @@ package com.healthapp.dto;
 import com.healthapp.entity.User;
 import java.time.LocalDate;
 
-public class UserCreateRequest {
+public class UserPatchRequest {
     
     private String firstName;
-    
     private String lastName;
-    
     private String phoneNumber;
-    
     private String email;
-    
-    private String username;
-    
     private String password;
-    
     private LocalDate dob;
-    
     private User.Gender gender;
-    
     private User.ActivityLevel activityLevel;
-    
     private Integer dailyCalorieIntakeTarget;
-    
     private Integer dailyCalorieBurnTarget;
-    
     private Double weight;
-    
     private HeightInput height;
-    
-    private User.UserRole role;
+    private User.AccountStatus accountStatus;
     
     // Default constructor
-    public UserCreateRequest() {}
+    public UserPatchRequest() {}
     
-    // Constructor with required fields
-    public UserCreateRequest(String firstName, String email, String username, String password, LocalDate dob, 
-                           User.Gender gender, User.ActivityLevel activityLevel, User.UserRole role) {
-        this.firstName = firstName;
-        this.email = email;
-        this.username = username;
-        this.password = password;
-        this.dob = dob;
-        this.gender = gender;
-        this.activityLevel = activityLevel;
-        this.role = role;
-    }
-    
-    // Method to convert DTO to Entity
-    public User toEntity() {
-        User user = new User();
-        user.setFirstName(this.firstName);
-        user.setLastName(this.lastName);
-        user.setPhoneNumber(this.phoneNumber);
-        user.setEmail(this.email);
-        user.setUsername(this.username);
-        user.setPassword(this.password);
-        user.setDob(this.dob);
-        user.setGender(this.gender);
-        user.setActivityLevel(this.activityLevel);
-        user.setDailyCalorieIntakeTarget(this.dailyCalorieIntakeTarget);
-        user.setDailyCalorieBurnTarget(this.dailyCalorieBurnTarget);
-        user.setWeight(this.weight);
-        user.setHeight(this.height != null ? this.height.toCentimeters() : null);
-        user.setRole(this.role);
-        return user;
+    // Method to apply patch to existing user entity
+    public void applyToUser(User user) {
+        if (this.firstName != null) {
+            user.setFirstName(this.firstName);
+        }
+        if (this.lastName != null) {
+            user.setLastName(this.lastName);
+        }
+        if (this.phoneNumber != null) {
+            user.setPhoneNumber(this.phoneNumber);
+        }
+        if (this.email != null) {
+            user.setEmail(this.email);
+        }
+        if (this.password != null) {
+            user.setPassword(this.password);
+        }
+        if (this.dob != null) {
+            user.setDob(this.dob);
+        }
+        if (this.gender != null) {
+            user.setGender(this.gender);
+        }
+        if (this.activityLevel != null) {
+            user.setActivityLevel(this.activityLevel);
+        }
+        if (this.dailyCalorieIntakeTarget != null) {
+            user.setDailyCalorieIntakeTarget(this.dailyCalorieIntakeTarget);
+        }
+        if (this.dailyCalorieBurnTarget != null) {
+            user.setDailyCalorieBurnTarget(this.dailyCalorieBurnTarget);
+        }
+        if (this.weight != null) {
+            user.setWeight(this.weight);
+        }
+        if (this.height != null) {
+            user.setHeight(this.height.toCentimeters());
+        }
+        if (this.accountStatus != null) {
+            user.setAccountStatus(this.accountStatus);
+        }
     }
     
     // Getters and Setters
@@ -100,14 +96,6 @@ public class UserCreateRequest {
     
     public void setEmail(String email) {
         this.email = email;
-    }
-    
-    public String getUsername() {
-        return username;
-    }
-    
-    public void setUsername(String username) {
-        this.username = username;
     }
     
     public String getPassword() {
@@ -174,11 +162,11 @@ public class UserCreateRequest {
         this.height = height;
     }
     
-    public User.UserRole getRole() {
-        return role;
+    public User.AccountStatus getAccountStatus() {
+        return accountStatus;
     }
     
-    public void setRole(User.UserRole role) {
-        this.role = role;
+    public void setAccountStatus(User.AccountStatus accountStatus) {
+        this.accountStatus = accountStatus;
     }
 } 
