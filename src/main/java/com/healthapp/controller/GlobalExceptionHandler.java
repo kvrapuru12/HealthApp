@@ -13,24 +13,46 @@ import java.util.Map;
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<Map<String, String>> handleValidationExceptions(MethodArgumentNotValidException ex) {
-        Map<String, String> errors = new HashMap<>();
+    public ResponseEntity<Map<String, Object>> handleValidationExceptions(MethodArgumentNotValidException ex) {
+        Map<String, String> fieldErrors = new HashMap<>();
+        
+        // Collect all field errors
         ex.getBindingResult().getFieldErrors().forEach(error -> 
-            errors.put(error.getField(), error.getDefaultMessage()));
-        return ResponseEntity.badRequest().body(errors);
+            fieldErrors.put(error.getField(), error.getDefaultMessage()));
+        
+        // Collect all global errors (if any)
+        Map<String, String> globalErrors = new HashMap<>();
+        ex.getBindingResult().getGlobalErrors().forEach(error -> 
+            globalErrors.put("global", error.getDefaultMessage()));
+        
+        Map<String, Object> response = new HashMap<>();
+        response.put("error", "Validation failed");
+        response.put("message", "Please fix the following validation errors");
+        response.put("totalErrors", fieldErrors.size() + globalErrors.size());
+        response.put("fieldErrors", fieldErrors);
+        if (!globalErrors.isEmpty()) {
+            response.put("globalErrors", globalErrors);
+        }
+        response.put("timestamp", java.time.LocalDateTime.now().toString());
+        
+        return ResponseEntity.badRequest().body(response);
     }
 
     @ExceptionHandler(RuntimeException.class)
-    public ResponseEntity<Map<String, String>> handleRuntimeException(RuntimeException ex) {
-        Map<String, String> error = new HashMap<>();
-        error.put("error", ex.getMessage());
-        return ResponseEntity.badRequest().body(error);
+    public ResponseEntity<Map<String, Object>> handleRuntimeException(RuntimeException ex) {
+        Map<String, Object> response = new HashMap<>();
+        response.put("error", "Business logic error");
+        response.put("message", ex.getMessage());
+        response.put("timestamp", java.time.LocalDateTime.now().toString());
+        return ResponseEntity.badRequest().body(response);
     }
 
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<Map<String, String>> handleGenericException(Exception ex) {
-        Map<String, String> error = new HashMap<>();
-        error.put("error", "Internal server error: " + ex.getMessage());
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+    public ResponseEntity<Map<String, Object>> handleGenericException(Exception ex) {
+        Map<String, Object> response = new HashMap<>();
+        response.put("error", "Internal server error");
+        response.put("message", "An unexpected error occurred. Please try again later.");
+        response.put("timestamp", java.time.LocalDateTime.now().toString());
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
     }
 } 

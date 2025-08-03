@@ -1,88 +1,56 @@
-package com.healthapp.entity;
+package com.healthapp.dto;
 
-import jakarta.persistence.*;
-import org.springframework.data.annotation.CreatedDate;
-import org.springframework.data.annotation.LastModifiedDate;
-import org.springframework.data.jpa.domain.support.AuditingEntityListener;
-
+import com.healthapp.entity.User;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
-@Entity
-@Table(name = "users")
-@EntityListeners(AuditingEntityListener.class)
-public class User {
+public class UserResponse {
     
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    
-    @Column(name = "first_name")
     private String firstName;
-    
-    @Column(name = "last_name")
     private String lastName;
-    
-    @Column(name = "phone_number")
     private String phoneNumber;
-    
-    @Column(unique = true)
     private String email;
-    
-    @Column(unique = true)
     private String username;
-    
-    private String password;
-    
-    @Column(name = "date_of_birth")
     private LocalDate dob;
-    
-    @Enumerated(EnumType.STRING)
-    private Gender gender;
-    
-    @Enumerated(EnumType.STRING)
-    @Column(name = "activity_level")
-    private ActivityLevel activityLevel;
-    
-    @Column(name = "daily_calorie_intake_target")
+    private User.Gender gender;
+    private User.ActivityLevel activityLevel;
     private Integer dailyCalorieIntakeTarget;
-    
-    @Column(name = "daily_calorie_burn_target")
     private Integer dailyCalorieBurnTarget;
-    
-    @Column(name = "weight_kg")
     private Double weight;
-    
-    @Column(name = "height_cm")
     private Double height;
-    
-    @Enumerated(EnumType.STRING)
-    private UserRole role;
-    
-    @Enumerated(EnumType.STRING)
-    @Column(name = "account_status")
-    private AccountStatus accountStatus = AccountStatus.ACTIVE;
-    
-    @CreatedDate
-    @Column(nullable = false, updatable = false)
+    private User.UserRole role;
+    private User.AccountStatus accountStatus;
     private LocalDateTime createdAt;
-    
-    @LastModifiedDate
-    @Column(nullable = false)
     private LocalDateTime updatedAt;
     
-    // Constructors
-    public User() {}
+    // Default constructor
+    public UserResponse() {}
     
-    public User(String firstName, String email, String username, String password, LocalDate dob, Gender gender, ActivityLevel activityLevel, UserRole role) {
-        this.firstName = firstName;
-        this.email = email;
-        this.username = username;
-        this.password = password;
-        this.dob = dob;
-        this.gender = gender;
-        this.activityLevel = activityLevel;
-        this.role = role;
+    // Constructor from User entity
+    public UserResponse(User user) {
+        this.id = user.getId();
+        this.firstName = user.getFirstName();
+        this.lastName = user.getLastName();
+        this.phoneNumber = user.getPhoneNumber();
+        this.email = user.getEmail();
+        this.username = user.getUsername();
+        this.dob = user.getDob();
+        this.gender = user.getGender();
+        this.activityLevel = user.getActivityLevel();
+        this.dailyCalorieIntakeTarget = user.getDailyCalorieIntakeTarget();
+        this.dailyCalorieBurnTarget = user.getDailyCalorieBurnTarget();
+        this.weight = user.getWeight();
+        this.height = user.getHeight();
+        this.role = user.getRole();
+        this.accountStatus = user.getAccountStatus();
+        this.createdAt = user.getCreatedAt();
+        this.updatedAt = user.getUpdatedAt();
+    }
+    
+    // Static factory method
+    public static UserResponse fromUser(User user) {
+        return new UserResponse(user);
     }
     
     // Getters and Setters
@@ -134,14 +102,6 @@ public class User {
         this.username = username;
     }
     
-    public String getPassword() {
-        return password;
-    }
-    
-    public void setPassword(String password) {
-        this.password = password;
-    }
-    
     public LocalDate getDob() {
         return dob;
     }
@@ -150,19 +110,19 @@ public class User {
         this.dob = dob;
     }
     
-    public Gender getGender() {
+    public User.Gender getGender() {
         return gender;
     }
     
-    public void setGender(Gender gender) {
+    public void setGender(User.Gender gender) {
         this.gender = gender;
     }
     
-    public ActivityLevel getActivityLevel() {
+    public User.ActivityLevel getActivityLevel() {
         return activityLevel;
     }
     
-    public void setActivityLevel(ActivityLevel activityLevel) {
+    public void setActivityLevel(User.ActivityLevel activityLevel) {
         this.activityLevel = activityLevel;
     }
     
@@ -198,19 +158,19 @@ public class User {
         this.height = height;
     }
     
-    public UserRole getRole() {
+    public User.UserRole getRole() {
         return role;
     }
     
-    public void setRole(UserRole role) {
+    public void setRole(User.UserRole role) {
         this.role = role;
     }
     
-    public AccountStatus getAccountStatus() {
+    public User.AccountStatus getAccountStatus() {
         return accountStatus;
     }
     
-    public void setAccountStatus(AccountStatus accountStatus) {
+    public void setAccountStatus(User.AccountStatus accountStatus) {
         this.accountStatus = accountStatus;
     }
     
@@ -228,21 +188,5 @@ public class User {
     
     public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
-    }
-    
-    public enum Gender {
-        FEMALE, MALE, NON_BINARY, OTHER
-    }
-    
-    public enum ActivityLevel {
-        SEDENTARY, LIGHT, MODERATE, ACTIVE, VERY_ACTIVE
-    }
-    
-    public enum UserRole {
-        USER, ADMIN, COACH
-    }
-    
-    public enum AccountStatus {
-        ACTIVE, INACTIVE, DELETED
     }
 } 

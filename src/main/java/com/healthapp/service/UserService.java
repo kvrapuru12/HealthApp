@@ -103,13 +103,12 @@ public class UserService {
                     user.setLastName(userDetails.getLastName());
                     user.setEmail(userDetails.getEmail());
                     user.setPhoneNumber(userDetails.getPhoneNumber());
-                    user.setDateOfBirth(userDetails.getDateOfBirth());
+                    user.setDob(userDetails.getDob());
                     user.setGender(userDetails.getGender());
-                    user.setHeightCm(userDetails.getHeightCm());
-                    user.setWeightKg(userDetails.getWeightKg());
-                    user.setAge(userDetails.getAge());
+                    user.setHeight(userDetails.getHeight());
+                    user.setWeight(userDetails.getWeight());
                     user.setActivityLevel(userDetails.getActivityLevel());
-                    user.setDailyCalorieGoal(userDetails.getDailyCalorieGoal());
+                    user.setDailyCalorieIntakeTarget(userDetails.getDailyCalorieIntakeTarget());
                     
                     // Only update password if provided
                     if (userDetails.getPassword() != null && !userDetails.getPassword().isEmpty()) {
