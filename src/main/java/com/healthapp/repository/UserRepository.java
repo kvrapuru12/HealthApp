@@ -1,6 +1,8 @@
 package com.healthapp.repository;
 
 import com.healthapp.entity.User;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -18,4 +20,16 @@ public interface UserRepository extends JpaRepository<User, Long> {
     boolean existsByEmail(String email);
     
     Optional<User> findByUsernameOrEmail(String username, String email);
+    
+    boolean existsByEmailAndIdNot(String email, Long id);
+    
+    // Filtering methods
+    Page<User> findByAccountStatus(User.AccountStatus status, Pageable pageable);
+    
+    Page<User> findByRole(User.UserRole role, Pageable pageable);
+    
+    Page<User> findByAccountStatusAndRole(User.AccountStatus status, User.UserRole role, Pageable pageable);
+    
+    Page<User> findByFirstNameContainingIgnoreCaseOrLastNameContainingIgnoreCase(
+        String firstName, String lastName, Pageable pageable);
 } 

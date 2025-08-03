@@ -18,7 +18,9 @@ public class UserResponse {
     private Integer dailyCalorieIntakeTarget;
     private Integer dailyCalorieBurnTarget;
     private Double weight;
-    private Double height;
+    private Double height; // Stored in centimeters
+    private HeightInput heightCm;
+    private HeightInput heightFeet;
     private User.UserRole role;
     private User.AccountStatus accountStatus;
     private LocalDateTime createdAt;
@@ -42,6 +44,11 @@ public class UserResponse {
         this.dailyCalorieBurnTarget = user.getDailyCalorieBurnTarget();
         this.weight = user.getWeight();
         this.height = user.getHeight();
+        // Convert to both formats for response
+        if (user.getHeight() != null) {
+            this.heightCm = HeightInput.fromCentimeters(user.getHeight(), HeightInput.HeightUnit.CM);
+            this.heightFeet = HeightInput.fromCentimeters(user.getHeight(), HeightInput.HeightUnit.FEET);
+        }
         this.role = user.getRole();
         this.accountStatus = user.getAccountStatus();
         this.createdAt = user.getCreatedAt();
@@ -156,6 +163,22 @@ public class UserResponse {
     
     public void setHeight(Double height) {
         this.height = height;
+    }
+    
+    public HeightInput getHeightCm() {
+        return heightCm;
+    }
+    
+    public void setHeightCm(HeightInput heightCm) {
+        this.heightCm = heightCm;
+    }
+    
+    public HeightInput getHeightFeet() {
+        return heightFeet;
+    }
+    
+    public void setHeightFeet(HeightInput heightFeet) {
+        this.heightFeet = heightFeet;
     }
     
     public User.UserRole getRole() {

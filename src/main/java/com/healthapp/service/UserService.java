@@ -1,10 +1,15 @@
 package com.healthapp.service;
 
+import com.healthapp.dto.UserPatchRequest;
 import com.healthapp.entity.User;
 import com.healthapp.repository.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,6 +32,57 @@ public class UserService {
     @Transactional(readOnly = true)
     public List<User> getAllUsers() {
         return userRepository.findAll();
+    }
+    
+    @Transactional(readOnly = true)
+    public Page<User> getAllUsersPaginated(int page, int size, String sortBy, String sortDir) {
+        Sort sort = sortDir.equalsIgnoreCase(Sort.Direction.ASC.name()) 
+            ? Sort.by(sortBy).ascending() 
+            : Sort.by(sortBy).descending();
+        
+        Pageable pageable = PageRequest.of(page, size, sort);
+        return userRepository.findAll(pageable);
+    }
+    
+    @Transactional(readOnly = true)
+    public Page<User> getUsersByStatus(User.AccountStatus status, int page, int size, String sortBy, String sortDir) {
+        Sort sort = sortDir.equalsIgnoreCase(Sort.Direction.ASC.name()) 
+            ? Sort.by(sortBy).ascending() 
+            : Sort.by(sortBy).descending();
+        
+        Pageable pageable = PageRequest.of(page, size, sort);
+        return userRepository.findByAccountStatus(status, pageable);
+    }
+    
+    @Transactional(readOnly = true)
+    public Page<User> getUsersByRole(User.UserRole role, int page, int size, String sortBy, String sortDir) {
+        Sort sort = sortDir.equalsIgnoreCase(Sort.Direction.ASC.name()) 
+            ? Sort.by(sortBy).ascending() 
+            : Sort.by(sortBy).descending();
+        
+        Pageable pageable = PageRequest.of(page, size, sort);
+        return userRepository.findByRole(role, pageable);
+    }
+    
+    @Transactional(readOnly = true)
+    public Page<User> getUsersByStatusAndRole(User.AccountStatus status, User.UserRole role, int page, int size, String sortBy, String sortDir) {
+        Sort sort = sortDir.equalsIgnoreCase(Sort.Direction.ASC.name()) 
+            ? Sort.by(sortBy).ascending() 
+            : Sort.by(sortBy).descending();
+        
+        Pageable pageable = PageRequest.of(page, size, sort);
+        return userRepository.findByAccountStatusAndRole(status, role, pageable);
+    }
+    
+    @Transactional(readOnly = true)
+    public Page<User> searchUsersByName(String searchTerm, int page, int size, String sortBy, String sortDir) {
+        Sort sort = sortDir.equalsIgnoreCase(Sort.Direction.ASC.name()) 
+            ? Sort.by(sortBy).ascending() 
+            : Sort.by(sortBy).descending();
+        
+        Pageable pageable = PageRequest.of(page, size, sort);
+        return userRepository.findByFirstNameContainingIgnoreCaseOrLastNameContainingIgnoreCase(
+            searchTerm, searchTerm, pageable);
     }
     
     @Transactional(readOnly = true)
@@ -122,10 +178,40 @@ public class UserService {
     
     @Transactional
     public void deleteUser(Long id) {
-        if (!userRepository.existsById(id)) {
-            throw new RuntimeException("User not found");
+        logger.info("Attempting to delete user with ID: {}", id);
+        
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> {
+                    logger.warn("Attempted to delete non-existent user with ID: {}", id);
+                    return new RuntimeException("User not found");
+                });
+        
+        // Check if user is already deleted
+        if (user.getAccountStatus() == User.AccountStatus.DELETED) {
+            logger.warn("Attempted to delete already deleted user with ID: {}", id);
+            throw new RuntimeException("User is already deleted");
         }
-        userRepository.deleteById(id);
+        
+        // Check if user has active data that should prevent deletion
+        if (hasActiveData(user)) {
+            logger.warn("Attempted to delete user with active data, ID: {}", id);
+            throw new RuntimeException("Cannot delete user with active data. Please deactivate the account instead.");
+        }
+        
+        // Soft delete - mark as deleted instead of hard delete
+        user.setAccountStatus(User.AccountStatus.DELETED);
+        userRepository.save(user);
+        
+        logger.info("User successfully soft deleted with ID: {}", id);
+    }
+    
+    @Transactional(readOnly = true)
+    private boolean hasActiveData(User user) {
+        // Check if user has any active food entries, activity entries, etc.
+        // This is a placeholder - implement based on your business logic
+        // For now, we'll allow deletion but log it
+        logger.info("Checking active data for user ID: {}", user.getId());
+        return false; // Placeholder - implement actual logic
     }
     
     @Transactional(readOnly = true)
@@ -136,5 +222,25 @@ public class UserService {
     @Transactional(readOnly = true)
     public boolean existsByEmail(String email) {
         return userRepository.existsByEmail(email);
+    }
+    
+    @Transactional
+    public User patchUser(Long id, UserPatchRequest patchRequest) {
+        logger.info("Patching user with ID: {}", id);
+        
+        return userRepository.findById(id)
+                .map(user -> {
+                    // Apply patch changes
+                    patchRequest.applyToUser(user);
+                    
+                    // Encode password if it was updated
+                    if (patchRequest.getPassword() != null) {
+                        user.setPassword(passwordEncoder.encode(patchRequest.getPassword()));
+                    }
+                    
+                    logger.info("User patched successfully for ID: {}", id);
+                    return userRepository.save(user);
+                })
+                .orElseThrow(() -> new RuntimeException("User not found"));
     }
 } 
