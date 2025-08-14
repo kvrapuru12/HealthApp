@@ -1,37 +1,49 @@
-# GitHub Secrets Setup Guide
+# GitHub Secrets Setup for HealthApp CI/CD
 
-This guide explains how to set up the required GitHub secrets for the automated AWS deployment pipeline.
+## Overview
+
+This document explains how to set up the required GitHub secrets for the CI/CD pipeline to work properly.
 
 ## Required Secrets
 
-You need to configure the following secrets in your GitHub repository:
+### 1. AWS Credentials
 
-### 1. AWS_ACCESS_KEY_ID
-- **Description**: AWS Access Key ID for programmatic access
-- **How to get it**:
-  1. Go to AWS IAM Console
-  2. Create a new user or use existing user
-  3. Attach the required policies (see below)
-  4. Create access keys
-  5. Copy the Access Key ID
+These are essential for deploying to AWS:
 
-### 2. AWS_SECRET_ACCESS_KEY
-- **Description**: AWS Secret Access Key for programmatic access
-- **How to get it**:
-  1. Same as above - when creating access keys
-  2. Copy the Secret Access Key (only shown once)
+#### AWS_ACCESS_KEY_ID
+- **Purpose**: AWS access key for authentication
+- **Format**: AKIA... (20 characters)
+- **Permissions**: Should have ECR, ECS, and related permissions
 
-## IAM User Setup
+#### AWS_SECRET_ACCESS_KEY
+- **Purpose**: AWS secret key for authentication
+- **Format**: Secret string (40 characters)
+- **Security**: Keep this highly secure
 
-Create an IAM user with the following policies attached:
+## How to Set Up Secrets
 
-### Required Policies:
-1. **AmazonEC2ContainerRegistryPowerUser** - For ECR access
-2. **AmazonECS-FullAccess** - For ECS deployment
-3. **AmazonElasticLoadBalancingFullAccess** - For ALB operations
-4. **SecretsManagerReadWrite** - For accessing secrets
+### Step 1: Create AWS IAM User
 
-### Custom Policy (Alternative):
+1. Go to AWS IAM Console
+2. Create a new user with programmatic access
+3. Attach policies for:
+   - ECR (Elastic Container Registry)
+   - ECS (Elastic Container Service)
+   - S3 (if needed for artifacts)
+
+### Step 2: Add Secrets to GitHub
+
+1. Go to your GitHub repository
+2. Click **Settings** tab
+3. Click **Secrets and variables** → **Actions**
+4. Click **New repository secret**
+5. Add each secret:
+   - Name: `AWS_ACCESS_KEY_ID`
+   - Value: Your AWS access key
+   - Repeat for `AWS_SECRET_ACCESS_KEY`
+
+## IAM Policy Example
+
 ```json
 {
     "Version": "2012-10-17",
@@ -55,80 +67,27 @@ Create an IAM user with the following policies attached:
             "Action": [
                 "ecs:DescribeTaskDefinition",
                 "ecs:RegisterTaskDefinition",
-                "ecs:UpdateService",
-                "ecs:DescribeServices",
-                "ecs:DescribeClusters"
+                "ecs:UpdateService"
             ],
             "Resource": "*"
-        },
-        {
-            "Effect": "Allow",
-            "Action": [
-                "elasticloadbalancing:DescribeLoadBalancers"
-            ],
-            "Resource": "*"
-        },
-        {
-            "Effect": "Allow",
-            "Action": [
-                "secretsmanager:GetSecretValue"
-            ],
-            "Resource": "arn:aws:secretsmanager:us-east-1:*:secret:healthapp/*"
         }
     ]
 }
 ```
 
-## How to Add Secrets to GitHub
+## Testing the Setup
 
-1. **Go to your GitHub repository**
-2. **Click on "Settings" tab**
-3. **Click on "Secrets and variables" → "Actions"**
-4. **Click "New repository secret"**
-5. **Add each secret**:
-   - Name: `AWS_ACCESS_KEY_ID`
-   - Value: Your AWS Access Key ID
-   - Name: `AWS_SECRET_ACCESS_KEY`
-   - Value: Your AWS Secret Access Key
+After setting up secrets:
 
-## Verification
-
-After setting up the secrets:
-
-1. **Push a change to main branch**
-2. **Go to "Actions" tab in GitHub**
-3. **Check if the workflow runs successfully**
-4. **Verify deployment in AWS ECS console**
+1. Push a change to main branch
+2. Check GitHub Actions tab
+3. Verify the pipeline runs successfully
+4. Check AWS console for deployed resources
 
 ## Security Best Practices
 
-- ✅ Use IAM users with minimal required permissions
-- ✅ Rotate access keys regularly
-- ✅ Use AWS Organizations for better access control
-- ✅ Enable CloudTrail for audit logging
-- ✅ Use AWS Secrets Manager for sensitive data
-
-## Troubleshooting
-
-### Common Issues:
-
-1. **"Access Denied" errors**:
-   - Check IAM user permissions
-   - Verify access keys are correct
-   - Ensure resources exist in the specified region
-
-2. **ECR login failures**:
-   - Verify ECR repository exists
-   - Check ECR permissions
-
-3. **ECS deployment failures**:
-   - Check ECS cluster and service exist
-   - Verify task definition is valid
-   - Check security groups and networking
-
-### Debug Steps:
-
-1. Check GitHub Actions logs for detailed error messages
-2. Verify AWS resources exist in the correct region
-3. Test AWS CLI commands locally with the same credentials
-4. Check CloudWatch logs for application errors 
+- Use least privilege principle for IAM policies
+- Rotate access keys regularly
+- Monitor AWS CloudTrail for access logs
+- Never commit secrets to code
+- Use AWS Secrets Manager for production

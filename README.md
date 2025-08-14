@@ -37,12 +37,14 @@ jwt.secret=your-secret-key
 - **Users**: `/users`
 - **Food Tracking**: `/food-entries`
 - **Activity Tracking**: `/activity-entries`
+- **Mood Tracking**: `/moods` (Create, Read, Update, Delete mood entries)
 
 ## Features
 
 - User management with fitness profiles
 - Food tracking with nutritional details
 - Activity tracking and calorie burn
+- Mood tracking and emotional wellness
 - JWT authentication
 - API documentation with Swagger
 - Automated database migrations with Flyway

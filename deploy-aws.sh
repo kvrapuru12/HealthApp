@@ -1,180 +1,108 @@
 #!/bin/bash
 
 # HealthApp AWS Deployment Script
+# This script automates the deployment process to AWS
+
 set -e
 
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Configuration
-AWS_REGION="us-east-1"
-AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+AWS_REGION=${AWS_REGION:-"us-east-1"}
 ECR_REPOSITORY="healthapp"
 ECS_CLUSTER="healthapp-cluster"
 ECS_SERVICE="healthapp-service"
-IMAGE_TAG="latest"
+ECS_TASK_DEFINITION="healthapp-task"
 
-# Functions
-print_status() {
-    echo -e "${BLUE}[INFO]${NC} $1"
-}
-
-print_success() {
-    echo -e "${GREEN}[SUCCESS]${NC} $1"
-}
-
-print_warning() {
-    echo -e "${YELLOW}[WARNING]${NC} $1"
-}
-
-print_error() {
-    echo -e "${RED}[ERROR]${NC} $1"
-}
+echo -e "${GREEN}🚀 HealthApp AWS Deployment Script${NC}"
+echo "=================================="
 
 # Check prerequisites
-check_prerequisites() {
-    print_status "Checking prerequisites..."
-    
-    # Check AWS CLI
-    if ! command -v aws &> /dev/null; then
-        print_error "AWS CLI is not installed. Please install it first."
-        exit 1
-    fi
-    
-    # Check Docker
-    if ! command -v docker &> /dev/null; then
-        print_error "Docker is not installed. Please install it first."
-        exit 1
-    fi
-    
-    # Check Maven
-    if ! command -v mvn &> /dev/null; then
-        print_error "Maven is not installed. Please install it first."
-        exit 1
-    fi
-    
-    # Check AWS credentials
-    if ! aws sts get-caller-identity &> /dev/null; then
-        print_error "AWS credentials not configured. Please run 'aws configure' first."
-        exit 1
-    fi
-    
-    print_success "All prerequisites met!"
-}
+echo -e "${YELLOW}Checking prerequisites...${NC}"
 
-# Build application
-build_application() {
-    print_status "Building application with Maven..."
-    mvn clean package -DskipTests
-    print_success "Application built successfully!"
-}
+# Check if AWS CLI is installed
+if ! command -v aws &> /dev/null; then
+    echo -e "${RED}❌ AWS CLI is not installed. Please install it first.${NC}"
+    exit 1
+fi
 
-# Build and push Docker image
-build_and_push_image() {
-    print_status "Building Docker image..."
-    docker build -t $ECR_REPOSITORY:$IMAGE_TAG .
-    
-    print_status "Tagging image for ECR..."
-    docker tag $ECR_REPOSITORY:$IMAGE_TAG $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPOSITORY:$IMAGE_TAG
-    
-    print_status "Logging in to ECR..."
-    aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
-    
-    print_status "Pushing image to ECR..."
-    docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPOSITORY:$IMAGE_TAG
-    
-    print_success "Docker image pushed successfully!"
-}
+# Check if Docker is installed
+if ! command -v docker &> /dev/null; then
+    echo -e "${RED}❌ Docker is not installed. Please install it first.${NC}"
+    exit 1
+fi
 
-# Deploy to ECS
-deploy_to_ecs() {
-    print_status "Deploying to ECS..."
-    
-    # Force new deployment
-    aws ecs update-service \
-        --cluster $ECS_CLUSTER \
-        --service $ECS_SERVICE \
-        --force-new-deployment \
-        --region $AWS_REGION
-    
-    print_success "Deployment initiated!"
-    
-    # Wait for deployment to complete
-    print_status "Waiting for deployment to complete..."
-    aws ecs wait services-stable \
-        --cluster $ECS_CLUSTER \
-        --services $ECS_SERVICE \
-        --region $AWS_REGION
-    
-    print_success "Deployment completed successfully!"
-}
+# Check if Maven is installed
+if ! command -v mvn &> /dev/null; then
+    echo -e "${RED}❌ Maven is not installed. Please install it first.${NC}"
+    exit 1
+fi
 
-# Get ALB DNS name
-get_alb_dns() {
-    print_status "Getting ALB DNS name..."
-    ALB_DNS=$(aws elbv2 describe-load-balancers \
-        --names healthapp-alb \
-        --region $AWS_REGION \
-        --query 'LoadBalancers[0].DNSName' \
-        --output text)
-    
-    print_success "ALB DNS: $ALB_DNS"
-    echo $ALB_DNS
-}
+echo -e "${GREEN}✅ All prerequisites are met${NC}"
 
-# Test deployment
-test_deployment() {
-    print_status "Testing deployment..."
-    
-    ALB_DNS=$(get_alb_dns)
-    
-    # Wait for application to be ready
-    print_status "Waiting for application to be ready..."
-    sleep 60
-    
-    # Test health endpoint
-    if curl -f -s "https://$ALB_DNS/api/actuator/health" > /dev/null; then
-        print_success "Health check passed!"
-    else
-        print_error "Health check failed!"
-        exit 1
-    fi
-    
-    # Test API endpoints
-    print_status "Testing API endpoints..."
-    curl -s "https://$ALB_DNS/api/users" > /dev/null && print_success "Users endpoint working!"
-    curl -s "https://$ALB_DNS/api/swagger-ui.html" > /dev/null && print_success "Swagger UI accessible!"
-    
-    print_success "All tests passed!"
-}
+# Build the application
+echo -e "${YELLOW}Building application...${NC}"
+mvn clean package -DskipTests
+echo -e "${GREEN}✅ Application built successfully${NC}"
 
-# Main deployment function
-main() {
-    print_status "Starting HealthApp AWS deployment..."
-    
-    check_prerequisites
-    build_application
-    build_and_push_image
-    deploy_to_ecs
-    test_deployment
-    
-    ALB_DNS=$(get_alb_dns)
-    
-    print_success "🎉 Deployment completed successfully!"
-    echo ""
-    echo "🌐 Application URLs:"
-    echo "   API Base: https://$ALB_DNS/api"
-    echo "   Swagger UI: https://$ALB_DNS/api/swagger-ui.html"
-    echo "   Health Check: https://$ALB_DNS/api/actuator/health"
-    echo ""
-    echo "📊 Monitoring:"
-    echo "   ECS Console: https://console.aws.amazon.com/ecs/home?region=$AWS_REGION#/clusters/$ECS_CLUSTER"
-    echo "   CloudWatch: https://console.aws.amazon.com/cloudwatch/home?region=$AWS_REGION#logsV2:log-groups/log-group/ecs/healthapp"
-}
+# Build Docker image
+echo -e "${YELLOW}Building Docker image...${NC}"
+docker build -t healthapp .
+echo -e "${GREEN}✅ Docker image built successfully${NC}"
 
-# Run main function
-main "$@" 
+# Get ECR login token
+echo -e "${YELLOW}Logging into ECR...${NC}"
+aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $(aws sts get-caller-identity --query Account --output text).dkr.ecr.$AWS_REGION.amazonaws.com
+echo -e "${GREEN}✅ Logged into ECR successfully${NC}"
+
+# Get ECR repository URI
+ECR_URI=$(aws ecr describe-repositories --repository-names $ECR_REPOSITORY --region $AWS_REGION --query 'repositories[0].repositoryUri' --output text)
+
+if [ "$ECR_URI" = "None" ]; then
+    echo -e "${YELLOW}Creating ECR repository...${NC}"
+    aws ecr create-repository --repository-name $ECR_REPOSITORY --region $AWS_REGION
+    ECR_URI=$(aws ecr describe-repositories --repository-names $ECR_REPOSITORY --region $AWS_REGION --query 'repositories[0].repositoryUri' --output text)
+    echo -e "${GREEN}✅ ECR repository created: $ECR_URI${NC}"
+fi
+
+# Tag and push image
+echo -e "${YELLOW}Tagging and pushing image to ECR...${NC}"
+docker tag healthapp:latest $ECR_URI:latest
+docker tag healthapp:latest $ECR_URI:$(git rev-parse --short HEAD)
+docker push $ECR_URI:latest
+docker push $ECR_URI:$(git rev-parse --short HEAD)
+echo -e "${GREEN}✅ Image pushed to ECR successfully${NC}"
+
+# Update ECS service
+echo -e "${YELLOW}Updating ECS service...${NC}"
+aws ecs update-service \
+    --cluster $ECS_CLUSTER \
+    --service $ECS_SERVICE \
+    --force-new-deployment \
+    --region $AWS_REGION
+
+echo -e "${GREEN}✅ ECS service updated successfully${NC}"
+
+# Wait for service to stabilize
+echo -e "${YELLOW}Waiting for service to stabilize...${NC}"
+aws ecs wait services-stable \
+    --cluster $ECS_CLUSTER \
+    --services $ECS_SERVICE \
+    --region $AWS_REGION
+
+echo -e "${GREEN}🎉 Deployment completed successfully!${NC}"
+echo ""
+echo -e "${YELLOW}Deployment Details:${NC}"
+echo "  ECR Repository: $ECR_URI"
+echo "  ECS Cluster: $ECS_CLUSTER"
+echo "  ECS Service: $ECS_SERVICE"
+echo "  Image Tag: $(git rev-parse --short HEAD)"
+echo ""
+echo -e "${YELLOW}Next Steps:${NC}"
+echo "  1. Check ECS service health in AWS Console"
+echo "  2. Verify application is responding"
+echo "  3. Monitor CloudWatch logs for any issues"
