@@ -19,6 +19,8 @@ import java.util.Collections;
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
+    private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(JwtAuthenticationFilter.class);
+
     @Autowired
     private UserService userService;
 
@@ -44,7 +46,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         
                         // Create authentication token
                         UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-                            user, // principal
+                            userId, // principal - use userId as Long
                             null, // credentials
                             Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + role))
                         );

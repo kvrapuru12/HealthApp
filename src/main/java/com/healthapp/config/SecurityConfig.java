@@ -33,8 +33,8 @@ public class SecurityConfig {
                 .requestMatchers("/actuator/**").permitAll()
                 .requestMatchers("/health/**").permitAll() // Allow health endpoints
                 .requestMatchers("/auth/**").permitAll() // Allow authentication endpoints
-                .requestMatchers("/users/**", "/food-entries/**", "/activity-entries/**").permitAll() // Allow all endpoints for testing
-                .anyRequest().authenticated()
+                .requestMatchers("POST", "/users").permitAll() // Allow user registration (signup) - should be public
+                .anyRequest().authenticated() // All other endpoints require authentication
             );
         
         return http.build();
