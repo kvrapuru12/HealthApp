@@ -38,6 +38,9 @@ jwt.secret=your-secret-key
 - **Food Tracking**: `/food-entries`
 - **Activity Tracking**: `/activity-entries`
 - **Mood Tracking**: `/moods` (Create, Read, Update, Delete mood entries)
+- **Water Tracking**: `/water` (Create, Read, Update, Delete water consumption entries)
+- **Step Tracking**: `/steps` (Create, Read, Update, Delete step entries)
+- **Sleep Tracking**: `/sleeps` (Create, Read, Update, Delete sleep entries)
 
 ## Features
 
@@ -45,9 +48,13 @@ jwt.secret=your-secret-key
 - Food tracking with nutritional details
 - Activity tracking and calorie burn
 - Mood tracking and emotional wellness
-- JWT authentication
+- Water consumption tracking (10-5000ml range)
+- Step tracking for daily step counts
+- Sleep tracking for sleep quality
+- JWT authentication with role-based access
 - API documentation with Swagger
 - Automated database migrations with Flyway
+- Rate limiting and security measures
 
 ## Development
 
