@@ -34,7 +34,7 @@ public class SecurityConfig {
                 .requestMatchers("/health/**").permitAll() // Allow health endpoints
                 .requestMatchers("/auth/**").permitAll() // Allow authentication endpoints
                 .requestMatchers("POST", "/users").permitAll() // Allow user registration (signup) - should be public
-                .requestMatchers("/steps/**", "/sleeps/**", "/moods/**", "/water/**", "/food-entries/**", "/activity-entries/**", "/users/**").authenticated() // All health tracking and user management endpoints require authentication
+                .requestMatchers("/steps/**", "/sleeps/**", "/moods/**", "/water/**", "/weights/**", "/food-entries/**", "/activity-entries/**", "/users/**").authenticated() // All health tracking and user management endpoints require authentication
                 .anyRequest().authenticated() // All other endpoints require authentication
             );
         

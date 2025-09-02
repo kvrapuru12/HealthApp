@@ -134,7 +134,7 @@ class MoodEntryServiceTest {
         
         // Act & Assert
         assertThrows(SecurityException.class, () -> {
-            moodEntryService.createMoodEntry(testRequest, 999L, false);
+            moodEntryService.createMoodEntry(testRequest, 1L, false);
         });
     }
 }
