@@ -8,7 +8,6 @@ import com.healthapp.dto.WeightResponse;
 import com.healthapp.dto.WeightUpdateRequest;
 import com.healthapp.service.WeightEntryService;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
