@@ -8,7 +8,6 @@ import com.healthapp.dto.WeightResponse;
 import com.healthapp.dto.WeightUpdateRequest;
 import com.healthapp.service.WeightEntryService;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -25,7 +24,6 @@ import org.springframework.web.bind.annotation.*;
 
 import jakarta.validation.Valid;
 import java.time.LocalDateTime;
-import java.util.HashMap;
 import java.util.Map;
 
 @RestController
@@ -40,10 +38,7 @@ public class WeightController {
     private WeightEntryService weightEntryService;
     
     @GetMapping
-    @Operation(
-        summary = "List weight entries", 
-        description = "Get paginated weight entries with filtering options. Admin users can filter by userId query parameter."
-    )
+    @Operation(summary = "List weight entries")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "Weight entries retrieved successfully"),
         @ApiResponse(responseCode = "400", description = "Invalid request parameters"),
@@ -101,10 +96,7 @@ public class WeightController {
     }
     
     @GetMapping("/{id}")
-    @Operation(
-        summary = "Get weight entry by ID", 
-        description = "Retrieve a specific weight entry by its ID. Users can only access their own entries unless they are admin."
-    )
+    @Operation(summary = "Get weight entry by ID")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "Weight entry retrieved successfully"),
         @ApiResponse(responseCode = "404", description = "Weight entry not found"),
@@ -136,13 +128,9 @@ public class WeightController {
     
     @PostMapping
     @RateLimit(value = 10, timeUnit = "MINUTES")
-    @Operation(
-        summary = "Create weight entry", 
-        description = "Create a new weight measurement entry. Users can only create entries for themselves unless they are admin."
-    )
+    @Operation(summary = "Create weight entry")
     @ApiResponses(value = {
-        @ApiResponse(responseCode = "201", description = "Weight entry created successfully",
-                content = @Content(schema = @Schema(implementation = WeightCreateResponse.class))),
+        @ApiResponse(responseCode = "201", description = "Weight entry created successfully"),
         @ApiResponse(responseCode = "400", description = "Invalid request data"),
         @ApiResponse(responseCode = "401", description = "Unauthorized"),
         @ApiResponse(responseCode = "403", description = "Forbidden - Access denied")
@@ -169,10 +157,7 @@ public class WeightController {
     
     @PatchMapping("/{id}")
     @RateLimit(value = 10, timeUnit = "MINUTES")
-    @Operation(
-        summary = "Update weight entry", 
-        description = "Partially update a weight entry. Users can only update their own entries unless they are admin."
-    )
+    @Operation(summary = "Update weight entry")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "Weight entry updated successfully"),
         @ApiResponse(responseCode = "400", description = "Invalid request data"),
@@ -210,10 +195,7 @@ public class WeightController {
     
     @DeleteMapping("/{id}")
     @RateLimit(value = 10, timeUnit = "MINUTES")
-    @Operation(
-        summary = "Delete weight entry", 
-        description = "Soft delete a weight entry. Users can only delete their own entries unless they are admin."
-    )
+    @Operation(summary = "Delete weight entry")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "Weight entry deleted successfully"),
         @ApiResponse(responseCode = "401", description = "Unauthorized"),

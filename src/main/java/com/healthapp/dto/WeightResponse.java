@@ -7,34 +7,25 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-@Schema(description = "Response for weight entry data")
 public class WeightResponse {
     
-    @Schema(description = "Unique identifier for the weight entry", example = "431")
     private Long id;
     
-    @Schema(description = "ID of the user who logged the weight measurement", example = "12")
     private Long userId;
     
     @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss'Z'")
-    @Schema(description = "When the weight was measured", example = "2025-08-14T07:00:00Z")
     private LocalDateTime loggedAt;
     
-    @Schema(description = "Weight in kilograms", example = "62.3")
     private BigDecimal weight;
     
-    @Schema(description = "Optional note about the weight measurement", example = "Morning, post-bathroom")
     private String note;
     
-    @Schema(description = "Status of the weight entry", example = "active")
     private String status;
     
     @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss'Z'")
-    @Schema(description = "When the entry was created", example = "2025-08-14T07:01:00Z")
     private LocalDateTime createdAt;
     
     @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss'Z'")
-    @Schema(description = "When the entry was last updated", example = "2025-08-14T07:01:00Z")
     private LocalDateTime updatedAt;
     
     // Constructors

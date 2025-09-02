@@ -8,21 +8,17 @@ import org.springframework.format.annotation.DateTimeFormat;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-@Schema(description = "Request to update a weight entry")
 public class WeightUpdateRequest {
     
     @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss'Z'")
     @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
-    @Schema(description = "When the weight was measured (optional)", example = "2025-08-14T07:00:00Z")
     private LocalDateTime loggedAt;
     
     @DecimalMin(value = "30.0", message = "Weight must be at least 30 kg")
     @DecimalMax(value = "300.0", message = "Weight cannot exceed 300 kg")
-    @Schema(description = "Weight in kilograms (optional)", example = "62.0", minimum = "30.0", maximum = "300.0")
     private BigDecimal weight;
     
     @Size(max = 200, message = "Note cannot exceed 200 characters")
-    @Schema(description = "Optional note about the weight measurement", example = "Corrected after recheck", maxLength = 200)
     private String note;
     
     // Constructors

@@ -38,9 +38,6 @@ public class WeightEntryService {
     @Autowired
     private UserRepository userRepository;
     
-    /**
-     * Get weight entry by ID with proper access control
-     */
     public Optional<WeightResponse> getWeightEntryById(Long id, Long authenticatedUserId, boolean isAdmin) {
         WeightEntry weightEntry;
         if (isAdmin) {
@@ -51,10 +48,6 @@ public class WeightEntryService {
         return Optional.ofNullable(weightEntry).map(WeightResponse::new);
     }
     
-    /**
-     * Get paginated weight entries with filtering and sorting
-     * Optimized for performance with proper indexing
-     */
     public WeightPaginatedResponse getWeightEntries(Long userId, LocalDateTime from, LocalDateTime to,
                                                  Integer page, Integer limit, String sortBy, String sortDir) {
         
@@ -97,14 +90,8 @@ public class WeightEntryService {
         return new WeightPaginatedResponse(items, page, limit, weightEntriesPage.getTotalElements());
     }
     
-    /**
-     * Create a new weight entry with validation
-     * Includes duplicate checking and future timestamp validation
-     */
     public WeightCreateResponse createWeightEntry(WeightCreateRequest request, Long authenticatedUserId, boolean isAdmin) {
         try {
-            logger.info("WeightEntryService.createWeightEntry called with userId: {}, authenticatedUserId: {}, isAdmin: {}", 
-                request.getUserId(), authenticatedUserId, isAdmin);
             
             // Validate user access
             if (!isAdmin && !request.getUserId().equals(authenticatedUserId)) {
@@ -137,7 +124,6 @@ public class WeightEntryService {
             // Sync user's latest weight if this is the most recent entry
             syncUserLatestWeight(request.getUserId());
             
-            logger.info("Weight entry created successfully with ID: {}", savedEntry.getId());
             return new WeightCreateResponse(savedEntry.getId(), savedEntry.getCreatedAt());
             
         } catch (Exception e) {
@@ -146,13 +132,8 @@ public class WeightEntryService {
         }
     }
     
-    /**
-     * Update a weight entry with validation
-     */
     public Map<String, Object> updateWeightEntry(Long id, WeightUpdateRequest request, Long authenticatedUserId, boolean isAdmin) {
         try {
-            logger.info("WeightEntryService.updateWeightEntry called with id: {}, authenticatedUserId: {}, isAdmin: {}", 
-                id, authenticatedUserId, isAdmin);
             
             // Get weight entry with access control
             WeightEntry weightEntry;
@@ -198,7 +179,6 @@ public class WeightEntryService {
             response.put("message", "updated");
             response.put("updatedAt", savedEntry.getUpdatedAt());
             
-            logger.info("Weight entry updated successfully with ID: {}", savedEntry.getId());
             return response;
             
         } catch (Exception e) {
@@ -207,13 +187,8 @@ public class WeightEntryService {
         }
     }
     
-    /**
-     * Soft delete a weight entry
-     */
     public Map<String, String> deleteWeightEntry(Long id, Long authenticatedUserId, boolean isAdmin) {
         try {
-            logger.info("WeightEntryService.deleteWeightEntry called with id: {}, authenticatedUserId: {}, isAdmin: {}", 
-                id, authenticatedUserId, isAdmin);
             
             // Get weight entry with access control
             WeightEntry weightEntry;
@@ -235,7 +210,6 @@ public class WeightEntryService {
             Map<String, String> response = new HashMap<>();
             response.put("message", "deleted");
             
-            logger.info("Weight entry deleted successfully with ID: {}", id);
             return response;
             
         } catch (Exception e) {
@@ -244,10 +218,6 @@ public class WeightEntryService {
         }
     }
     
-    /**
-     * Sync user's latest weight by finding the most recent active entry
-     * and updating the user's weight field
-     */
     private void syncUserLatestWeight(Long userId) {
         try {
             // Find the most recent active weight entry for the user
@@ -259,14 +229,10 @@ public class WeightEntryService {
                     .orElseThrow(() -> new IllegalArgumentException("User not found"));
             
             if (!recentEntries.isEmpty()) {
-                // Update user's weight with the most recent entry
                 WeightEntry latestEntry = recentEntries.get(0);
                 user.setWeight(latestEntry.getWeight().doubleValue());
-                logger.info("Updated user {} weight to {} kg", userId, latestEntry.getWeight());
             } else {
-                // No active weight entries, set weight to null
                 user.setWeight(null);
-                logger.info("No active weight entries found for user {}, setting weight to null", userId);
             }
             
             userRepository.save(user);

@@ -4,19 +4,14 @@ import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.util.List;
 
-@Schema(description = "Paginated response for weight entries")
 public class WeightPaginatedResponse {
     
-    @Schema(description = "List of weight entries")
     private List<WeightResponse> items;
     
-    @Schema(description = "Current page number", example = "1")
     private Integer page;
     
-    @Schema(description = "Number of items per page", example = "20")
     private Integer limit;
     
-    @Schema(description = "Total number of weight entries", example = "5")
     private Long total;
     
     // Constructors

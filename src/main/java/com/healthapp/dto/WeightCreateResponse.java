@@ -5,14 +5,11 @@ import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.time.LocalDateTime;
 
-@Schema(description = "Response for creating a new weight entry")
 public class WeightCreateResponse {
     
-    @Schema(description = "Unique identifier for the created weight entry", example = "431")
     private Long id;
     
     @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss'Z'")
-    @Schema(description = "When the weight entry was created", example = "2025-08-14T07:01:00Z")
     private LocalDateTime createdAt;
     
     // Constructors
