@@ -18,6 +18,9 @@ public class OpenAiConfig {
 
     @Bean
     public OpenAiService openAiService() {
+        if (openAiApiKey == null || openAiApiKey.trim().isEmpty()) {
+            throw new IllegalStateException("OpenAI API key is not configured. Please set the OPENAI_API_KEY environment variable.");
+        }
         return new OpenAiService(openAiApiKey, Duration.ofSeconds(timeoutSeconds));
     }
 }
