@@ -2,7 +2,6 @@ package com.healthapp.service;
 
 import com.healthapp.dto.*;
 import com.healthapp.entity.FoodItem;
-import com.healthapp.entity.FoodLog;
 import com.healthapp.entity.User;
 import com.healthapp.repository.FoodItemRepository;
 import com.healthapp.repository.UserRepository;
@@ -12,7 +11,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
 import java.util.*;
 
 @Service
@@ -166,7 +164,7 @@ public class VoiceFoodLogService {
             
             FoodItemCreateRequest createRequest = new FoodItemCreateRequest();
             createRequest.setName(parsedData.getFoodName());
-            createRequest.setCategory("general");
+            createRequest.setCategory(parsedData.getMealType()); // Use meal type as category
             createRequest.setDefaultUnit(parsedData.getUnit());
             createRequest.setQuantityPerUnit(1.0);
             createRequest.setCaloriesPerUnit(100);
@@ -184,7 +182,7 @@ public class VoiceFoodLogService {
             // Fallback to default values
             FoodItemCreateRequest createRequest = new FoodItemCreateRequest();
             createRequest.setName(parsedData.getFoodName());
-            createRequest.setCategory("general");
+            createRequest.setCategory(parsedData.getMealType()); // Use meal type as category
             createRequest.setDefaultUnit(parsedData.getUnit());
             createRequest.setQuantityPerUnit(1.0);
             createRequest.setCaloriesPerUnit(100);
