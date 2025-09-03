@@ -28,7 +28,7 @@ public class VoiceActivityController {
 
     private static final Logger logger = LoggerFactory.getLogger(VoiceActivityController.class);
 
-    @Autowired
+    @Autowired(required = false)
     private VoiceActivityLogService voiceActivityLogService;
 
     @PostMapping("/from-voice")
@@ -39,10 +39,17 @@ public class VoiceActivityController {
         @ApiResponse(responseCode = "201", description = "Activity logged successfully"),
         @ApiResponse(responseCode = "400", description = "Invalid request data or unable to parse input"),
         @ApiResponse(responseCode = "401", description = "Unauthorized"),
-        @ApiResponse(responseCode = "403", description = "Forbidden - Access denied")
+        @ApiResponse(responseCode = "403", description = "Forbidden - Access denied"),
+        @ApiResponse(responseCode = "503", description = "AI service not available")
     })
     public ResponseEntity<?> logActivityFromVoice(@Valid @RequestBody VoiceActivityLogRequest request) {
         try {
+            // Check if AI service is available
+            if (voiceActivityLogService == null) {
+                return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                        .body(Map.of("error", "AI voice parsing service is not available. Please configure OpenAI API key."));
+            }
+
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
             Long authenticatedUserId = (Long) authentication.getPrincipal();
             boolean isAdmin = authentication.getAuthorities().stream()

@@ -43,7 +43,7 @@ public class AiVoiceParsingService {
                         6. IMPORTANT: loggedAt must be in ISO 8601 format (YYYY-MM-DDTHH:mm:ss)
                         """;
 
-    @Autowired
+    @Autowired(required = false)
     private OpenAiService openAiService;
 
     @Autowired
@@ -52,6 +52,10 @@ public class AiVoiceParsingService {
     public ParsedActivityData parseVoiceText(String voiceText) {
         try {
             logger.info("Parsing voice text: {}", voiceText);
+
+            if (openAiService == null) {
+                throw new RuntimeException("OpenAI service is not available. Please configure OpenAI API key.");
+            }
 
             ChatCompletionRequest request = ChatCompletionRequest.builder()
                     .model("gpt-3.5-turbo")

@@ -28,7 +28,7 @@ public class VoiceActivityLogService {
 
     private static final Logger logger = LoggerFactory.getLogger(VoiceActivityLogService.class);
 
-    @Autowired
+    @Autowired(required = false)
     private AiVoiceParsingService aiVoiceParsingService;
 
     @Autowired
@@ -51,6 +51,11 @@ public class VoiceActivityLogService {
 
         // Validate user access
         validateUserAccess(userId, authenticatedUserId, isAdmin);
+
+        // Check if AI service is available
+        if (aiVoiceParsingService == null) {
+            throw new RuntimeException("AI voice parsing service is not available. Please configure OpenAI API key.");
+        }
 
         // Parse voice text using AI
         AiVoiceParsingService.ParsedActivityData parsedData = aiVoiceParsingService.parseVoiceText(voiceText);
@@ -121,13 +126,14 @@ public class VoiceActivityLogService {
             return publicActivity.get();
         }
 
-                            // Create new activity
-                    logger.info("Creating new activity: {}", activityName);
-                    ActivityCreateRequest activityRequest = new ActivityCreateRequest();
-                    activityRequest.setName(activityName);
-                    activityRequest.setVisibility(Activity.Visibility.PRIVATE);
-                    // Set a default calories per minute for new activities
-                    activityRequest.setCaloriesPerMinute(new BigDecimal("3.0")); // Default moderate activity
+        // Create new activity
+        logger.info("Creating new activity: {}", activityName);
+        ActivityCreateRequest activityRequest = new ActivityCreateRequest();
+        activityRequest.setName(activityName);
+        activityRequest.setVisibility(Activity.Visibility.PRIVATE);
+        activityRequest.setCategory(determineActivityCategory(activityName));
+        // Set a default calories per minute for new activities
+        activityRequest.setCaloriesPerMinute(new BigDecimal("3.0")); // Default moderate activity
 
         ActivityCreateResponse activityResponse = activityService.createActivity(activityRequest, userId, false);
         
@@ -138,5 +144,50 @@ public class VoiceActivityLogService {
         logger.info("Created new activity with ID: {}", newActivity.getId());
 
         return newActivity;
+    }
+
+    /**
+     * Determines the appropriate category for an activity based on its name
+     */
+    private String determineActivityCategory(String activityName) {
+        String name = activityName.toLowerCase();
+        
+        // Cardio activities
+        if (name.contains("walk") || name.contains("run") || name.contains("jog") || 
+            name.contains("cycle") || name.contains("bike") || name.contains("row") ||
+            name.contains("elliptical") || name.contains("dance") || name.contains("zumba")) {
+            return "cardio";
+        }
+        
+        // Sports activities
+        if (name.contains("swim") || name.contains("tennis") || name.contains("basketball") ||
+            name.contains("soccer") || name.contains("football") || name.contains("golf") ||
+            name.contains("ski") || name.contains("badminton")) {
+            return "sports";
+        }
+        
+        // Strength training
+        if (name.contains("weight") || name.contains("strength") || name.contains("lift") ||
+            name.contains("gym") || name.contains("muscle")) {
+            return "strength";
+        }
+        
+        // Flexibility activities
+        if (name.contains("yoga") || name.contains("pilates") || name.contains("stretch")) {
+            return "flexibility";
+        }
+        
+        // Outdoor activities
+        if (name.contains("hike") || name.contains("trail") || name.contains("climb")) {
+            return "outdoor";
+        }
+        
+        // Home activities
+        if (name.contains("garden") || name.contains("clean") || name.contains("housework")) {
+            return "home";
+        }
+        
+        // Default category
+        return "general";
     }
 }

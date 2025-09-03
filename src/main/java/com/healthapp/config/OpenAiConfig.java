@@ -10,7 +10,7 @@ import java.time.Duration;
 @Configuration
 public class OpenAiConfig {
 
-    @Value("${openai.api.key}")
+    @Value("${openai.api.key:}")
     private String openAiApiKey;
 
     @Value("${openai.timeout:60}")
@@ -18,8 +18,8 @@ public class OpenAiConfig {
 
     @Bean
     public OpenAiService openAiService() {
-        if (openAiApiKey == null || openAiApiKey.trim().isEmpty()) {
-            throw new IllegalStateException("OpenAI API key is not configured. Please set the OPENAI_API_KEY environment variable.");
+        if (openAiApiKey == null || openAiApiKey.trim().isEmpty() || openAiApiKey.equals("your-openai-api-key-here")) {
+            return null; // Return null if no valid API key
         }
         return new OpenAiService(openAiApiKey, Duration.ofSeconds(timeoutSeconds));
     }
