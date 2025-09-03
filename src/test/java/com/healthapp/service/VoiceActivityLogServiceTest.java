@@ -31,7 +31,7 @@ import static org.mockito.Mockito.*;
 class VoiceActivityLogServiceTest {
 
     @Mock
-    private AiVoiceParsingService aiVoiceParsingService;
+    private AiActivityVoiceParsingService aiActivityVoiceParsingService;
 
     @Mock
     private ActivityService activityService;
@@ -54,7 +54,7 @@ class VoiceActivityLogServiceTest {
     private User testUser;
     private Activity testActivity;
     private ActivityLog testActivityLog;
-    private AiVoiceParsingService.ParsedActivityData parsedData;
+    private AiActivityVoiceParsingService.ParsedActivityData parsedData;
 
     @BeforeEach
     void setUp() {
@@ -77,7 +77,7 @@ class VoiceActivityLogServiceTest {
         testActivityLog.setLoggedAt(LocalDateTime.now());
         testActivityLog.setNote("after breakfast");
 
-        parsedData = new AiVoiceParsingService.ParsedActivityData();
+        parsedData = new AiActivityVoiceParsingService.ParsedActivityData();
         parsedData.setActivityName("Brisk walk");
         parsedData.setDurationMinutes(30);
         parsedData.setLoggedAt(LocalDateTime.now());
@@ -93,7 +93,7 @@ class VoiceActivityLogServiceTest {
         boolean isAdmin = false;
 
         when(userRepository.findById(userId)).thenReturn(Optional.of(testUser));
-        when(aiVoiceParsingService.parseVoiceText(voiceText)).thenReturn(parsedData);
+        when(aiActivityVoiceParsingService.parseVoiceText(voiceText)).thenReturn(parsedData);
         when(activityRepository.findByCreatedByAndNameAndStatus(userId, "Brisk walk", Activity.Status.ACTIVE))
                 .thenReturn(Optional.empty());
         when(activityService.createActivity(any(ActivityCreateRequest.class), eq(userId), eq(false)))
@@ -117,7 +117,7 @@ class VoiceActivityLogServiceTest {
         assertEquals(135.0, response.getActivityLog().getCaloriesBurned());
         assertEquals("after breakfast", response.getActivityLog().getNote());
 
-        verify(aiVoiceParsingService).parseVoiceText(voiceText);
+        verify(aiActivityVoiceParsingService).parseVoiceText(voiceText);
         verify(activityService).createActivity(any(ActivityCreateRequest.class), eq(userId), eq(false));
         verify(activityLogService).createActivityLog(any(ActivityLogCreateRequest.class), eq(authenticatedUserId), eq(isAdmin));
     }
@@ -131,7 +131,7 @@ class VoiceActivityLogServiceTest {
         boolean isAdmin = false;
 
         when(userRepository.findById(userId)).thenReturn(Optional.of(testUser));
-        when(aiVoiceParsingService.parseVoiceText(voiceText)).thenReturn(parsedData);
+        when(aiActivityVoiceParsingService.parseVoiceText(voiceText)).thenReturn(parsedData);
         when(activityRepository.findByCreatedByAndNameAndStatus(userId, "Brisk walk", Activity.Status.ACTIVE))
                 .thenReturn(Optional.of(testActivity));
         when(activityLogService.createActivityLog(any(ActivityLogCreateRequest.class), eq(authenticatedUserId), eq(isAdmin)))
@@ -146,7 +146,7 @@ class VoiceActivityLogServiceTest {
         assertNotNull(response);
         assertEquals("Activity logged successfully", response.getMessage());
 
-        verify(aiVoiceParsingService).parseVoiceText(voiceText);
+        verify(aiActivityVoiceParsingService).parseVoiceText(voiceText);
         verify(activityService, never()).createActivity(any(), any(), anyBoolean());
         verify(activityLogService).createActivityLog(any(ActivityLogCreateRequest.class), eq(authenticatedUserId), eq(isAdmin));
     }
@@ -166,7 +166,7 @@ class VoiceActivityLogServiceTest {
             voiceActivityLogService.processVoiceActivityLog(userId, voiceText, authenticatedUserId, isAdmin);
         });
 
-        verify(aiVoiceParsingService, never()).parseVoiceText(any());
+        verify(aiActivityVoiceParsingService, never()).parseVoiceText(any());
         verify(activityService, never()).createActivity(any(), any(), anyBoolean());
         verify(activityLogService, never()).createActivityLog(any(), any(), anyBoolean());
     }
@@ -185,7 +185,7 @@ class VoiceActivityLogServiceTest {
         });
 
         verify(userRepository, never()).findById(any());
-        verify(aiVoiceParsingService, never()).parseVoiceText(any());
+        verify(aiActivityVoiceParsingService, never()).parseVoiceText(any());
         verify(activityService, never()).createActivity(any(), any(), anyBoolean());
         verify(activityLogService, never()).createActivityLog(any(), any(), anyBoolean());
     }
@@ -203,7 +203,7 @@ class VoiceActivityLogServiceTest {
         otherUser.setUsername("otheruser");
 
         when(userRepository.findById(userId)).thenReturn(Optional.of(otherUser));
-        when(aiVoiceParsingService.parseVoiceText(voiceText)).thenReturn(parsedData);
+        when(aiActivityVoiceParsingService.parseVoiceText(voiceText)).thenReturn(parsedData);
         when(activityRepository.findByCreatedByAndNameAndStatus(userId, "Brisk walk", Activity.Status.ACTIVE))
                 .thenReturn(Optional.empty());
         when(activityService.createActivity(any(ActivityCreateRequest.class), eq(userId), eq(false)))
@@ -221,7 +221,7 @@ class VoiceActivityLogServiceTest {
         assertNotNull(response);
         assertEquals("Activity logged successfully", response.getMessage());
 
-        verify(aiVoiceParsingService).parseVoiceText(voiceText);
+        verify(aiActivityVoiceParsingService).parseVoiceText(voiceText);
         verify(activityService).createActivity(any(ActivityCreateRequest.class), eq(userId), eq(false));
         verify(activityLogService).createActivityLog(any(ActivityLogCreateRequest.class), eq(authenticatedUserId), eq(isAdmin));
     }
