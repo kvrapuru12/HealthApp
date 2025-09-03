@@ -54,4 +54,10 @@ public interface FoodItemRepository extends JpaRepository<FoodItem, Long> {
     @Query("SELECT f FROM FoodItem f WHERE f.status = 'ACTIVE' AND " +
            "(f.createdBy = :userId OR f.visibility = 'PUBLIC')")
     List<FoodItem> findAvailableFoodItems(@Param("userId") Long userId);
+    
+    // Find by name (case insensitive), status and created by
+    Optional<FoodItem> findByNameIgnoreCaseAndStatusAndCreatedBy(String name, FoodItem.FoodStatus status, Long createdBy);
+    
+    // Find by name (case insensitive), status and visibility
+    Optional<FoodItem> findByNameIgnoreCaseAndStatusAndVisibility(String name, FoodItem.FoodStatus status, FoodItem.FoodVisibility visibility);
 }
