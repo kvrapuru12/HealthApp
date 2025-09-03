@@ -29,7 +29,7 @@ public class VoiceActivityLogService {
     private static final Logger logger = LoggerFactory.getLogger(VoiceActivityLogService.class);
 
     @Autowired(required = false)
-    private AiVoiceParsingService aiVoiceParsingService;
+    private AiActivityVoiceParsingService aiActivityVoiceParsingService;
 
     @Autowired
     private ActivityService activityService;
@@ -53,12 +53,12 @@ public class VoiceActivityLogService {
         validateUserAccess(userId, authenticatedUserId, isAdmin);
 
         // Check if AI service is available
-        if (aiVoiceParsingService == null) {
+        if (aiActivityVoiceParsingService == null) {
             throw new RuntimeException("AI voice parsing service is not available. Please configure OpenAI API key.");
         }
 
         // Parse voice text using AI
-        AiVoiceParsingService.ParsedActivityData parsedData = aiVoiceParsingService.parseVoiceText(voiceText);
+        AiActivityVoiceParsingService.ParsedActivityData parsedData = aiActivityVoiceParsingService.parseVoiceText(voiceText);
 
         // Find or create activity
         Activity activity = findOrCreateActivity(parsedData.getActivityName(), userId);
