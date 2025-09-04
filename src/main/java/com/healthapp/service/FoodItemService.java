@@ -6,7 +6,7 @@ import com.healthapp.dto.FoodItemPaginatedResponse;
 import com.healthapp.dto.FoodItemResponse;
 import com.healthapp.dto.FoodItemUpdateRequest;
 import com.healthapp.entity.FoodItem;
-import com.healthapp.entity.User;
+
 import com.healthapp.repository.FoodItemRepository;
 import com.healthapp.repository.UserRepository;
 import org.slf4j.Logger;
@@ -19,7 +19,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
+
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -95,7 +95,7 @@ public class FoodItemService {
     public FoodItemCreateResponse createFoodItem(FoodItemCreateRequest request, Long authenticatedUserId) {
         try {
             // Validate user exists
-            User user = userRepository.findById(authenticatedUserId)
+            userRepository.findById(authenticatedUserId)
                     .orElseThrow(() -> new IllegalArgumentException("User not found"));
             
             // Check if food item name already exists for this user

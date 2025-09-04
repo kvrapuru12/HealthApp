@@ -6,14 +6,14 @@ import com.healthapp.dto.MoodResponse;
 import com.healthapp.service.MoodEntryService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
-import io.swagger.v3.oas.annotations.media.ExampleObject;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -32,8 +32,11 @@ public class MoodController {
     
     private static final Logger logger = LoggerFactory.getLogger(MoodController.class);
     
-    @Autowired
-    private MoodEntryService moodEntryService;
+    private final MoodEntryService moodEntryService;
+    
+    public MoodController(MoodEntryService moodEntryService) {
+        this.moodEntryService = moodEntryService;
+    }
     
     @GetMapping
     @Operation(

@@ -13,7 +13,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -31,8 +31,11 @@ public class FoodItemController {
     
     private static final Logger logger = LoggerFactory.getLogger(FoodItemController.class);
     
-    @Autowired
-    private FoodItemService foodItemService;
+    private final FoodItemService foodItemService;
+    
+    public FoodItemController(FoodItemService foodItemService) {
+        this.foodItemService = foodItemService;
+    }
     
     @GetMapping
     @Operation(summary = "List food items")

@@ -2,7 +2,7 @@ package com.healthapp.service;
 
 import com.healthapp.dto.*;
 import com.healthapp.entity.FoodItem;
-import com.healthapp.entity.User;
+
 import com.healthapp.repository.FoodItemRepository;
 import com.healthapp.repository.UserRepository;
 import org.slf4j.Logger;
@@ -11,7 +11,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.*;
+import java.util.List;
+import java.util.ArrayList;
+import java.util.Optional;
 
 @Service
 @Transactional
@@ -42,7 +44,7 @@ public class VoiceFoodLogService {
             }
             
             // Validate user exists
-            User user = userRepository.findById(authenticatedUserId)
+            userRepository.findById(authenticatedUserId)
                     .orElseThrow(() -> new IllegalArgumentException("User not found"));
             
             // Check if AI service is available
@@ -137,27 +139,6 @@ public class VoiceFoodLogService {
     
     private FoodItemCreateRequest estimateFoodMacros(AiFoodVoiceParsingService.ParsedFoodData parsedData, Long userId) {
         // Use AI to estimate macros for the food item
-        String prompt = String.format("""
-            Estimate the nutritional values for this food item. Return ONLY a JSON object with:
-            - caloriesPerUnit (integer)
-            - proteinPerUnit (double, grams)
-            - carbsPerUnit (double, grams)
-            - fatPerUnit (double, grams)
-            - fiberPerUnit (double, grams)
-            
-            Food: %s
-            Unit: %s
-            
-            Example response:
-            {
-              "caloriesPerUnit": 70,
-              "proteinPerUnit": 6.3,
-              "carbsPerUnit": 0.6,
-              "fatPerUnit": 5.3,
-              "fiberPerUnit": 0.0
-            }
-            """, parsedData.getFoodName(), parsedData.getUnit());
-        
         try {
             // For now, use default values since we don't have direct OpenAI access in this service
             // In a real implementation, you might want to call the AI service here

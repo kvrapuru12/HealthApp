@@ -7,7 +7,7 @@ import com.healthapp.dto.FoodLogResponse;
 import com.healthapp.dto.FoodLogUpdateRequest;
 import com.healthapp.entity.FoodItem;
 import com.healthapp.entity.FoodLog;
-import com.healthapp.entity.User;
+
 import com.healthapp.repository.FoodItemRepository;
 import com.healthapp.repository.FoodLogRepository;
 import com.healthapp.repository.UserRepository;
@@ -15,7 +15,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
+
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -141,7 +141,7 @@ public class FoodLogService {
             }
             
             // Validate user exists
-            User user = userRepository.findById(authenticatedUserId)
+            userRepository.findById(authenticatedUserId)
                     .orElseThrow(() -> new IllegalArgumentException("User not found"));
             
             // Validate food item exists and is accessible

@@ -2,7 +2,7 @@ package com.healthapp.service;
 
 import com.healthapp.dto.*;
 import com.healthapp.entity.MenstrualCycle;
-import com.healthapp.entity.User;
+
 import com.healthapp.repository.MenstrualCycleRepository;
 import com.healthapp.repository.UserRepository;
 import org.slf4j.Logger;
@@ -44,7 +44,7 @@ public class MenstrualCycleService {
         }
         
         // Validate user exists
-        User user = userRepository.findById(authenticatedUserId)
+        userRepository.findById(authenticatedUserId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
         
         // Validate period start date

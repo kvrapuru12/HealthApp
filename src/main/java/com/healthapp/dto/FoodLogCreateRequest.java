@@ -1,7 +1,7 @@
 package com.healthapp.dto;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
-import io.swagger.v3.oas.annotations.media.Schema;
+
 import jakarta.validation.constraints.*;
 
 import java.time.LocalDateTime;

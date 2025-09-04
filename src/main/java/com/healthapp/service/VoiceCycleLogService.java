@@ -1,7 +1,7 @@
 package com.healthapp.service;
 
 import com.healthapp.dto.*;
-import com.healthapp.entity.User;
+
 import com.healthapp.repository.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -10,7 +10,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
-import java.time.temporal.ChronoUnit;
 
 @Service
 @Transactional
@@ -35,7 +34,7 @@ public class VoiceCycleLogService {
             }
             
             // Validate user exists
-            User user = userRepository.findById(authenticatedUserId)
+            userRepository.findById(authenticatedUserId)
                     .orElseThrow(() -> new IllegalArgumentException("User not found"));
             
             // Check if AI service is available
