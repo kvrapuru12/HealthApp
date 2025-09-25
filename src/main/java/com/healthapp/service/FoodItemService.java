@@ -110,6 +110,7 @@ public class FoodItemService {
             foodItem.setCategory(request.getCategory());
             foodItem.setDefaultUnit(request.getDefaultUnit());
             foodItem.setQuantityPerUnit(request.getQuantityPerUnit());
+            foodItem.setWeightPerUnit(request.getWeightPerUnit());
             foodItem.setCaloriesPerUnit(request.getCaloriesPerUnit());
             foodItem.setProteinPerUnit(request.getProteinPerUnit());
             foodItem.setCarbsPerUnit(request.getCarbsPerUnit());

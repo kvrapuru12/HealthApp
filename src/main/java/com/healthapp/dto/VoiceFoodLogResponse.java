@@ -42,12 +42,13 @@ public class VoiceFoodLogResponse {
         private Double carbs;
         private Double fat;
         private Double fiber;
+        private String loggedAt;
         
         // Constructors
         public LoggedFoodItem() {}
         
         public LoggedFoodItem(String food, Double quantity, String mealType, 
-                             Double calories, Double protein, Double carbs, Double fat, Double fiber) {
+                             Double calories, Double protein, Double carbs, Double fat, Double fiber, String loggedAt) {
             this.food = food;
             this.quantity = quantity;
             this.mealType = mealType;
@@ -56,6 +57,7 @@ public class VoiceFoodLogResponse {
             this.carbs = carbs;
             this.fat = fat;
             this.fiber = fiber;
+            this.loggedAt = loggedAt;
         }
         
         // Getters and Setters
@@ -121,6 +123,14 @@ public class VoiceFoodLogResponse {
         
         public void setFiber(Double fiber) {
             this.fiber = fiber;
+        }
+        
+        public String getLoggedAt() {
+            return loggedAt;
+        }
+        
+        public void setLoggedAt(String loggedAt) {
+            this.loggedAt = loggedAt;
         }
     }
 }

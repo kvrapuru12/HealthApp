@@ -28,6 +28,9 @@ public class FoodItem {
     @Column(name = "quantity_per_unit")
     private Double quantityPerUnit = 100.0;
     
+    @Column(name = "weight_per_unit")
+    private Double weightPerUnit = 100.0;
+    
     @Column(name = "calories_per_unit", nullable = false)
     private Integer caloriesPerUnit;
     
@@ -108,6 +111,14 @@ public class FoodItem {
     
     public void setQuantityPerUnit(Double quantityPerUnit) {
         this.quantityPerUnit = quantityPerUnit;
+    }
+    
+    public Double getWeightPerUnit() {
+        return weightPerUnit;
+    }
+    
+    public void setWeightPerUnit(Double weightPerUnit) {
+        this.weightPerUnit = weightPerUnit;
     }
     
     public Integer getCaloriesPerUnit() {

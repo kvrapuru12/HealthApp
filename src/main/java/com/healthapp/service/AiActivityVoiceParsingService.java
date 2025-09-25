@@ -18,30 +18,35 @@ public class AiActivityVoiceParsingService {
 
     private static final Logger logger = LoggerFactory.getLogger(AiActivityVoiceParsingService.class);
     
-    private static final String SYSTEM_PROMPT = """
+    private String getSystemPrompt() {
+        String currentDateTime = LocalDateTime.now().toString();
+        return String.format("""
         You are an AI assistant that parses natural language descriptions of physical activities into structured data.
+        
+        CURRENT DATE AND TIME: %s
         
         Parse the input text and return a JSON object with the following structure:
         {
             "activityName": "string - the name of the activity",
             "durationMinutes": "number - duration in minutes",
             "loggedAt": "ISO 8601 datetime string (YYYY-MM-DDTHH:mm:ss format)",
-            "note": "string - optional additional context"
+            "note": "string - the original voice text input"
         }
         
         Rules:
         1. Extract the activity name clearly (e.g., "brisk walk", "yoga", "swimming")
-        2. Convert time references to ISO 8601 format (YYYY-MM-DDTHH:mm:ss):
+        2. Convert time references to ISO 8601 format (YYYY-MM-DDTHH:mm:ss) using the CURRENT DATE AND TIME above:
            - "this morning" → today's date at 08:00:00
            - "yesterday evening" → yesterday's date at 18:00:00
            - "last night" → yesterday's date at 21:00:00
-           - "today" → today's date at current time (use actual current time)
-           - "now" → current date and time
-        3. If no specific time is mentioned, use current time
-        4. Keep notes concise and relevant
+           - "today" → today's date at current time (use the CURRENT DATE AND TIME provided)
+           - "now" → current date and time (use the CURRENT DATE AND TIME provided)
+        3. If no specific time is mentioned, use the CURRENT DATE AND TIME provided above
+        4. ALWAYS include the original voice text input in the note field
         5. Return ONLY valid JSON, no additional text
-        6. IMPORTANT: loggedAt must be in ISO 8601 format (YYYY-MM-DDTHH:mm:ss)
-        """;
+        6. IMPORTANT: loggedAt must be in ISO 8601 format (YYYY-MM-DDTHH:mm:ss) and must use the CURRENT DATE AND TIME provided above
+        """, currentDateTime);
+    }
 
     @Autowired(required = false)
     private OpenAiService openAiService;
@@ -60,7 +65,7 @@ public class AiActivityVoiceParsingService {
             ChatCompletionRequest request = ChatCompletionRequest.builder()
                     .model("gpt-3.5-turbo")
                     .messages(List.of(
-                            new ChatMessage("system", SYSTEM_PROMPT),
+                            new ChatMessage("system", getSystemPrompt()),
                             new ChatMessage("user", voiceText)
                     ))
                     .maxTokens(500)
@@ -91,6 +96,9 @@ public class AiActivityVoiceParsingService {
             
             if (jsonNode.has("note") && !jsonNode.get("note").isNull()) {
                 data.setNote(jsonNode.get("note").asText());
+            } else {
+                // Fallback: use the original voice text as note if AI didn't provide one
+                data.setNote(voiceText);
             }
 
             logger.info("Successfully parsed activity: {}", data);

@@ -172,8 +172,14 @@ public class FoodLogService {
             // Determine unit (use food item's default if not provided)
             String unit = request.getUnit() != null ? request.getUnit() : foodItem.getDefaultUnit();
             
-            // Calculate macros
-            double scale = request.getQuantity() / foodItem.getQuantityPerUnit();
+            // Calculate macros using weight-based approach
+            // Step 1: Calculate total weight consumed
+            double totalWeightConsumed = request.getQuantity() * foodItem.getWeightPerUnit();
+            
+            // Step 2: Calculate scale factor (how many 100g portions)
+            double scale = totalWeightConsumed / 100.0;
+            
+            // Step 3: Calculate final nutrition values
             Double calories = foodItem.getCaloriesPerUnit() != null ? scale * foodItem.getCaloriesPerUnit() : null;
             Double protein = foodItem.getProteinPerUnit() != null ? scale * foodItem.getProteinPerUnit() : null;
             Double carbs = foodItem.getCarbsPerUnit() != null ? scale * foodItem.getCarbsPerUnit() : null;

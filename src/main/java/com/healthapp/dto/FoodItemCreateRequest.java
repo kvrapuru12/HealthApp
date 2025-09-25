@@ -18,6 +18,10 @@ public class FoodItemCreateRequest {
     @DecimalMax(value = "1000.0", message = "Quantity per unit cannot exceed 1000")
     private Double quantityPerUnit = 100.0;
     
+    @DecimalMin(value = "0.1", message = "Weight per unit must be at least 0.1")
+    @DecimalMax(value = "10000.0", message = "Weight per unit cannot exceed 10000")
+    private Double weightPerUnit = 100.0;
+    
     @NotNull(message = "Calories per unit is required")
     @Min(value = 1, message = "Calories per unit must be at least 1")
     @Max(value = 2000, message = "Calories per unit cannot exceed 2000")
@@ -80,6 +84,14 @@ public class FoodItemCreateRequest {
     
     public void setQuantityPerUnit(Double quantityPerUnit) {
         this.quantityPerUnit = quantityPerUnit;
+    }
+    
+    public Double getWeightPerUnit() {
+        return weightPerUnit;
+    }
+    
+    public void setWeightPerUnit(Double weightPerUnit) {
+        this.weightPerUnit = weightPerUnit;
     }
     
     public Integer getCaloriesPerUnit() {
