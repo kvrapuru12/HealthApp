@@ -129,8 +129,35 @@ jobs:
       run: |
         ALB_DNS=${{ steps.alb-dns.outputs.alb-dns }}
         echo "Testing health endpoint: http://$ALB_DNS/api/actuator/health"
-        curl -f -s "http://$ALB_DNS/api/actuator/health" || exit 1
-        echo "Health check passed!"
+        
+        # Test health endpoint with retries and better error handling
+        for i in {1..30}; do
+          echo "Attempt $i/30: Testing health endpoint..."
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "http://$ALB_DNS/api/actuator/health" || echo "000")
+          if [ "$HTTP_CODE" = "200" ]; then
+            echo "✅ Health check passed! HTTP Status: $HTTP_CODE"
+            curl -s "http://$ALB_DNS/api/actuator/health" | head -20
+            exit 0
+          fi
+          echo "Health check returned HTTP $HTTP_CODE (attempt $i/30), waiting 20 seconds..."
+          if [ $i -eq 5 ] || [ $i -eq 15 ] || [ $i -eq 25 ]; then
+            echo "Detailed response (attempt $i):"
+            curl -v "http://$ALB_DNS/api/actuator/health" 2>&1 | head -30 || echo "Connection failed"
+          fi
+          sleep 20
+        done
+        
+        # Final health check with detailed output
+        echo "❌ Health check failed after 30 attempts"
+        echo "Final attempt details:"
+        curl -v "http://$ALB_DNS/api/actuator/health" 2>&1
+        echo ""
+        echo "Checking ECS service status..."
+        aws ecs describe-services --cluster ${{ env.ECS_CLUSTER }} --services ${{ env.ECS_SERVICE }} --region ${{ env.AWS_REGION }} --query 'services[0].{status:status,runningCount:runningCount,desiredCount:desiredCount,pendingCount:pendingCount}' --output table
+        echo ""
+        echo "Checking ECS task logs (last 50 lines)..."
+        aws logs tail /ecs/healthapp --since 10m --format short | tail -50 || echo "Could not retrieve logs"
+        exit 1
         
     - name: Deployment Summary
       run: |
