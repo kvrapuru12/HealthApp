@@ -29,8 +29,8 @@ public class SecurityConfig {
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
             .authorizeHttpRequests(authz -> authz
+                .requestMatchers("/actuator/**", "/api/actuator/**").permitAll() // Allow actuator endpoints (with or without context path prefix)
                 .requestMatchers("/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
-                .requestMatchers("/actuator/**").permitAll()
                 .requestMatchers("/auth/change-password").authenticated() // Change password requires authentication (must come before /auth/**)
                 .requestMatchers("/auth/**").permitAll() // Allow login and other public auth endpoints
                 .requestMatchers("POST", "/users").permitAll() // Allow user registration (signup) - should be public

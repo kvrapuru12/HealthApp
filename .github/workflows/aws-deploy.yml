@@ -158,30 +158,45 @@ jobs:
         
         # Test health endpoint with retries and better error handling
         echo "Testing health endpoint: http://$ALB_DNS/api/actuator/health"
-        for i in {1..20}; do
-          echo "Attempt $i/20: Testing health endpoint..."
-          if curl -f -s "http://$ALB_DNS/api/actuator/health" > /dev/null; then
-            echo "✅ Health check passed!"
+        for i in {1..30}; do
+          echo "Attempt $i/30: Testing health endpoint..."
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "http://$ALB_DNS/api/actuator/health" || echo "000")
+          if [ "$HTTP_CODE" = "200" ]; then
+            echo "✅ Health check passed! HTTP Status: $HTTP_CODE"
+            curl -s "http://$ALB_DNS/api/actuator/health" | head -20
             break
           fi
-          echo "Health check failed (attempt $i/20), waiting 30 seconds..."
-          echo "Response details:"
-          curl -v "http://$ALB_DNS/api/actuator/health" || echo "Connection failed"
-          sleep 30
+          echo "Health check returned HTTP $HTTP_CODE (attempt $i/30), waiting 20 seconds..."
+          if [ $i -eq 5 ] || [ $i -eq 15 ] || [ $i -eq 25 ]; then
+            echo "Detailed response (attempt $i):"
+            curl -v "http://$ALB_DNS/api/actuator/health" 2>&1 | head -30 || echo "Connection failed"
+          fi
+          sleep 20
         done
         
         # Final health check with detailed output
         echo "Final health check..."
-        if curl -f -s "http://$ALB_DNS/api/actuator/health" > /dev/null; then
-          echo "✅ Final health check passed!"
+        HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "http://$ALB_DNS/api/actuator/health" || echo "000")
+        if [ "$HTTP_CODE" = "200" ]; then
+          echo "✅ Final health check passed! HTTP Status: $HTTP_CODE"
+          curl -s "http://$ALB_DNS/api/actuator/health"
         else
-          echo "❌ Final health check failed"
-          echo "Response details:"
-          curl -v "http://$ALB_DNS/api/actuator/health" || echo "Connection failed"
+          echo "❌ Final health check failed. HTTP Status: $HTTP_CODE"
+          echo "Full response details:"
+          curl -v "http://$ALB_DNS/api/actuator/health" 2>&1
+          echo ""
           echo "Checking ECS service status..."
-          aws ecs describe-services --cluster ${{ env.ECS_CLUSTER }} --services ${{ env.ECS_SERVICE }} --region ${{ env.AWS_REGION }} --query 'services[0].{status:status,runningCount:runningCount,desiredCount:desiredCount,pendingCount:pendingCount}' --output table
-          echo "Checking ECS task logs..."
-          aws logs tail /ecs/healthapp --since 10m || echo "Could not retrieve logs"
+          aws ecs describe-services --cluster ${{ env.ECS_CLUSTER }} --services ${{ env.ECS_SERVICE }} --region ${{ env.AWS_REGION }} --query 'services[0].{status:status,runningCount:runningCount,desiredCount:desiredCount,pendingCount:pendingCount,deployments:deployments[*].{status:status,desiredCount:desiredCount,runningCount:runningCount}}' --output table
+          echo ""
+          echo "Checking ECS task status..."
+          TASK_ARN=$(aws ecs list-tasks --cluster ${{ env.ECS_CLUSTER }} --service-name ${{ env.ECS_SERVICE }} --region ${{ env.AWS_REGION }} --query 'taskArns[0]' --output text)
+          if [ "$TASK_ARN" != "None" ] && [ -n "$TASK_ARN" ]; then
+            echo "Task ARN: $TASK_ARN"
+            aws ecs describe-tasks --cluster ${{ env.ECS_CLUSTER }} --tasks $TASK_ARN --region ${{ env.AWS_REGION }} --query 'tasks[0].{lastStatus:lastStatus,desiredStatus:desiredStatus,healthStatus:healthStatus,containers:containers[*].{name:name,lastStatus:lastStatus,healthStatus:healthStatus,reason:reason}}' --output table
+          fi
+          echo ""
+          echo "Checking ECS task logs (last 50 lines)..."
+          aws logs tail /ecs/healthapp --since 10m --format short | tail -50 || echo "Could not retrieve logs"
           exit 1
         fi
         
