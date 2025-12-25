@@ -350,10 +350,12 @@ resource "aws_ecr_lifecycle_policy" "healthapp" {
 resource "aws_ecs_cluster" "healthapp_cluster" {
   name = "healthapp-cluster"
 
-  setting {
-    name  = "containerInsights"
-    value = "enabled"
-  }
+  # Container Insights disabled for MVP cost savings (~$10-15/month)
+  # Uncomment when scaling to production
+  # setting {
+  #   name  = "containerInsights"
+  #   value = "enabled"
+  # }
 
   tags = merge(local.common_tags, {
     Name = "healthapp-cluster"
