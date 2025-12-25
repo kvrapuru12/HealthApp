@@ -521,7 +521,7 @@ resource "aws_ecs_task_definition" "healthapp_task" {
       ]
       secrets = [
         {
-          name      = "SPRING_DATASOURCE_PASSWORD"
+          name      = "DB_PASSWORD"
           valueFrom = aws_secretsmanager_secret.db_password.arn
         },
         {
