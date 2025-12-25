@@ -252,7 +252,7 @@ resource "aws_db_subnet_group" "healthapp_db_subnet" {
 resource "aws_db_instance" "healthapp_db" {
   identifier             = "healthapp-db"
   engine                 = "mysql"
-  engine_version         = "8.0.35"
+  engine_version         = "8.0.44"
   instance_class         = "db.t3.micro"
   allocated_storage      = 20
   storage_type           = "gp2"
@@ -270,8 +270,8 @@ resource "aws_db_instance" "healthapp_db" {
   backup_window           = "03:00-04:00"
   maintenance_window      = "mon:04:00-mon:05:00"
 
-  # Performance insights (optional, can be enabled for production)
-  performance_insights_enabled = var.environment == "production"
+  # Performance insights (requires db.t3.small or larger, disabled for db.t3.micro)
+  performance_insights_enabled = false
 
   # Enable deletion protection in production
   deletion_protection = var.environment == "production"
