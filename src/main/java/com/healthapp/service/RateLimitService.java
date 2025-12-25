@@ -5,6 +5,7 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 @Service
 public class RateLimitService {
@@ -28,7 +29,7 @@ public class RateLimitService {
     }
     
     private static class RequestTracker {
-        private final java.util.Queue<LocalDateTime> requests = new java.util.LinkedList<>();
+        private final ConcurrentLinkedQueue<LocalDateTime> requests = new ConcurrentLinkedQueue<>();
         
         public void addRequest(LocalDateTime time) {
             requests.offer(time);
@@ -36,7 +37,11 @@ public class RateLimitService {
         
         public void cleanOldRequests(LocalDateTime now, int timeWindowMinutes) {
             LocalDateTime cutoff = now.minusMinutes(timeWindowMinutes);
-            while (!requests.isEmpty() && requests.peek().isBefore(cutoff)) {
+            while (!requests.isEmpty()) {
+                LocalDateTime requestTime = requests.peek();
+                if (requestTime == null || !requestTime.isBefore(cutoff)) {
+                    break;
+                }
                 requests.poll();
             }
         }

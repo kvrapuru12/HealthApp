@@ -33,6 +33,16 @@ public class UserCreateRequest {
     
     private User.UserRole role;
     
+    // Target fields
+    private Double targetFat;
+    private Double targetProtein;
+    private Double targetCarbs;
+    private Double targetSleepHours;
+    private Double targetWaterLitres;
+    private Integer targetSteps;
+    private Double targetWeight;
+    private LocalDate lastPeriodDate;
+    
     // Default constructor
     public UserCreateRequest() {}
     
@@ -66,6 +76,14 @@ public class UserCreateRequest {
         user.setWeight(this.weight);
         user.setHeight(this.height != null ? this.height.toCentimeters() : null);
         user.setRole(this.role);
+        user.setTargetFat(this.targetFat);
+        user.setTargetProtein(this.targetProtein);
+        user.setTargetCarbs(this.targetCarbs);
+        user.setTargetSleepHours(this.targetSleepHours);
+        user.setTargetWaterLitres(this.targetWaterLitres);
+        user.setTargetSteps(this.targetSteps);
+        user.setTargetWeight(this.targetWeight);
+        user.setLastPeriodDate(this.lastPeriodDate);
         return user;
     }
     
@@ -180,5 +198,70 @@ public class UserCreateRequest {
     
     public void setRole(User.UserRole role) {
         this.role = role;
+    }
+    
+    // Target fields getters and setters
+    public Double getTargetFat() {
+        return targetFat;
+    }
+    
+    public void setTargetFat(Double targetFat) {
+        this.targetFat = targetFat;
+    }
+    
+    public Double getTargetProtein() {
+        return targetProtein;
+    }
+    
+    public void setTargetProtein(Double targetProtein) {
+        this.targetProtein = targetProtein;
+    }
+    
+    public Double getTargetCarbs() {
+        return targetCarbs;
+    }
+    
+    public void setTargetCarbs(Double targetCarbs) {
+        this.targetCarbs = targetCarbs;
+    }
+    
+    public Double getTargetSleepHours() {
+        return targetSleepHours;
+    }
+    
+    public void setTargetSleepHours(Double targetSleepHours) {
+        this.targetSleepHours = targetSleepHours;
+    }
+    
+    public Double getTargetWaterLitres() {
+        return targetWaterLitres;
+    }
+    
+    public void setTargetWaterLitres(Double targetWaterLitres) {
+        this.targetWaterLitres = targetWaterLitres;
+    }
+    
+    public Integer getTargetSteps() {
+        return targetSteps;
+    }
+    
+    public void setTargetSteps(Integer targetSteps) {
+        this.targetSteps = targetSteps;
+    }
+    
+    public Double getTargetWeight() {
+        return targetWeight;
+    }
+    
+    public void setTargetWeight(Double targetWeight) {
+        this.targetWeight = targetWeight;
+    }
+    
+    public LocalDate getLastPeriodDate() {
+        return lastPeriodDate;
+    }
+    
+    public void setLastPeriodDate(LocalDate lastPeriodDate) {
+        this.lastPeriodDate = lastPeriodDate;
     }
 } 

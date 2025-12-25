@@ -8,6 +8,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
@@ -40,24 +41,37 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     Long userId = Long.parseLong(parts[0]);
                     String role = parts[1];
                     
-                    // Get user from database
-                    User user = userService.getUserById(userId).orElse(null);
-                    if (user != null && user.getAccountStatus() == User.AccountStatus.ACTIVE) {
-                        
-                        // Create authentication token
-                        UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-                            userId, // principal - use userId as Long
-                            null, // credentials
-                            Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + role))
-                        );
-                        
-                        // Set authentication in context
-                        SecurityContextHolder.getContext().setAuthentication(authentication);
+                    // Check if authentication is already set (preserve it during delete operations)
+                    // This prevents clearing authentication if account becomes DELETED during request processing
+                    Authentication existingAuth = SecurityContextHolder.getContext().getAuthentication();
+                    if (existingAuth != null && existingAuth.getPrincipal() instanceof Long 
+                            && existingAuth.getPrincipal().equals(userId)) {
+                        // Authentication already set, preserve it
+                    } else {
+                        // Get user from database
+                        User user = userService.getUserById(userId).orElse(null);
+                        if (user != null && user.getAccountStatus() == User.AccountStatus.ACTIVE) {
+                            
+                            // Create authentication token
+                            UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+                                userId, // principal - use userId as Long
+                                null, // credentials
+                                Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + role))
+                            );
+                            
+                            // Set authentication in context
+                            SecurityContextHolder.getContext().setAuthentication(authentication);
+                        } else {
+                            logger.warn("JWT Filter - User not found or not ACTIVE. User: {}, Status: {}", 
+                                    user != null ? user.getId() : "null", user != null ? user.getAccountStatus() : "null");
+                        }
                     }
+                } else {
+                    logger.warn("JWT Filter - Token does not have enough parts. Parts: {}", parts.length);
                 }
             } catch (Exception e) {
                 // Token parsing failed, continue without authentication
-                logger.warn("Failed to parse JWT token: " + e.getMessage());
+                logger.error("JWT Filter - Failed to parse JWT token: {}", e.getMessage(), e);
             }
         }
         

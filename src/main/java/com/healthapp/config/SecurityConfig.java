@@ -31,9 +31,10 @@ public class SecurityConfig {
             .authorizeHttpRequests(authz -> authz
                 .requestMatchers("/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                 .requestMatchers("/actuator/**").permitAll()
-                .requestMatchers("/auth/**").permitAll() // Allow authentication endpoints
+                .requestMatchers("/auth/change-password").authenticated() // Change password requires authentication (must come before /auth/**)
+                .requestMatchers("/auth/**").permitAll() // Allow login and other public auth endpoints
                 .requestMatchers("POST", "/users").permitAll() // Allow user registration (signup) - should be public
-                .requestMatchers("/steps/**", "/sleeps/**", "/moods/**", "/water/**", "/weights/**", "/food-entries/**", "/activity-entries/**", "/activities/**", "/activity-logs/**", "/ai/**", "/users/**", "/foods/**", "/food-logs/**", "/cycles/**").authenticated() // All health tracking and user management endpoints require authentication
+                .requestMatchers("/steps/**", "/sleeps/**", "/moods/**", "/water/**", "/weights/**", "/food-entries/**", "/activity-entries/**", "/activities/**", "/activity-logs/**", "/ai/**", "/users/**", "/foods/**", "/food-logs/**", "/cycles/**", "/app-ratings/**").authenticated() // All health tracking and user management endpoints require authentication
                 .anyRequest().authenticated() // All other endpoints require authentication
             );
         

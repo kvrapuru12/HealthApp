@@ -100,58 +100,86 @@ public class UserService {
         return userRepository.findByEmail(email);
     }
     
+    @Transactional(readOnly = true)
+    public Optional<User> getUserByGoogleId(String googleId) {
+        return userRepository.findByGoogleId(googleId);
+    }
+    
+    @Transactional
+    public User findOrCreateUserByGoogleInfo(String googleId, String email, String firstName, String lastName) {
+        // First, try to find by Google ID
+        Optional<User> userOpt = getUserByGoogleId(googleId);
+        if (userOpt.isPresent()) {
+            User user = userOpt.get();
+            // Update Google ID if it wasn't set
+            if (user.getGoogleId() == null) {
+                user.setGoogleId(googleId);
+                user = userRepository.save(user);
+            }
+            return user;
+        }
+        
+        // Try to find by email (existing user might be signing in with Google for first time)
+        userOpt = getUserByEmail(email);
+        if (userOpt.isPresent()) {
+            User user = userOpt.get();
+            // Link Google ID to existing account
+            user.setGoogleId(googleId);
+            return userRepository.save(user);
+        }
+        
+        // Create new user
+        // Generate username from email (take part before @)
+        String username = email.split("@")[0];
+        // Ensure username is unique
+        String baseUsername = username;
+        int suffix = 1;
+        while (userRepository.existsByUsername(username)) {
+            username = baseUsername + suffix;
+            suffix++;
+        }
+        
+        User newUser = new User();
+        newUser.setGoogleId(googleId);
+        newUser.setEmail(email);
+        newUser.setUsername(username);
+        newUser.setFirstName(firstName != null ? firstName : "");
+        newUser.setLastName(lastName);
+        // Set a random password (won't be used for Google sign-in)
+        newUser.setPassword(passwordEncoder.encode(java.util.UUID.randomUUID().toString()));
+        newUser.setRole(User.UserRole.USER);
+        newUser.setAccountStatus(User.AccountStatus.ACTIVE);
+        
+        return userRepository.save(newUser);
+    }
+    
     @Transactional
     public User createUser(User user) {
-        logger.info("=== STARTING USER CREATION PROCESS ===");
-        logger.info("Creating user with username: {}", user.getUsername());
-        
         try {
-            logger.info("Step 1: Checking if username exists...");
             // Check if username or email already exists
             if (userRepository.existsByUsername(user.getUsername())) {
                 logger.warn("Username already exists: {}", user.getUsername());
                 throw new RuntimeException("Username already exists");
             }
             
-            logger.info("Step 2: Checking if email exists...");
             if (userRepository.existsByEmail(user.getEmail())) {
                 logger.warn("Email already exists: {}", user.getEmail());
                 throw new RuntimeException("Email already exists");
             }
             
-            logger.info("Step 3: Encoding password...");
             // Encode password before saving
             user.setPassword(passwordEncoder.encode(user.getPassword()));
             
-            logger.info("Step 4: Attempting to save user to database...");
-            logger.info("User object before save: username={}, email={}, firstName={}", 
-                       user.getUsername(), user.getEmail(), user.getFirstName());
-            
             User savedUser = userRepository.save(user);
-            
-            logger.info("Step 5: User saved successfully!");
-            logger.info("User created successfully with ID: {}", savedUser.getId());
-            logger.info("=== USER CREATION COMPLETED SUCCESSFULLY ===");
-            
             return savedUser;
         } catch (Exception e) {
-            logger.error("=== USER CREATION FAILED ===");
-            logger.error("Error type: {}", e.getClass().getSimpleName());
-            logger.error("Error message: {}", e.getMessage());
-            logger.error("Full stack trace:", e);
-            
-            // Check if it's a database connection issue
-            if (e.getMessage() != null && e.getMessage().contains("JDBC")) {
-                logger.error("This appears to be a JDBC/database connection issue");
-            }
-            
+            logger.error("User creation failed: {}", e.getMessage(), e);
             throw e;
         }
     }
     
     @Transactional
     public User updateUser(Long id, User userDetails) {
-        logger.info("Updating user with ID: {}", id);
         
         return userRepository.findById(id)
                 .map(user -> {
@@ -178,7 +206,6 @@ public class UserService {
     
     @Transactional
     public void deleteUser(Long id) {
-        logger.info("Attempting to delete user with ID: {}", id);
         
         User user = userRepository.findById(id)
                 .orElseThrow(() -> {
@@ -202,7 +229,6 @@ public class UserService {
         user.setAccountStatus(User.AccountStatus.DELETED);
         userRepository.save(user);
         
-        logger.info("User successfully soft deleted with ID: {}", id);
     }
     
     @Transactional(readOnly = true)
@@ -210,7 +236,6 @@ public class UserService {
         // Check if user has any active food entries, activity entries, etc.
         // This is a placeholder - implement based on your business logic
         // For now, we'll allow deletion but log it
-        logger.info("Checking active data for user ID: {}", user.getId());
         return false; // Placeholder - implement actual logic
     }
     
@@ -226,7 +251,6 @@ public class UserService {
     
     @Transactional
     public User patchUser(Long id, UserPatchRequest patchRequest) {
-        logger.info("Patching user with ID: {}", id);
         
         return userRepository.findById(id)
                 .map(user -> {
@@ -238,9 +262,42 @@ public class UserService {
                         user.setPassword(passwordEncoder.encode(patchRequest.getPassword()));
                     }
                     
-                    logger.info("User patched successfully for ID: {}", id);
                     return userRepository.save(user);
                 })
                 .orElseThrow(() -> new RuntimeException("User not found"));
+    }
+    
+    /**
+     * Change user password
+     * @param userId The ID of the user changing password
+     * @param currentPassword The current password for verification
+     * @param newPassword The new password to set
+     * @throws RuntimeException if user not found, current password is incorrect, or account is not active
+     */
+    @Transactional
+    public void changePassword(Long userId, String currentPassword, String newPassword) {
+        
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        
+        // Check if account is active
+        if (user.getAccountStatus() != User.AccountStatus.ACTIVE) {
+            throw new RuntimeException("Cannot change password for inactive account");
+        }
+        
+        // Verify current password
+        if (!passwordEncoder.matches(currentPassword, user.getPassword())) {
+            throw new RuntimeException("Current password is incorrect");
+        }
+        
+        // Validate new password is different from current password
+        if (passwordEncoder.matches(newPassword, user.getPassword())) {
+            throw new RuntimeException("New password must be different from current password");
+        }
+        
+        // Encode and set new password
+        user.setPassword(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+        
     }
 } 

@@ -49,6 +49,16 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> handleGenericException(Exception ex) {
+        // Log the exception with full stack trace
+        System.err.println("=== GLOBAL EXCEPTION HANDLER ===");
+        System.err.println("Exception Type: " + ex.getClass().getName());
+        System.err.println("Exception Message: " + ex.getMessage());
+        ex.printStackTrace(System.err);
+        if (ex.getCause() != null) {
+            System.err.println("Caused by: " + ex.getCause().getClass().getName() + " - " + ex.getCause().getMessage());
+            ex.getCause().printStackTrace(System.err);
+        }
+        
         Map<String, Object> response = new HashMap<>();
         response.put("error", "Internal server error");
         response.put("message", "An unexpected error occurred. Please try again later.");

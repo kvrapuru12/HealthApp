@@ -29,6 +29,9 @@ public class User {
     @Column(unique = true)
     private String email;
     
+    @Column(name = "google_id", unique = true)
+    private String googleId;
+    
     @Column(unique = true)
     private String username;
     
@@ -70,6 +73,31 @@ public class User {
     @LastModifiedDate
     @Column(nullable = false)
     private LocalDateTime updatedAt;
+    
+    // Target fields
+    @Column(name = "target_fat")
+    private Double targetFat;
+    
+    @Column(name = "target_protein")
+    private Double targetProtein;
+    
+    @Column(name = "target_carbs")
+    private Double targetCarbs;
+    
+    @Column(name = "target_sleep_hours")
+    private Double targetSleepHours;
+    
+    @Column(name = "target_water_litres")
+    private Double targetWaterLitres;
+    
+    @Column(name = "target_steps")
+    private Integer targetSteps;
+    
+    @Column(name = "target_weight")
+    private Double targetWeight;
+    
+    @Column(name = "last_period_date")
+    private LocalDate lastPeriodDate;
     
     // Constructors
     public User() {}
@@ -124,6 +152,14 @@ public class User {
     
     public void setEmail(String email) {
         this.email = email;
+    }
+    
+    public String getGoogleId() {
+        return googleId;
+    }
+    
+    public void setGoogleId(String googleId) {
+        this.googleId = googleId;
     }
     
     public String getUsername() {
@@ -228,6 +264,71 @@ public class User {
     
     public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
+    }
+    
+    // Target fields getters and setters
+    public Double getTargetFat() {
+        return targetFat;
+    }
+    
+    public void setTargetFat(Double targetFat) {
+        this.targetFat = targetFat;
+    }
+    
+    public Double getTargetProtein() {
+        return targetProtein;
+    }
+    
+    public void setTargetProtein(Double targetProtein) {
+        this.targetProtein = targetProtein;
+    }
+    
+    public Double getTargetCarbs() {
+        return targetCarbs;
+    }
+    
+    public void setTargetCarbs(Double targetCarbs) {
+        this.targetCarbs = targetCarbs;
+    }
+    
+    public Double getTargetSleepHours() {
+        return targetSleepHours;
+    }
+    
+    public void setTargetSleepHours(Double targetSleepHours) {
+        this.targetSleepHours = targetSleepHours;
+    }
+    
+    public Double getTargetWaterLitres() {
+        return targetWaterLitres;
+    }
+    
+    public void setTargetWaterLitres(Double targetWaterLitres) {
+        this.targetWaterLitres = targetWaterLitres;
+    }
+    
+    public Integer getTargetSteps() {
+        return targetSteps;
+    }
+    
+    public void setTargetSteps(Integer targetSteps) {
+        this.targetSteps = targetSteps;
+    }
+    
+    public Double getTargetWeight() {
+        return targetWeight;
+    }
+    
+    public void setTargetWeight(Double targetWeight) {
+        this.targetWeight = targetWeight;
+    }
+    
+    public LocalDate getLastPeriodDate() {
+        return lastPeriodDate;
+    }
+    
+    public void setLastPeriodDate(LocalDate lastPeriodDate) {
+        this.lastPeriodDate = lastPeriodDate;
     }
     
     public enum Gender {

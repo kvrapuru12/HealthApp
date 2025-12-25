@@ -19,6 +19,16 @@ public class UserPatchRequest {
     private HeightInput height;
     private User.AccountStatus accountStatus;
     
+    // Target fields
+    private Double targetFat;
+    private Double targetProtein;
+    private Double targetCarbs;
+    private Double targetSleepHours;
+    private Double targetWaterLitres;
+    private Integer targetSteps;
+    private Double targetWeight;
+    private LocalDate lastPeriodDate;
+    
     // Default constructor
     public UserPatchRequest() {}
     
@@ -62,6 +72,30 @@ public class UserPatchRequest {
         }
         if (this.accountStatus != null) {
             user.setAccountStatus(this.accountStatus);
+        }
+        if (this.targetFat != null) {
+            user.setTargetFat(this.targetFat);
+        }
+        if (this.targetProtein != null) {
+            user.setTargetProtein(this.targetProtein);
+        }
+        if (this.targetCarbs != null) {
+            user.setTargetCarbs(this.targetCarbs);
+        }
+        if (this.targetSleepHours != null) {
+            user.setTargetSleepHours(this.targetSleepHours);
+        }
+        if (this.targetWaterLitres != null) {
+            user.setTargetWaterLitres(this.targetWaterLitres);
+        }
+        if (this.targetSteps != null) {
+            user.setTargetSteps(this.targetSteps);
+        }
+        if (this.targetWeight != null) {
+            user.setTargetWeight(this.targetWeight);
+        }
+        if (this.lastPeriodDate != null) {
+            user.setLastPeriodDate(this.lastPeriodDate);
         }
     }
     
@@ -168,5 +202,70 @@ public class UserPatchRequest {
     
     public void setAccountStatus(User.AccountStatus accountStatus) {
         this.accountStatus = accountStatus;
+    }
+    
+    // Target fields getters and setters
+    public Double getTargetFat() {
+        return targetFat;
+    }
+    
+    public void setTargetFat(Double targetFat) {
+        this.targetFat = targetFat;
+    }
+    
+    public Double getTargetProtein() {
+        return targetProtein;
+    }
+    
+    public void setTargetProtein(Double targetProtein) {
+        this.targetProtein = targetProtein;
+    }
+    
+    public Double getTargetCarbs() {
+        return targetCarbs;
+    }
+    
+    public void setTargetCarbs(Double targetCarbs) {
+        this.targetCarbs = targetCarbs;
+    }
+    
+    public Double getTargetSleepHours() {
+        return targetSleepHours;
+    }
+    
+    public void setTargetSleepHours(Double targetSleepHours) {
+        this.targetSleepHours = targetSleepHours;
+    }
+    
+    public Double getTargetWaterLitres() {
+        return targetWaterLitres;
+    }
+    
+    public void setTargetWaterLitres(Double targetWaterLitres) {
+        this.targetWaterLitres = targetWaterLitres;
+    }
+    
+    public Integer getTargetSteps() {
+        return targetSteps;
+    }
+    
+    public void setTargetSteps(Integer targetSteps) {
+        this.targetSteps = targetSteps;
+    }
+    
+    public Double getTargetWeight() {
+        return targetWeight;
+    }
+    
+    public void setTargetWeight(Double targetWeight) {
+        this.targetWeight = targetWeight;
+    }
+    
+    public LocalDate getLastPeriodDate() {
+        return lastPeriodDate;
+    }
+    
+    public void setLastPeriodDate(LocalDate lastPeriodDate) {
+        this.lastPeriodDate = lastPeriodDate;
     }
 } 

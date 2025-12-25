@@ -22,11 +22,14 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 
 import java.util.Map;
 import java.util.HashMap;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/users")
@@ -98,7 +101,6 @@ public class UserController {
     }
     
     @GetMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN') or #id == authentication.principal.id")
     @RateLimit(value = 30, timeUnit = "MINUTES")
     @Operation(
         summary = "Get user by ID", 
@@ -132,21 +134,52 @@ public class UserController {
     })
     public ResponseEntity<?> getUserById(@PathVariable @Min(1) @Max(Long.MAX_VALUE) Long id) {
         try {
-            // Log the access attempt for audit purposes
-            logger.info("User access attempt for ID: {}", id);
+            // Manual authorization check - must happen BEFORE accessing user data
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            if (authentication == null || authentication.getPrincipal() == null) {
+                return ResponseEntity.status(403).body(Map.of(
+                    "error", "Access denied",
+                    "message", "Authentication required"
+                ));
+            }
             
-            return userService.getUserById(id)
-                    .filter(user -> {
-                        // Check if user account is active (unless admin)
-                        boolean isActive = user.getAccountStatus() == User.AccountStatus.ACTIVE;
-                        if (!isActive) {
-                            logger.warn("Attempted to access inactive user account: {}", id);
-                        }
-                        return isActive;
-                    })
-                    .map(UserResponse::fromUser)
-                    .map(ResponseEntity::ok)
-                    .orElse(ResponseEntity.notFound().build());
+            Long authenticatedUserId;
+            try {
+                authenticatedUserId = (Long) authentication.getPrincipal();
+            } catch (ClassCastException e) {
+                return ResponseEntity.status(403).body(Map.of(
+                    "error", "Access denied",
+                    "message", "Invalid authentication"
+                ));
+            }
+            
+            // Check if user is ADMIN or accessing their own profile
+            boolean isAdmin = authentication.getAuthorities().stream()
+                    .anyMatch(auth -> auth.getAuthority().equals("ROLE_ADMIN"));
+            
+            if (!isAdmin && !id.equals(authenticatedUserId)) {
+                logger.warn("Unauthorized access attempt - user {} tried to access user {}", authenticatedUserId, id);
+                return ResponseEntity.status(403).body(Map.of(
+                    "error", "Access denied",
+                    "message", "Users can only access their own profile unless they have ADMIN role"
+                ));
+            }
+            
+            
+            Optional<User> userOpt = userService.getUserById(id);
+            if (userOpt.isEmpty()) {
+                return ResponseEntity.notFound().build();
+            }
+            
+            User user = userOpt.get();
+            
+            // Check if user account is active (unless admin)
+            if (!isAdmin && user.getAccountStatus() != User.AccountStatus.ACTIVE) {
+                logger.warn("Attempted to access inactive user account: {}", id);
+                return ResponseEntity.notFound().build();
+            }
+            
+            return ResponseEntity.ok(UserResponse.fromUser(user));
                     
         } catch (IllegalArgumentException e) {
             logger.warn("Invalid user ID provided: {}", id);
@@ -342,7 +375,6 @@ public class UserController {
     }
     
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN') or #id == authentication.principal.id")
     @RateLimit(value = 5, timeUnit = "MINUTES")
     @Operation(
         summary = "Delete user account", 
@@ -402,8 +434,37 @@ public class UserController {
     })
     public ResponseEntity<?> deleteUser(@PathVariable @Min(1) @Max(Long.MAX_VALUE) Long id) {
         try {
-            // Log the deletion attempt for audit purposes
-            logger.info("User deletion attempt for ID: {}", id);
+            // Manual authorization check - must happen BEFORE any deletion
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            if (authentication == null || authentication.getPrincipal() == null) {
+                return ResponseEntity.status(403).body(Map.of(
+                    "error", "Access denied",
+                    "message", "Authentication required"
+                ));
+            }
+            
+            Long authenticatedUserId;
+            try {
+                authenticatedUserId = (Long) authentication.getPrincipal();
+            } catch (ClassCastException e) {
+                return ResponseEntity.status(403).body(Map.of(
+                    "error", "Access denied",
+                    "message", "Invalid authentication"
+                ));
+            }
+            
+            // Check if user is ADMIN or deleting their own account
+            boolean isAdmin = authentication.getAuthorities().stream()
+                    .anyMatch(auth -> auth.getAuthority().equals("ROLE_ADMIN"));
+            
+            if (!isAdmin && !id.equals(authenticatedUserId)) {
+                logger.warn("Unauthorized deletion attempt - user {} tried to delete user {}", authenticatedUserId, id);
+                return ResponseEntity.status(403).body(Map.of(
+                    "error", "Access denied",
+                    "message", "Users can only delete their own account unless they have ADMIN role"
+                ));
+            }
+            
             
             // Check if user exists and is active before deletion
             User user = userService.getUserById(id)
@@ -419,14 +480,26 @@ public class UserController {
                 ));
             }
             
+            // Capture response data before deletion (to avoid issues with deleted account authentication)
+            String timestamp = java.time.LocalDateTime.now().toString();
+            Long userIdToReturn = id;
+            
+            // Capture authentication before deletion to preserve it in SecurityContext
+            // This prevents Spring Security from rejecting the response after account is deleted
+            Authentication savedAuth = SecurityContextHolder.getContext().getAuthentication();
+            
             // Perform the deletion
             userService.deleteUser(id);
             
-            // Return success response
+            // Re-set the authentication to ensure SecurityContext remains valid for response
+            // This prevents 403 after deletion commits
+            SecurityContextHolder.getContext().setAuthentication(savedAuth);
+            
+            // Return success response (using captured values)
             return ResponseEntity.ok(Map.of(
                 "message", "User account deleted successfully",
-                "userId", id,
-                "timestamp", java.time.LocalDateTime.now().toString()
+                "userId", userIdToReturn,
+                "timestamp", timestamp
             ));
             
         } catch (IllegalArgumentException e) {

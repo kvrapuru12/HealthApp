@@ -26,6 +26,16 @@ public class UserResponse {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     
+    // Target fields
+    private Double targetFat;
+    private Double targetProtein;
+    private Double targetCarbs;
+    private Double targetSleepHours;
+    private Double targetWaterLitres;
+    private Integer targetSteps;
+    private Double targetWeight;
+    private LocalDate lastPeriodDate;
+    
     // Default constructor
     public UserResponse() {}
     
@@ -53,6 +63,14 @@ public class UserResponse {
         this.accountStatus = user.getAccountStatus();
         this.createdAt = user.getCreatedAt();
         this.updatedAt = user.getUpdatedAt();
+        this.targetFat = user.getTargetFat();
+        this.targetProtein = user.getTargetProtein();
+        this.targetCarbs = user.getTargetCarbs();
+        this.targetSleepHours = user.getTargetSleepHours();
+        this.targetWaterLitres = user.getTargetWaterLitres();
+        this.targetSteps = user.getTargetSteps();
+        this.targetWeight = user.getTargetWeight();
+        this.lastPeriodDate = user.getLastPeriodDate();
     }
     
     // Static factory method
@@ -211,5 +229,70 @@ public class UserResponse {
     
     public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
+    }
+    
+    // Target fields getters and setters
+    public Double getTargetFat() {
+        return targetFat;
+    }
+    
+    public void setTargetFat(Double targetFat) {
+        this.targetFat = targetFat;
+    }
+    
+    public Double getTargetProtein() {
+        return targetProtein;
+    }
+    
+    public void setTargetProtein(Double targetProtein) {
+        this.targetProtein = targetProtein;
+    }
+    
+    public Double getTargetCarbs() {
+        return targetCarbs;
+    }
+    
+    public void setTargetCarbs(Double targetCarbs) {
+        this.targetCarbs = targetCarbs;
+    }
+    
+    public Double getTargetSleepHours() {
+        return targetSleepHours;
+    }
+    
+    public void setTargetSleepHours(Double targetSleepHours) {
+        this.targetSleepHours = targetSleepHours;
+    }
+    
+    public Double getTargetWaterLitres() {
+        return targetWaterLitres;
+    }
+    
+    public void setTargetWaterLitres(Double targetWaterLitres) {
+        this.targetWaterLitres = targetWaterLitres;
+    }
+    
+    public Integer getTargetSteps() {
+        return targetSteps;
+    }
+    
+    public void setTargetSteps(Integer targetSteps) {
+        this.targetSteps = targetSteps;
+    }
+    
+    public Double getTargetWeight() {
+        return targetWeight;
+    }
+    
+    public void setTargetWeight(Double targetWeight) {
+        this.targetWeight = targetWeight;
+    }
+    
+    public LocalDate getLastPeriodDate() {
+        return lastPeriodDate;
+    }
+    
+    public void setLastPeriodDate(LocalDate lastPeriodDate) {
+        this.lastPeriodDate = lastPeriodDate;
     }
 } 
