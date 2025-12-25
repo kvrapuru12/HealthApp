@@ -1,0 +1,14 @@
+# Example Terraform Variables
+# Copy this file to terraform.tfvars and fill in your values
+# DO NOT commit terraform.tfvars to version control if it contains real secrets
+
+aws_region = "us-east-1"
+db_password = "CHANGE_ME_SECURE_PASSWORD"
+jwt_secret = "CHANGE_ME_JWT_SECRET"
+environment = "production"  # or "staging" or "development"
+
+# Optional variables
+# ecs_desired_count = 2
+# enable_rds_backups = true
+# rds_backup_retention_days = 7
+

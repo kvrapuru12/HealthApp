@@ -69,44 +69,15 @@ mvn test
 mvn spring-boot:run
 ```
 
-## CI/CD Pipeline
+## Deployment
 
-### Automated Deployment
+For AWS deployment, CI/CD setup, and infrastructure configuration, see **[DEPLOYMENT.md](DEPLOYMENT.md)**.
 
-The application has a complete CI/CD pipeline that automatically:
-
-1. **Tests** - Runs all unit tests
-2. **Builds** - Creates JAR file and Docker image
-3. **Deploys** - Pushes to ECR and updates ECS
-4. **Migrates** - Runs database migrations automatically
-5. **Tests** - Verifies deployment health
-
-### Trigger Deployment
-
-Simply push to the main branch:
-```bash
-git push origin main
-```
-
-### Setup Required
-
-1. **AWS Infrastructure**: Follow `AWS_DEPLOYMENT.md`
-2. **GitHub Secrets**: Follow `GITHUB_SECRETS_SETUP.md`
-
-## AWS Deployment
-
-For production deployment to AWS:
-
-1. **Setup AWS Infrastructure**: Follow `AWS_DEPLOYMENT.md`
-2. **Configure GitHub Secrets**: Follow `GITHUB_SECRETS_SETUP.md`
-3. **Deploy**: Push to main branch or run `./deploy-aws.sh`
-
-**AWS Architecture**:
-- ECS Fargate (containerized)
-- RDS MySQL (database)
-- Application Load Balancer
-- CloudWatch (monitoring)
-- Flyway (database migrations)
+**Quick Overview:**
+- Complete Terraform infrastructure setup
+- Automated CI/CD pipeline via GitHub Actions
+- Deploys automatically on push to main branch
+- Includes monitoring, security, and scaling guidance
 
 ## Project Structure
 
