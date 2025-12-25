@@ -11,7 +11,7 @@ EXPOSE 8080
 
 # Add health check with better timeout and retry settings
 HEALTHCHECK --interval=30s --timeout=15s --start-period=120s --retries=5 \
-  CMD curl -f http://localhost:8080/api/health/simple || exit 1
+  CMD curl -f http://localhost:8080/api/actuator/health || exit 1
 
 # Add JVM options for better performance and stability
 ENTRYPOINT ["java", "-Xms512m", "-Xmx1024m", "-XX:+UseG1GC", "-XX:+UseContainerSupport", "-jar", "app.jar"] 

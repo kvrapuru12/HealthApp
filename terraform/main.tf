@@ -444,7 +444,7 @@ resource "aws_lb_target_group" "healthapp_tg" {
     healthy_threshold   = 3
     interval            = 60
     matcher             = "200"
-    path                = "/actuator/health"
+    path                = "/api/actuator/health"
     port                = "traffic-port"
     protocol            = "HTTP"
     timeout             = 30
