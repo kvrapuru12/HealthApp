@@ -9,6 +9,7 @@ public class LoginResponse {
     private String email;
     private String role;
     private String gender;
+    private Boolean profileComplete;
     private String message;
     
     // Default constructor
@@ -95,5 +96,13 @@ public class LoginResponse {
     
     public void setEmail(String email) {
         this.email = email;
+    }
+    
+    public Boolean getProfileComplete() {
+        return profileComplete;
+    }
+    
+    public void setProfileComplete(Boolean profileComplete) {
+        this.profileComplete = profileComplete;
     }
 } 

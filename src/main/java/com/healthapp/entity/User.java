@@ -331,6 +331,14 @@ public class User {
         this.lastPeriodDate = lastPeriodDate;
     }
     
+    /**
+     * Check if user profile is complete (has all required fields for app functionality)
+     * Required fields: gender, date_of_birth
+     */
+    public boolean isProfileComplete() {
+        return dob != null && gender != null;
+    }
+    
     public enum Gender {
         FEMALE, MALE, NON_BINARY, OTHER
     }

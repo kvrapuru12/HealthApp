@@ -79,6 +79,7 @@ public class AuthController {
             response.setEmail(user.getEmail());
             response.setRole(user.getRole().name());
             response.setGender(user.getGender() != null ? user.getGender().name() : null);
+            response.setProfileComplete(user.isProfileComplete());
             response.setMessage("Login successful");
             
             return ResponseEntity.ok(response);
@@ -152,6 +153,7 @@ public class AuthController {
             response.setEmail(user.getEmail());
             response.setRole(user.getRole().name());
             response.setGender(user.getGender() != null ? user.getGender().name() : null);
+            response.setProfileComplete(user.isProfileComplete());
             response.setMessage("Login successful");
             
             return ResponseEntity.ok(response);
