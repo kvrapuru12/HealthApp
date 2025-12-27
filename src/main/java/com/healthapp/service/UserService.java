@@ -149,6 +149,8 @@ public class UserService {
         newUser.setPassword(passwordEncoder.encode(java.util.UUID.randomUUID().toString()));
         newUser.setRole(User.UserRole.USER);
         newUser.setAccountStatus(User.AccountStatus.ACTIVE);
+        // Set default activity level (required field - user can update later)
+        newUser.setActivityLevel(User.ActivityLevel.MODERATE);
         
         return userRepository.save(newUser);
     }

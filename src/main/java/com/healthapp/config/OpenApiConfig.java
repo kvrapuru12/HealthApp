@@ -8,16 +8,41 @@ import io.swagger.v3.oas.models.servers.Server;
 import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.security.SecurityScheme;
 import io.swagger.v3.oas.models.security.SecurityRequirement;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Configuration
 public class OpenApiConfig {
     
+    @Value("${server.servlet.context-path:/api}")
+    private String contextPath;
+    
     @Bean
     public OpenAPI customOpenAPI() {
+        List<Server> servers = new ArrayList<>();
+        
+        // Always include localhost for development
+        servers.add(new Server()
+            .url("http://localhost:8080" + contextPath)
+            .description("Local Development Server"));
+        
+        // Add production server if running in AWS
+        String awsAlbUrl = System.getenv("AWS_ALB_URL");
+        if (awsAlbUrl != null && !awsAlbUrl.isEmpty()) {
+            servers.add(new Server()
+                .url(awsAlbUrl + contextPath)
+                .description("Production Server (AWS)"));
+        } else {
+            // Default production URL (can be overridden via AWS_ALB_URL env var)
+            servers.add(new Server()
+                .url("http://healthapp-alb-1571435665.us-east-1.elb.amazonaws.com" + contextPath)
+                .description("Production Server (AWS)"));
+        }
+        
         return new OpenAPI()
             .info(new Info()
                 .title("HealthApp API")
@@ -29,14 +54,7 @@ public class OpenApiConfig {
                 .license(new License()
                     .name("MIT License")
                     .url("https://opensource.org/licenses/MIT")))
-            .servers(List.of(
-                new Server()
-                    .url("http://localhost:8080/api")
-                    .description("Local Development Server"),
-                new Server()
-                    .url("https://api.healthapp.com/api")
-                    .description("Production Server")
-            ))
+            .servers(servers)
             .components(new Components()
                 .addSecuritySchemes("bearerAuth", new SecurityScheme()
                     .type(SecurityScheme.Type.HTTP)
