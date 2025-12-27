@@ -35,6 +35,7 @@ public class UserResponse {
     private Integer targetSteps;
     private Double targetWeight;
     private LocalDate lastPeriodDate;
+    private Boolean profileComplete;
     
     // Default constructor
     public UserResponse() {}
@@ -71,6 +72,7 @@ public class UserResponse {
         this.targetSteps = user.getTargetSteps();
         this.targetWeight = user.getTargetWeight();
         this.lastPeriodDate = user.getLastPeriodDate();
+        this.profileComplete = user.isProfileComplete();
     }
     
     // Static factory method
@@ -294,5 +296,13 @@ public class UserResponse {
     
     public void setLastPeriodDate(LocalDate lastPeriodDate) {
         this.lastPeriodDate = lastPeriodDate;
+    }
+    
+    public Boolean getProfileComplete() {
+        return profileComplete;
+    }
+    
+    public void setProfileComplete(Boolean profileComplete) {
+        this.profileComplete = profileComplete;
     }
 } 
