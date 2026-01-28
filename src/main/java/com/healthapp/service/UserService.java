@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.regex.Pattern;
 
 @Service
 @Transactional
@@ -129,14 +130,18 @@ public class UserService {
         }
         
         // Create new user
-        // Generate username from email (take part before @)
-        String username = email.split("@")[0];
-        // Ensure username is unique
-        String baseUsername = username;
+        // Generate username from email: take part before @, normalize to alphanumeric + underscore only
+        String localPart = email != null ? email.split("@")[0] : "";
+        String baseUsername = normalizeUsernameFromEmailLocalPart(localPart);
+        // Ensure username is unique (base truncated to 16 so base + suffix fits in 20 chars)
+        String username = baseUsername;
         int suffix = 1;
         while (userRepository.existsByUsername(username)) {
             username = baseUsername + suffix;
             suffix++;
+        }
+        if (username.length() > 20) {
+            username = username.substring(0, 20);
         }
         
         User newUser = new User();
@@ -153,6 +158,24 @@ public class UserService {
         newUser.setActivityLevel(User.ActivityLevel.MODERATE);
         
         return userRepository.save(newUser);
+    }
+    
+    /**
+     * Normalize email local part (part before @) to a username that only contains
+     * alphanumeric characters and underscores, matching DB constraint chk_username.
+     * Truncated to 16 chars so that base + numeric suffix fits in username length 20.
+     */
+    private static final Pattern USERNAME_ALLOWED = Pattern.compile("[^a-zA-Z0-9_]");
+    
+    private String normalizeUsernameFromEmailLocalPart(String localPart) {
+        if (localPart == null) {
+            localPart = "";
+        }
+        String normalized = USERNAME_ALLOWED.matcher(localPart.trim().toLowerCase()).replaceAll("");
+        if (normalized.isEmpty()) {
+            normalized = "user" + java.util.UUID.randomUUID().toString().replace("-", "").substring(0, 6);
+        }
+        return normalized.length() > 16 ? normalized.substring(0, 16) : normalized;
     }
     
     @Transactional
