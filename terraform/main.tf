@@ -30,6 +30,8 @@ provider "aws" {
   }
 }
 
+data "aws_caller_identity" "current" {}
+
 # Use locals for repeated values
 locals {
   common_tags = {
@@ -394,6 +396,33 @@ resource "aws_iam_role_policy_attachment" "ecs_task_execution_role_secrets" {
   policy_arn = "arn:aws:iam::aws:policy/SecretsManagerReadWrite"
 }
 
+# SSM Parameter Store access - required for OPENAI_API_KEY and other SSM parameters
+resource "aws_iam_role_policy" "ecs_task_execution_role_ssm" {
+  name = "ecs-task-execution-ssm-parameters"
+  role = aws_iam_role.ecs_task_execution_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect   = "Allow"
+        Action   = "ssm:GetParameters"
+        Resource = "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter/*"
+      },
+      {
+        Effect   = "Allow"
+        Action   = "kms:Decrypt"
+        Resource = "*"
+        Condition = {
+          StringEquals = {
+            "kms:ViaService" = "ssm.${var.aws_region}.amazonaws.com"
+          }
+        }
+      }
+    ]
+  })
+}
+
 # IAM Task Role (for application code running in containers)
 resource "aws_iam_role" "ecs_task_role" {
   name = "ecsTaskRole"
@@ -529,6 +558,10 @@ resource "aws_ecs_task_definition" "healthapp_task" {
         {
           name      = "JWT_SECRET"
           valueFrom = aws_secretsmanager_secret.jwt_secret.arn
+        },
+        {
+          name      = "OPENAI_API_KEY"
+          valueFrom = "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter/healthapp/openai-api-key"
         }
       ]
       healthCheck = {
