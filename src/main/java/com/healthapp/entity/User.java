@@ -32,6 +32,9 @@ public class User {
     @Column(name = "google_id", unique = true)
     private String googleId;
     
+    @Column(name = "apple_id", unique = true)
+    private String appleId;
+    
     @Column(unique = true)
     private String username;
     
@@ -160,6 +163,14 @@ public class User {
     
     public void setGoogleId(String googleId) {
         this.googleId = googleId;
+    }
+    
+    public String getAppleId() {
+        return appleId;
+    }
+    
+    public void setAppleId(String appleId) {
+        this.appleId = appleId;
     }
     
     public String getUsername() {

@@ -7,6 +7,14 @@ db_password = "CHANGE_ME_SECURE_PASSWORD"
 jwt_secret = "CHANGE_ME_JWT_SECRET"
 environment = "production"  # or "staging" or "development"
 
+# Apple Sign In (set at least iOS; Bundle ID)
+apple_client_id_ios = "com.prod.thanafit"
+# Optional fallback (often same as iOS Bundle ID if you only support iOS)
+apple_client_id = "com.prod.thanafit"
+# Optional (only if you support Apple Sign In on Android/Web)
+# apple_client_id_android = ""
+# apple_client_id_web = ""
+
 # MVP Cost Optimizations (uncomment to reduce costs)
 # ecs_desired_count = 1  # Reduced from 2 for MVP (saves ~$18/month)
 # rds_backup_retention_days = 1  # Reduced from 7 for MVP (saves ~$0.15/month)

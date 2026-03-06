@@ -1,10 +1,12 @@
 package com.healthapp.controller;
 
+import com.healthapp.dto.AppleSignInRequest;
 import com.healthapp.dto.ChangePasswordRequest;
 import com.healthapp.dto.GoogleSignInRequest;
 import com.healthapp.dto.LoginRequest;
 import com.healthapp.dto.LoginResponse;
 import com.healthapp.entity.User;
+import com.healthapp.service.AppleTokenVerifierService;
 import com.healthapp.service.GoogleTokenVerifierService;
 import com.healthapp.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -35,6 +37,9 @@ public class AuthController {
     
     @Autowired
     private GoogleTokenVerifierService googleTokenVerifierService;
+    
+    @Autowired
+    private AppleTokenVerifierService appleTokenVerifierService;
     
     @PostMapping("/login")
     @Operation(summary = "Login user", description = "Authenticate user and return JWT token")
@@ -161,6 +166,76 @@ public class AuthController {
         } catch (Exception e) {
             return ResponseEntity.internalServerError().body(Map.of(
                 "error", "Google sign-in failed",
+                "message", e.getMessage()
+            ));
+        }
+    }
+    
+    @PostMapping("/apple")
+    @Operation(
+        summary = "Sign in with Apple",
+        description = "Authenticate user using Apple identity token. Creates a new user account if one doesn't exist."
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Sign-in successful"),
+        @ApiResponse(responseCode = "400", description = "Invalid request or token payload"),
+        @ApiResponse(responseCode = "401", description = "Token verification failed"),
+        @ApiResponse(responseCode = "500", description = "Internal server error")
+    })
+    public ResponseEntity<?> appleSignIn(@Valid @RequestBody AppleSignInRequest request) {
+        try {
+            Map<String, Object> tokenPayload = appleTokenVerifierService.verifyToken(
+                    request.getIdToken(), request.getPlatform());
+            
+            if (tokenPayload == null) {
+                return ResponseEntity.status(401).body(Map.of(
+                    "error", "Token verification failed",
+                    "message", "Invalid or expired Apple identity token"
+                ));
+            }
+            
+            String appleId = (String) tokenPayload.get("sub");
+            if (appleId == null) {
+                return ResponseEntity.badRequest().body(Map.of(
+                    "error", "Invalid token payload",
+                    "message", "Token does not contain subject (Apple user ID)"
+                ));
+            }
+            
+            String emailFromToken = (String) tokenPayload.get("email");
+            String email = request.getEmail() != null && !request.getEmail().isBlank()
+                    ? request.getEmail().trim() : emailFromToken;
+            String firstName = request.getFirstName() != null && !request.getFirstName().isBlank()
+                    ? request.getFirstName() : null;
+            String lastName = request.getLastName() != null ? request.getLastName() : null;
+            
+            User user = userService.findOrCreateUserByAppleInfo(appleId, email, firstName, lastName);
+            
+            if (user.getAccountStatus() != User.AccountStatus.ACTIVE) {
+                return ResponseEntity.badRequest().body(Map.of(
+                    "error", "Account inactive",
+                    "message", "Account is not active"
+                ));
+            }
+            
+            String token = generateSimpleToken(user);
+            LoginResponse response = new LoginResponse();
+            response.setToken(token);
+            response.setUserId(user.getId());
+            response.setUsername(user.getUsername());
+            response.setFirstName(user.getFirstName());
+            response.setLastName(user.getLastName());
+            response.setEmail(user.getEmail());
+            response.setRole(user.getRole().name());
+            response.setGender(user.getGender() != null ? user.getGender().name() : null);
+            response.setProfileComplete(user.isProfileComplete());
+            response.setMessage("Login successful");
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body(Map.of(
+                "error", "Apple sign-in failed",
                 "message", e.getMessage()
             ));
         }

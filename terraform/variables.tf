@@ -65,4 +65,28 @@ variable "rds_backup_retention_days" {
   description = "Number of days to retain RDS backups"
   type        = number
   default     = 7
-} 
+}
+
+variable "apple_client_id" {
+  description = "Apple Sign In fallback client ID (APPLE_CLIENT_ID)"
+  type        = string
+  default     = ""
+}
+
+variable "apple_client_id_ios" {
+  description = "Apple Sign In iOS client ID / Bundle ID (APPLE_CLIENT_ID_IOS)"
+  type        = string
+  default     = ""
+}
+
+variable "apple_client_id_android" {
+  description = "Apple Sign In Android Services ID (APPLE_CLIENT_ID_ANDROID)"
+  type        = string
+  default     = ""
+}
+
+variable "apple_client_id_web" {
+  description = "Apple Sign In Web Services ID (APPLE_CLIENT_ID_WEB)"
+  type        = string
+  default     = ""
+}

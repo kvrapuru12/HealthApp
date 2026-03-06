@@ -534,6 +534,22 @@ resource "aws_ecs_task_definition" "healthapp_task" {
           value = "aws"
         },
         {
+          name  = "APPLE_CLIENT_ID"
+          value = var.apple_client_id
+        },
+        {
+          name  = "APPLE_CLIENT_ID_IOS"
+          value = var.apple_client_id_ios
+        },
+        {
+          name  = "APPLE_CLIENT_ID_ANDROID"
+          value = var.apple_client_id_android
+        },
+        {
+          name  = "APPLE_CLIENT_ID_WEB"
+          value = var.apple_client_id_web
+        },
+        {
           name  = "DB_HOST"
           value = aws_db_instance.healthapp_db.address
         },

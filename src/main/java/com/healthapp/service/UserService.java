@@ -106,6 +106,11 @@ public class UserService {
         return userRepository.findByGoogleId(googleId);
     }
     
+    @Transactional(readOnly = true)
+    public Optional<User> getUserByAppleId(String appleId) {
+        return userRepository.findByAppleId(appleId);
+    }
+    
     @Transactional
     public User findOrCreateUserByGoogleInfo(String googleId, String email, String firstName, String lastName) {
         // First, try to find by Google ID
@@ -155,6 +160,79 @@ public class UserService {
         newUser.setRole(User.UserRole.USER);
         newUser.setAccountStatus(User.AccountStatus.ACTIVE);
         // Set default activity level (required field - user can update later)
+        newUser.setActivityLevel(User.ActivityLevel.MODERATE);
+        
+        return userRepository.save(newUser);
+    }
+    
+    @Transactional
+    public User findOrCreateUserByAppleInfo(String appleId, String email, String firstName, String lastName) {
+        // First, try to find by Apple ID
+        Optional<User> userOpt = getUserByAppleId(appleId);
+        if (userOpt.isPresent()) {
+            User user = userOpt.get();
+            if (user.getAppleId() == null) {
+                user.setAppleId(appleId);
+                user = userRepository.save(user);
+            }
+            // Optionally update name/email if provided and currently null
+            boolean updated = false;
+            if (firstName != null && !firstName.isEmpty() && (user.getFirstName() == null || user.getFirstName().isEmpty())) {
+                user.setFirstName(firstName);
+                updated = true;
+            }
+            if (lastName != null && user.getLastName() == null) {
+                user.setLastName(lastName);
+                updated = true;
+            }
+            if (email != null && !email.isEmpty() && user.getEmail() == null) {
+                user.setEmail(email);
+                updated = true;
+            }
+            if (updated) {
+                user = userRepository.save(user);
+            }
+            return user;
+        }
+        
+        // Try to find by email (existing user signing in with Apple for first time)
+        if (email != null && !email.trim().isEmpty()) {
+            userOpt = getUserByEmail(email.trim());
+            if (userOpt.isPresent()) {
+                User user = userOpt.get();
+                user.setAppleId(appleId);
+                return userRepository.save(user);
+            }
+        }
+        
+        // Create new user - use placeholder email if Apple did not provide one
+        String resolvedEmail = (email != null && !email.trim().isEmpty()) ? email.trim() : null;
+        if (resolvedEmail == null) {
+            String sanitizedSub = appleId != null ? appleId.replaceAll("[^a-zA-Z0-9]", "") : "";
+            resolvedEmail = "apple_" + (sanitizedSub.length() > 50 ? sanitizedSub.substring(0, 50) : sanitizedSub) + "@privaterelay.appleid.com";
+        }
+        
+        String localPart = resolvedEmail.split("@")[0];
+        String baseUsername = normalizeUsernameFromEmailLocalPart(localPart);
+        String username = baseUsername;
+        int suffix = 1;
+        while (userRepository.existsByUsername(username)) {
+            username = baseUsername + suffix;
+            suffix++;
+        }
+        if (username.length() > 20) {
+            username = username.substring(0, 20);
+        }
+        
+        User newUser = new User();
+        newUser.setAppleId(appleId);
+        newUser.setEmail(resolvedEmail);
+        newUser.setUsername(username);
+        newUser.setFirstName(firstName != null ? firstName : "");
+        newUser.setLastName(lastName);
+        newUser.setPassword(passwordEncoder.encode(java.util.UUID.randomUUID().toString()));
+        newUser.setRole(User.UserRole.USER);
+        newUser.setAccountStatus(User.AccountStatus.ACTIVE);
         newUser.setActivityLevel(User.ActivityLevel.MODERATE);
         
         return userRepository.save(newUser);
