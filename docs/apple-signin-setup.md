@@ -63,4 +63,14 @@ If you add Sign in with Apple for **Android** or **web**:
 - [ ] Restart the backend so it picks up the new config.
 - [ ] (Optional) Set `APPLE_CLIENT_ID` or `apple.client.id` as a fallback.
 
+## Expo Go (development only)
+
+When using Expo Go, Apple token audience is commonly `host.exp.Exponent` instead of your app bundle ID.
+
+- Recommended: use a custom dev client / TestFlight build for Apple Sign In testing.
+- If you need Expo Go for local testing, set:
+  - `APPLE_ALLOW_EXPO_GO_AUDIENCE=true`
+  - `APPLE_EXPO_GO_AUDIENCE=host.exp.Exponent` (default)
+- Keep `APPLE_ALLOW_EXPO_GO_AUDIENCE=false` in production.
+
 If no Apple client ID is set, the backend still verifies the token (signature, issuer, expiry) but does not check `aud`. Setting at least the iOS App ID is recommended for production.

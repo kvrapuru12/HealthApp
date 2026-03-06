@@ -17,9 +17,12 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Verifies Apple Sign In identity tokens (JWT) using Apple's JWKS.
@@ -44,6 +47,15 @@ public class AppleTokenVerifierService {
 
     @Value("${apple.client.id.web:}")
     private String appleClientIdWeb;
+
+    @Value("${apple.client.id.allow-expo-go-audience:false}")
+    private boolean allowExpoGoAudience;
+
+    @Value("${apple.client.id.expo-go.audience:host.exp.Exponent}")
+    private String expoGoAudience;
+
+    @Value("${apple.client.id.allowed-audiences:}")
+    private String additionalAllowedAudiences;
 
     private final RestTemplate restTemplate = new RestTemplate();
 
@@ -73,7 +85,7 @@ public class AppleTokenVerifierService {
             ConfigurableJWTProcessor<SecurityContext> jwtProcessor = new DefaultJWTProcessor<>();
             JWKSource<SecurityContext> jwkSource = new ImmutableJWKSet<>(jwkSet);
             JWSKeySelector<SecurityContext> keySelector = new JWSVerificationKeySelector<>(
-                    JWSAlgorithm.ES256, jwkSource);
+                    Set.of(JWSAlgorithm.RS256, JWSAlgorithm.ES256), jwkSource);
             jwtProcessor.setJWSKeySelector(keySelector);
 
             JWTClaimsSet claimsSet = jwtProcessor.process(identityToken, null);
@@ -95,7 +107,7 @@ public class AppleTokenVerifierService {
             if (expectedAudience != null && !expectedAudience.isEmpty()) {
                 String aud = claimsSet.getAudience() != null && !claimsSet.getAudience().isEmpty()
                         ? claimsSet.getAudience().get(0) : null;
-                if (aud == null || !expectedAudience.equals(aud)) {
+                if (aud == null || !isAllowedAudience(aud, expectedAudience, platform)) {
                     logger.warn("Token audience '{}' does not match expected '{}' for platform '{}'",
                             aud, expectedAudience, platform);
                     return null;
@@ -140,6 +152,35 @@ public class AppleTokenVerifierService {
             }
         }
         return appleClientId != null && !appleClientId.isEmpty() ? appleClientId : null;
+    }
+
+    private boolean isAllowedAudience(String aud, String expectedAudience, String platform) {
+        if (expectedAudience.equals(aud)) {
+            return true;
+        }
+
+        Set<String> allowedAudiences = parseAdditionalAllowedAudiences();
+        if (allowedAudiences.contains(aud)) {
+            return true;
+        }
+
+        return allowExpoGoAudience
+                && "ios".equalsIgnoreCase(platform)
+                && expoGoAudience != null
+                && expoGoAudience.equals(aud);
+    }
+
+    private Set<String> parseAdditionalAllowedAudiences() {
+        if (additionalAllowedAudiences == null || additionalAllowedAudiences.isBlank()) {
+            return Set.of();
+        }
+
+        Set<String> allowed = new HashSet<>();
+        Arrays.stream(additionalAllowedAudiences.split(","))
+                .map(String::trim)
+                .filter(value -> !value.isEmpty())
+                .forEach(allowed::add);
+        return allowed;
     }
 
     private synchronized JWKSet getAppleJwkSet() {

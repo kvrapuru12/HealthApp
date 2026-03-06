@@ -148,6 +148,9 @@ For **Sign in with Apple** to work, the backend must have at least one Apple cli
 | `APPLE_CLIENT_ID_ANDROID` | Services ID for Android (if using Sign in with Apple on Android) | Same → create a Services ID and use its identifier |
 | `APPLE_CLIENT_ID_WEB` | Services ID for Web (if using Sign in with Apple on web) | Same as above |
 | `APPLE_CLIENT_ID` | Optional fallback when platform-specific ID is not set | Same as above; can be your primary App ID or Services ID |
+| `APPLE_ALLOW_EXPO_GO_AUDIENCE` | Dev-only toggle to accept Expo Go Apple token audience | Set to `true` only for local development; keep `false` in production |
+| `APPLE_EXPO_GO_AUDIENCE` | Expected Expo Go audience value | Usually `host.exp.Exponent` |
+| `APPLE_ALLOWED_AUDIENCES` | Optional extra audience allowlist | Comma-separated list, dev use only |
 
 **Setup steps**
 
@@ -158,6 +161,16 @@ For **Sign in with Apple** to work, the backend must have at least one Apple cli
    - **IDE:** In Run → Edit Configurations, add the variables to “Environment variables”.
 
 If none of these are set, Apple token verification will fail (invalid or missing audience).
+
+### Expo Go note (development)
+
+When testing Apple Sign In in **Expo Go**, Apple token `aud` is typically `host.exp.Exponent`, not your iOS bundle ID.
+
+- Recommended: test Apple Sign In with a custom dev client or production-like build so `aud` matches your app ID.
+- If you must use Expo Go locally, set:
+  - `APPLE_ALLOW_EXPO_GO_AUDIENCE=true`
+  - optionally keep `APPLE_EXPO_GO_AUDIENCE=host.exp.Exponent`
+- Keep `APPLE_ALLOW_EXPO_GO_AUDIENCE=false` in production.
 
 ---
 
