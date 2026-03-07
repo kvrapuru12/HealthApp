@@ -173,8 +173,8 @@ public class FoodLogService {
             String unit = request.getUnit() != null ? request.getUnit() : foodItem.getDefaultUnit();
             
             // Calculate macros using weight-based approach
-            // Step 1: Calculate total weight consumed
-            double totalWeightConsumed = request.getQuantity() * foodItem.getWeightPerUnit();
+            // Step 1: Calculate total weight consumed in grams
+            double totalWeightConsumed = calculateConsumedWeightInGrams(request.getQuantity(), unit, foodItem);
             
             // Step 2: Calculate scale factor (how many 100g portions)
             double scale = totalWeightConsumed / 100.0;
@@ -264,8 +264,10 @@ public class FoodLogService {
             if (needsRecalculation) {
                 FoodItem foodItem = foodItemRepository.findById(foodLog.getFoodItemId())
                         .orElseThrow(() -> new IllegalArgumentException("Food item not found"));
-                
-                double scale = foodLog.getQuantity() / foodItem.getQuantityPerUnit();
+
+                String unitForCalculation = foodLog.getUnit() != null ? foodLog.getUnit() : foodItem.getDefaultUnit();
+                double totalWeightConsumed = calculateConsumedWeightInGrams(foodLog.getQuantity(), unitForCalculation, foodItem);
+                double scale = totalWeightConsumed / 100.0;
                 foodLog.setCalories(foodItem.getCaloriesPerUnit() != null ? scale * foodItem.getCaloriesPerUnit() : null);
                 foodLog.setProtein(foodItem.getProteinPerUnit() != null ? scale * foodItem.getProteinPerUnit() : null);
                 foodLog.setCarbs(foodItem.getCarbsPerUnit() != null ? scale * foodItem.getCarbsPerUnit() : null);
@@ -310,5 +312,50 @@ public class FoodLogService {
             logger.error("Error deleting food log: {}", e.getMessage(), e);
             throw e;
         }
+    }
+
+    private double calculateConsumedWeightInGrams(Double quantity, String unit, FoodItem foodItem) {
+        String normalizedUnit = normalizeUnit(unit);
+
+        // Treat direct mass/volume entries as direct consumed amount.
+        // Assumption: 1 ml ~= 1 g for common liquids such as water/milk.
+        switch (normalizedUnit) {
+            case "g":
+            case "gram":
+            case "grams":
+                return quantity;
+            case "kg":
+            case "kilogram":
+            case "kilograms":
+                return quantity * 1000.0;
+            case "mg":
+            case "milligram":
+            case "milligrams":
+                return quantity / 1000.0;
+            case "ml":
+            case "milliliter":
+            case "milliliters":
+            case "millilitre":
+            case "millilitres":
+                return quantity;
+            case "l":
+            case "liter":
+            case "liters":
+            case "litre":
+            case "litres":
+                return quantity * 1000.0;
+            default:
+                double weightPerUnit = (foodItem.getWeightPerUnit() != null && foodItem.getWeightPerUnit() > 0)
+                        ? foodItem.getWeightPerUnit()
+                        : 100.0;
+                return quantity * weightPerUnit;
+        }
+    }
+
+    private String normalizeUnit(String unit) {
+        if (unit == null) {
+            return "";
+        }
+        return unit.trim().toLowerCase();
     }
 }

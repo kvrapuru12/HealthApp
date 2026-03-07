@@ -247,6 +247,18 @@ public class VoiceFoodLogService {
             case "grams":
             case "g":
                 return 1.0; // 1 gram = 1 gram
+            case "milliliter":
+            case "milliliters":
+            case "millilitre":
+            case "millilitres":
+            case "ml":
+                return 1.0; // 1 ml ~= 1 gram for common liquids
+            case "liter":
+            case "liters":
+            case "litre":
+            case "litres":
+            case "l":
+                return 1000.0; // 1 liter = 1000 grams (approx for common liquids)
             case "kilogram":
             case "kilograms":
             case "kg":
