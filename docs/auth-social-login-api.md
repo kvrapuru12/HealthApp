@@ -86,11 +86,13 @@ Same shape as Apple sign-in (see section 2 below).
 
 ### Success response (200 OK)
 
-Same shape for both Google and Apple sign-in:
+Same shape for **password login** (`POST /api/auth/login`), **Google**, and **Apple** — including refresh fields:
 
 ```json
 {
-  "token": "Bearer 123_USER_1710000000000",
+  "token": "eyJhbGciOiJIUzI1NiJ9...",
+  "refreshToken": "opaque-url-safe-string-store-securely",
+  "expiresIn": 3600,
   "userId": 123,
   "username": "john_doe",
   "firstName": "John",
@@ -105,7 +107,9 @@ Same shape for both Google and Apple sign-in:
 
 | Field             | Type    | Description |
 |-------------------|---------|-------------|
-| `token`           | string  | Session token. Send as `Authorization: <token>` on subsequent API requests. |
+| `token`           | string  | Short-lived **access JWT**. Send as `Authorization: Bearer <token>` (see section 3). |
+| `refreshToken`    | string  | Opaque refresh token; use with `POST /api/auth/refresh` when the access token expires. |
+| `expiresIn`       | number  | Access token lifetime in **seconds** (matches JWT `exp`). |
 | `userId`          | number  | Backend user ID. |
 | `username`        | string  | Unique username (may be derived from email or Apple ID). |
 | `firstName`       | string  | First name. |
@@ -127,14 +131,34 @@ Same shape for both Google and Apple sign-in:
 
 ---
 
-## 3. Using the token
+## 3. Using the access token
 
-After a successful sign-in (Google or Apple), use the returned `token` for authenticated endpoints:
+After login or sign-in, send the access JWT on each request:
 
-- **Header:** `Authorization: <token>`  
-  Example: `Authorization: Bearer 123_USER_1710000000000`
+- **Header:** `Authorization: Bearer <token>`  
+  The `token` field in JSON is the JWT **only** (no `"Bearer "` prefix inside the string).
 
-Do not add a second "Bearer" prefix if the token string already includes it.
+When the access token expires (`expiresIn`), call **`POST /api/auth/refresh`** with the stored `refreshToken`. The server **rotates** the refresh token: each successful refresh returns a new `refreshToken`; replace the stored value.
+
+### `POST /api/auth/refresh`
+
+**Request**
+
+```json
+{
+  "refreshToken": "<stored refresh token>"
+}
+```
+
+**Success (200)** — same JSON shape as login (new `token`, new `refreshToken`, `expiresIn`, and user profile fields).
+
+**401** — invalid, expired, or revoked refresh token (client should sign the user out).
+
+---
+
+## 3b. Legacy access tokens (backward compatibility)
+
+Older clients may still send the legacy format `userId_ROLE_timestamp` (sometimes with a `"Bearer "` prefix embedded in the stored value). The API still accepts these for authentication until those clients re-login and receive JWT access tokens.
 
 ---
 
@@ -178,7 +202,11 @@ When testing Apple Sign In in **Expo Go**, Apple token `aud` is typically `host.
 
 | Endpoint | Method | Purpose |
 |----------|--------|---------|
+| `/api/auth/login`   | POST | Email/username + password; returns JWT + refresh + `expiresIn`. |
+| `/api/auth/refresh` | POST | Body `{ "refreshToken" }`; returns new JWT + rotated refresh + profile. |
 | `/api/auth/google`  | POST | Sign in with Google ID token. |
 | `/api/auth/apple`   | POST | Sign in with Apple identity token; send email/name on first login when available. |
 
-Success responses share the same JSON shape; store `token` and use it for all other API calls.
+Success responses for **login, Google, Apple, and refresh** share the same JSON shape. Store `token`, `refreshToken`, and `expiresIn`; refresh before or after access expiry using `/api/auth/refresh`.
+
+**Password change** (`POST /api/auth/change-password`) revokes all refresh tokens for that user; the client must log in again to obtain new tokens.

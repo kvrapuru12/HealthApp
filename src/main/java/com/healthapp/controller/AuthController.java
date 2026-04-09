@@ -3,11 +3,15 @@ package com.healthapp.controller;
 import com.healthapp.dto.AppleSignInRequest;
 import com.healthapp.dto.ChangePasswordRequest;
 import com.healthapp.dto.GoogleSignInRequest;
+import com.healthapp.dto.IssuedAuthTokens;
 import com.healthapp.dto.LoginRequest;
 import com.healthapp.dto.LoginResponse;
+import com.healthapp.dto.RefreshRotationResult;
+import com.healthapp.dto.RefreshTokenRequest;
 import com.healthapp.entity.User;
 import com.healthapp.service.AppleTokenVerifierService;
 import com.healthapp.service.GoogleTokenVerifierService;
+import com.healthapp.service.RefreshTokenService;
 import com.healthapp.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -22,6 +26,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/auth")
@@ -40,6 +45,9 @@ public class AuthController {
     
     @Autowired
     private AppleTokenVerifierService appleTokenVerifierService;
+
+    @Autowired
+    private RefreshTokenService refreshTokenService;
     
     @PostMapping("/login")
     @Operation(summary = "Login user", description = "Authenticate user and return JWT token")
@@ -72,22 +80,8 @@ public class AuthController {
                 ));
             }
             
-            // Generate simple token (for testing purposes)
-            String token = generateSimpleToken(user);
-            
-            LoginResponse response = new LoginResponse();
-            response.setToken(token);
-            response.setUserId(user.getId());
-            response.setUsername(user.getUsername());
-            response.setFirstName(user.getFirstName());
-            response.setLastName(user.getLastName());
-            response.setEmail(user.getEmail());
-            response.setRole(user.getRole().name());
-            response.setGender(user.getGender() != null ? user.getGender().name() : null);
-            response.setProfileComplete(user.isProfileComplete());
-            response.setMessage("Login successful");
-            
-            return ResponseEntity.ok(response);
+            IssuedAuthTokens tokens = refreshTokenService.issueNewSession(user);
+            return ResponseEntity.ok(buildLoginResponse(user, tokens));
             
         } catch (Exception e) {
             return ResponseEntity.internalServerError().body(Map.of(
@@ -145,23 +139,8 @@ public class AuthController {
                 ));
             }
             
-            // Generate token
-            String token = generateSimpleToken(user);
-            
-            // Build response
-            LoginResponse response = new LoginResponse();
-            response.setToken(token);
-            response.setUserId(user.getId());
-            response.setUsername(user.getUsername());
-            response.setFirstName(user.getFirstName());
-            response.setLastName(user.getLastName());
-            response.setEmail(user.getEmail());
-            response.setRole(user.getRole().name());
-            response.setGender(user.getGender() != null ? user.getGender().name() : null);
-            response.setProfileComplete(user.isProfileComplete());
-            response.setMessage("Login successful");
-            
-            return ResponseEntity.ok(response);
+            IssuedAuthTokens tokens = refreshTokenService.issueNewSession(user);
+            return ResponseEntity.ok(buildLoginResponse(user, tokens));
             
         } catch (Exception e) {
             return ResponseEntity.internalServerError().body(Map.of(
@@ -218,20 +197,8 @@ public class AuthController {
                 ));
             }
             
-            String token = generateSimpleToken(user);
-            LoginResponse response = new LoginResponse();
-            response.setToken(token);
-            response.setUserId(user.getId());
-            response.setUsername(user.getUsername());
-            response.setFirstName(user.getFirstName());
-            response.setLastName(user.getLastName());
-            response.setEmail(user.getEmail());
-            response.setRole(user.getRole().name());
-            response.setGender(user.getGender() != null ? user.getGender().name() : null);
-            response.setProfileComplete(user.isProfileComplete());
-            response.setMessage("Login successful");
-            
-            return ResponseEntity.ok(response);
+            IssuedAuthTokens tokens = refreshTokenService.issueNewSession(user);
+            return ResponseEntity.ok(buildLoginResponse(user, tokens));
             
         } catch (Exception e) {
             return ResponseEntity.internalServerError().body(Map.of(
@@ -239,6 +206,27 @@ public class AuthController {
                 "message", e.getMessage()
             ));
         }
+    }
+
+    @PostMapping("/refresh")
+    @Operation(
+        summary = "Refresh access token",
+        description = "Exchange a valid refresh token for a new access token and rotated refresh token."
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "New tokens issued"),
+        @ApiResponse(responseCode = "401", description = "Invalid or expired refresh token")
+    })
+    public ResponseEntity<?> refresh(@Valid @RequestBody RefreshTokenRequest request) {
+        Optional<RefreshRotationResult> rotation = refreshTokenService.rotateRefreshToken(request.getRefreshToken());
+        if (rotation.isEmpty()) {
+            return ResponseEntity.status(401).body(Map.of(
+                    "error", "Unauthorized",
+                    "message", "Invalid or expired refresh token"
+            ));
+        }
+        RefreshRotationResult r = rotation.get();
+        return ResponseEntity.ok(buildLoginResponse(r.user(), r.tokens()));
     }
     
     @PostMapping("/change-password")
@@ -276,7 +264,8 @@ public class AuthController {
             
             // Change password
             userService.changePassword(userId, request.getCurrentPassword(), request.getNewPassword());
-            
+            refreshTokenService.revokeAllActiveForUserId(userId);
+
             return ResponseEntity.ok(Map.of(
                 "message", "Password changed successfully"
             ));
@@ -293,10 +282,21 @@ public class AuthController {
             ));
         }
     }
-    
-    private String generateSimpleToken(User user) {
-        // Simple token generation for testing
-        // In production, use proper JWT library
-        return "Bearer " + user.getId() + "_" + user.getRole() + "_" + System.currentTimeMillis();
+
+    private static LoginResponse buildLoginResponse(User user, IssuedAuthTokens tokens) {
+        LoginResponse response = new LoginResponse();
+        response.setToken(tokens.accessToken());
+        response.setRefreshToken(tokens.refreshToken());
+        response.setExpiresIn(tokens.expiresInSeconds());
+        response.setUserId(user.getId());
+        response.setUsername(user.getUsername());
+        response.setFirstName(user.getFirstName());
+        response.setLastName(user.getLastName());
+        response.setEmail(user.getEmail());
+        response.setRole(user.getRole().name());
+        response.setGender(user.getGender() != null ? user.getGender().name() : null);
+        response.setProfileComplete(user.isProfileComplete());
+        response.setMessage("Login successful");
+        return response;
     }
 } 
