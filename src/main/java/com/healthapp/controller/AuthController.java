@@ -1,5 +1,6 @@
 package com.healthapp.controller;
 
+import com.healthapp.api.ApiErrorCode;
 import com.healthapp.dto.AppleSignInRequest;
 import com.healthapp.dto.ChangePasswordRequest;
 import com.healthapp.dto.GoogleSignInRequest;
@@ -111,7 +112,8 @@ public class AuthController {
             if (tokenPayload == null) {
                 return ResponseEntity.status(401).body(Map.of(
                     "error", "Token verification failed",
-                    "message", "Invalid or expired Google ID token"
+                    "message", "Invalid or expired Google ID token",
+                    "code", ApiErrorCode.INVALID_ID_TOKEN
                 ));
             }
             
@@ -169,7 +171,8 @@ public class AuthController {
             if (tokenPayload == null) {
                 return ResponseEntity.status(401).body(Map.of(
                     "error", "Token verification failed",
-                    "message", "Invalid or expired Apple identity token"
+                    "message", "Invalid or expired Apple identity token",
+                    "code", ApiErrorCode.INVALID_ID_TOKEN
                 ));
             }
             
@@ -222,7 +225,8 @@ public class AuthController {
         if (rotation.isEmpty()) {
             return ResponseEntity.status(401).body(Map.of(
                     "error", "Unauthorized",
-                    "message", "Invalid or expired refresh token"
+                    "message", "Invalid or expired refresh token",
+                    "code", ApiErrorCode.INVALID_REFRESH_TOKEN
             ));
         }
         RefreshRotationResult r = rotation.get();
@@ -248,7 +252,8 @@ public class AuthController {
             if (authentication == null || authentication.getPrincipal() == null) {
                 return ResponseEntity.status(401).body(Map.of(
                     "error", "Unauthorized",
-                    "message", "Authentication required"
+                    "message", "Authentication required",
+                    "code", ApiErrorCode.UNAUTHORIZED
                 ));
             }
             
@@ -258,7 +263,8 @@ public class AuthController {
             } catch (ClassCastException e) {
                 return ResponseEntity.status(401).body(Map.of(
                     "error", "Unauthorized",
-                    "message", "Invalid authentication token"
+                    "message", "Invalid authentication token",
+                    "code", ApiErrorCode.UNAUTHORIZED
                 ));
             }
             
