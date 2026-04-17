@@ -3,7 +3,6 @@ package com.healthapp.service;
 import com.healthapp.entity.StepEntry;
 import com.healthapp.repository.AppleHealthStepSampleRepository;
 import com.healthapp.repository.StepEntryRepository;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -11,11 +10,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -33,15 +29,14 @@ class DashboardDailyServiceTest {
     private static final Long USER_ID = 42L;
     private static final LocalDate DATE = LocalDate.of(2026, 4, 16);
 
-    @BeforeEach
-    void setUp() {
-        when(stepEntryRepository.sumStepCountByUserIdAndDateRangeHalfOpen(
-                eq(USER_ID), any(LocalDateTime.class), any(LocalDateTime.class), eq(StepEntry.Status.ACTIVE)))
-                .thenReturn(200);
-    }
-
     @Test
     void getDaily_ApplePresent_PrefersAppleAndSetsConflictFlags() {
+        when(stepEntryRepository.sumStepCountByUserIdAndDateRangeHalfOpen(
+                org.mockito.ArgumentMatchers.eq(USER_ID),
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.eq(StepEntry.Status.ACTIVE)))
+                .thenReturn(200);
         when(appleHealthStepSampleRepository.countByUserIdAndLocalDate(USER_ID, DATE)).thenReturn(1L);
         when(appleHealthStepSampleRepository.sumStepCountByUserIdAndLocalDate(USER_ID, DATE)).thenReturn(8432);
 
@@ -60,6 +55,12 @@ class DashboardDailyServiceTest {
 
     @Test
     void getDaily_AppleMissing_FallsBackToManualWithoutConflicts() {
+        when(stepEntryRepository.sumStepCountByUserIdAndDateRangeHalfOpen(
+                org.mockito.ArgumentMatchers.eq(USER_ID),
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.eq(StepEntry.Status.ACTIVE)))
+                .thenReturn(200);
         when(appleHealthStepSampleRepository.countByUserIdAndLocalDate(USER_ID, DATE)).thenReturn(0L);
         when(appleHealthStepSampleRepository.sumStepCountByUserIdAndLocalDate(USER_ID, DATE)).thenReturn(0);
 
