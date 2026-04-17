@@ -58,7 +58,7 @@ class AppleHealthIngestServiceTest {
         assertEquals(1, response.getAccepted());
         assertEquals(0, response.getUnchanged());
         assertEquals(0, response.getRejected());
-        assertEquals(List.of("2026-04-16"), response.getAffectedLocalDates());
+        assertEquals(List.of("2026-04-15"), response.getAffectedLocalDates());
         assertEquals(1, response.getResults().size());
         assertEquals("UPSERTED", response.getResults().get(0).getStatus().name());
         ArgumentCaptor<AppleHealthStepSample> captor = ArgumentCaptor.forClass(AppleHealthStepSample.class);
@@ -75,7 +75,7 @@ class AppleHealthIngestServiceTest {
         AppleHealthStepSample existing = new AppleHealthStepSample(
                 user,
                 "ext-1",
-                LocalDate.of(2026, 4, 16),
+                LocalDate.of(2026, 4, 15),
                 LocalDateTime.parse("2026-04-15T07:00:00"),
                 LocalDateTime.parse("2026-04-16T07:00:00"),
                 8432
@@ -114,9 +114,9 @@ class AppleHealthIngestServiceTest {
         var response = appleHealthIngestService.ingest(42L, request);
 
         assertEquals(1, response.getAccepted());
-        assertEquals(List.of("2026-04-16", "2026-04-17"), response.getAffectedLocalDates());
+        assertEquals(List.of("2026-04-15", "2026-04-16"), response.getAffectedLocalDates());
         verify(appleHealthStepSampleRepository).save(existing);
-        assertEquals(LocalDate.of(2026, 4, 17), existing.getLocalDate());
+        assertEquals(LocalDate.of(2026, 4, 15), existing.getLocalDate());
         assertEquals(9000, existing.getStepCount());
     }
 
@@ -216,7 +216,7 @@ class AppleHealthIngestServiceTest {
         sample.setExternalSampleId(extId);
         sample.setStart(OffsetDateTime.parse("2026-04-15T07:00:00Z"));
         sample.setEnd(OffsetDateTime.parse(endIso));
-        sample.setLocalDate(sample.getEnd().toLocalDate());
+        sample.setLocalDate(sample.getStart().toLocalDate());
         sample.setValue(value);
         return sample;
     }
