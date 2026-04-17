@@ -134,9 +134,76 @@ class AppleHealthIngestServiceTest {
         verifyNoInteractions(userRepository);
     }
 
+    @Test
+    void ingest_V2MissingLocalDate_IsRejectedPerSample() {
+        AppleHealthIngestSampleRequest sample = singleSample("ext-v2-missing-local-date", "2026-04-17T23:00:00Z", 289);
+        sample.setLocalDate(null);
+
+        AppleHealthIngestRequest request = new AppleHealthIngestRequest();
+        request.setClientIngestSchemaVersion(2);
+        request.setAnchorTimeZone("Europe/London");
+        request.setSamples(List.of(sample));
+
+        when(userRepository.findById(42L)).thenReturn(Optional.of(user));
+
+        var response = appleHealthIngestService.ingest(42L, request);
+
+        assertEquals(0, response.getAccepted());
+        assertEquals(0, response.getUnchanged());
+        assertEquals(1, response.getRejected());
+        assertEquals("REJECTED", response.getResults().get(0).getStatus().name());
+        assertTrue(response.getResults().get(0).getMessage().contains("sample.localDate is required"));
+        verifyNoInteractions(appleHealthStepSampleRepository);
+    }
+
+    @Test
+    void ingest_V2WithLocalDate_UsesClientDeclaredDate() {
+        AppleHealthIngestSampleRequest sample = singleSample("ext-v2-local-date", "2026-04-17T23:00:00Z", 289);
+        sample.setLocalDate(LocalDate.of(2026, 4, 17));
+
+        AppleHealthIngestRequest request = new AppleHealthIngestRequest();
+        request.setClientIngestSchemaVersion(2);
+        request.setAnchorTimeZone("Europe/London");
+        request.setSamples(List.of(sample));
+
+        when(userRepository.findById(42L)).thenReturn(Optional.of(user));
+        when(appleHealthStepSampleRepository.findByUserIdAndExternalSampleId(42L, "ext-v2-local-date"))
+                .thenReturn(Optional.empty());
+
+        var response = appleHealthIngestService.ingest(42L, request);
+
+        assertEquals(1, response.getAccepted());
+        assertEquals(List.of("2026-04-17"), response.getAffectedLocalDates());
+
+        ArgumentCaptor<AppleHealthStepSample> captor = ArgumentCaptor.forClass(AppleHealthStepSample.class);
+        verify(appleHealthStepSampleRepository).save(captor.capture());
+        assertEquals(LocalDate.of(2026, 4, 17), captor.getValue().getLocalDate());
+    }
+
+    @Test
+    void ingest_V2WithWildlyInconsistentLocalDate_IsRejectedPerSample() {
+        AppleHealthIngestSampleRequest sample = singleSample("ext-v2-bad-date", "2026-04-17T23:00:00Z", 289);
+        sample.setLocalDate(LocalDate.of(2026, 4, 25));
+
+        AppleHealthIngestRequest request = new AppleHealthIngestRequest();
+        request.setClientIngestSchemaVersion(2);
+        request.setAnchorTimeZone("Europe/London");
+        request.setSamples(List.of(sample));
+
+        when(userRepository.findById(42L)).thenReturn(Optional.of(user));
+
+        var response = appleHealthIngestService.ingest(42L, request);
+
+        assertEquals(0, response.getAccepted());
+        assertEquals(1, response.getRejected());
+        assertEquals("REJECTED", response.getResults().get(0).getStatus().name());
+        assertTrue(response.getResults().get(0).getMessage().contains("must match end date"));
+        verifyNoInteractions(appleHealthStepSampleRepository);
+    }
+
     private AppleHealthIngestRequest baseRequest(AppleHealthIngestSampleRequest sample) {
         AppleHealthIngestRequest request = new AppleHealthIngestRequest();
-        request.setClientIngestSchemaVersion(1);
+        request.setClientIngestSchemaVersion(2);
         request.setAnchorTimeZone("UTC");
         request.setSamples(List.of(sample));
         return request;
@@ -148,6 +215,7 @@ class AppleHealthIngestServiceTest {
         sample.setExternalSampleId(extId);
         sample.setStart(OffsetDateTime.parse("2026-04-15T07:00:00Z"));
         sample.setEnd(OffsetDateTime.parse(endIso));
+        sample.setLocalDate(sample.getEnd().toLocalDate());
         sample.setValue(value);
         return sample;
     }

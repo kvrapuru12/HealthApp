@@ -6,6 +6,7 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 
 @Schema(description = "One Apple Health quantity sample (MVP: STEPS only)")
@@ -27,6 +28,9 @@ public class AppleHealthIngestSampleRequest {
     @NotNull
     @Schema(description = "Interval end (ISO-8601 with offset)", example = "2026-04-16T07:00:00Z")
     private OffsetDateTime end;
+
+    @Schema(description = "Client-declared local calendar date for this sample in anchorTimeZone (required for schema v2)", example = "2026-04-17")
+    private LocalDate localDate;
 
     @NotNull
     @Min(0)
@@ -63,6 +67,14 @@ public class AppleHealthIngestSampleRequest {
 
     public void setEnd(OffsetDateTime end) {
         this.end = end;
+    }
+
+    public LocalDate getLocalDate() {
+        return localDate;
+    }
+
+    public void setLocalDate(LocalDate localDate) {
+        this.localDate = localDate;
     }
 
     public Integer getValue() {

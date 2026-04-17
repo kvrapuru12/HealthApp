@@ -22,12 +22,13 @@ All endpoints require JWT auth:
 
 ```json
 {
-  "clientIngestSchemaVersion": 1,
+  "clientIngestSchemaVersion": 2,
   "anchorTimeZone": "America/Los_Angeles",
   "samples": [
     {
       "metric": "STEPS",
       "externalSampleId": "HKQuantityTypeIdentifierStepCount:ABC-UUID",
+      "localDate": "2026-04-16",
       "start": "2026-04-15T07:00:00Z",
       "end": "2026-04-16T07:00:00Z",
       "value": 8432
@@ -38,7 +39,8 @@ All endpoints require JWT auth:
 
 ### Request field rules
 
-- `clientIngestSchemaVersion`: must be `1`.
+- `clientIngestSchemaVersion`: must be `2`.
+- `samples[].localDate`: required; format `YYYY-MM-DD`; must match the sample `end` date in `anchorTimeZone`.
 - `anchorTimeZone`: must be valid IANA timezone (example: `America/Los_Angeles`, `UTC`).
 - `samples`: required, non-empty array.
 - `samples[].metric`: MVP supports only `STEPS`.
@@ -62,7 +64,7 @@ All endpoints require JWT auth:
       "status": "UPSERTED"
     }
   ],
-  "serverIngestSchemaVersion": 1
+  "serverIngestSchemaVersion": 2
 }
 ```
 
@@ -74,7 +76,8 @@ All endpoints require JWT auth:
 
 ### Error responses
 
-- `400`: invalid payload, unsupported schema version, invalid timezone, or validation failure.
+- `400`: invalid payload, unsupported schema version, invalid timezone, or batch-level validation failure.
+- Invalid sample-level fields are returned as per-item `REJECTED` rows in a `200` response.
 - `401`: missing/invalid access token.
 
 ---
@@ -144,7 +147,7 @@ curl -X GET "http://localhost:8080/api/dashboard/daily?localDate=2026-04-16&time
 ## Quick FE integration checklist
 
 - Always send authenticated JWT.
-- Keep `clientIngestSchemaVersion` pinned to `1` for MVP.
+- Prefer `clientIngestSchemaVersion: 2` and send `samples[].localDate` from the UI-selected day.
 - Treat ingest as idempotent; safe to retry same `externalSampleId`.
 - Use only `steps.displayedSteps` for primary UI number.
 - Use `steps.bySource` and `steps.conflictFlags` for transparency UI.

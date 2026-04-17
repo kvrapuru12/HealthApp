@@ -31,7 +31,7 @@ public class AppleHealthIntegrationController {
     }
 
     @PostMapping("/ingest")
-    @Operation(summary = "Ingest Apple Health step samples", description = "Idempotent upsert by externalSampleId (schema v1, STEPS only)")
+    @Operation(summary = "Ingest Apple Health step samples", description = "Idempotent upsert by externalSampleId (schema v2, STEPS only; sample.localDate must match end date in anchorTimeZone)")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Batch processed (per-sample status in body)"),
             @ApiResponse(responseCode = "400", description = "Invalid body or unsupported schema version"),

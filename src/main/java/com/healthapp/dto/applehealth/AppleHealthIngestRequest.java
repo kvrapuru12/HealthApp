@@ -9,14 +9,14 @@ import jakarta.validation.constraints.NotNull;
 
 import java.util.List;
 
-@Schema(description = "Apple Health ingest batch (MVP: steps only, schema v1)")
+@Schema(description = "Apple Health ingest batch (MVP: steps only, schema v2)")
 public class AppleHealthIngestRequest {
 
-    public static final int SUPPORTED_SCHEMA_VERSION = 1;
+    public static final int SUPPORTED_SCHEMA_VERSION = 2;
 
     @NotNull
     @JsonProperty("clientIngestSchemaVersion")
-    @Schema(description = "Client ingest schema version", example = "1")
+    @Schema(description = "Client ingest schema version (must be 2)", example = "2")
     private Integer clientIngestSchemaVersion;
 
     @NotBlank

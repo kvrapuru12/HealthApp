@@ -41,7 +41,13 @@ public class AppleHealthIngestService {
             throw new IllegalArgumentException("Authenticated user is required");
         }
 
-        if (!Objects.equals(request.getClientIngestSchemaVersion(), AppleHealthIngestRequest.SUPPORTED_SCHEMA_VERSION)) {
+        Integer schemaVersion = request.getClientIngestSchemaVersion();
+        if (schemaVersion == null) {
+            throw new IllegalArgumentException("clientIngestSchemaVersion is required");
+        }
+
+        int clientSchemaVersion = schemaVersion;
+        if (clientSchemaVersion != AppleHealthIngestRequest.SUPPORTED_SCHEMA_VERSION) {
             throw new IllegalArgumentException(
                     "Unsupported clientIngestSchemaVersion: " + request.getClientIngestSchemaVersion());
         }
@@ -64,7 +70,7 @@ public class AppleHealthIngestService {
         TreeSet<String> affectedDates = new TreeSet<>();
 
         for (AppleHealthIngestSampleRequest sample : samples) {
-            AppleHealthIngestSampleResult row = processOneSample(user, sample, anchorZone, affectedDates);
+            AppleHealthIngestSampleResult row = processOneSample(user, sample, anchorZone, affectedDates, clientSchemaVersion);
             response.getResults().add(row);
             switch (row.getStatus()) {
                 case UPSERTED -> response.setAccepted(response.getAccepted() + 1);
@@ -81,7 +87,8 @@ public class AppleHealthIngestService {
             User user,
             AppleHealthIngestSampleRequest sample,
             ZoneId anchorZone,
-            TreeSet<String> affectedDates) {
+            TreeSet<String> affectedDates,
+            int clientSchemaVersion) {
 
         String extId = sample.getExternalSampleId();
         if (extId == null || extId.isBlank()) {
@@ -109,7 +116,19 @@ public class AppleHealthIngestService {
                     "value must be between 0 and " + MAX_STEP_VALUE);
         }
 
-        LocalDate localDate = sample.getEnd().atZoneSameInstant(anchorZone).toLocalDate();
+        if (sample.getLocalDate() == null) {
+            return new AppleHealthIngestSampleResult(extId, AppleHealthIngestSampleResult.Status.REJECTED,
+                    "sample.localDate is required for clientIngestSchemaVersion 2");
+        }
+
+        LocalDate localDate = sample.getLocalDate();
+
+        LocalDate derivedFromEnd = sample.getEnd().atZoneSameInstant(anchorZone).toLocalDate();
+        if (!localDate.equals(derivedFromEnd)) {
+            return new AppleHealthIngestSampleResult(extId, AppleHealthIngestSampleResult.Status.REJECTED,
+                    "localDate must match end date in anchorTimeZone");
+        }
+
         LocalDateTime startUtc = LocalDateTime.ofInstant(sample.getStart().toInstant(), ZoneOffset.UTC);
         LocalDateTime endUtc = LocalDateTime.ofInstant(sample.getEnd().toInstant(), ZoneOffset.UTC);
 
