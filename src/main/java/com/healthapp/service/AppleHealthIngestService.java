@@ -123,10 +123,10 @@ public class AppleHealthIngestService {
 
         LocalDate localDate = sample.getLocalDate();
 
-        LocalDate derivedFromEnd = sample.getEnd().atZoneSameInstant(anchorZone).toLocalDate();
-        if (!localDate.equals(derivedFromEnd)) {
+        LocalDate derivedFromStart = sample.getStart().atZoneSameInstant(anchorZone).toLocalDate();
+        if (!localDate.equals(derivedFromStart)) {
             return new AppleHealthIngestSampleResult(extId, AppleHealthIngestSampleResult.Status.REJECTED,
-                    "localDate must match end date in anchorTimeZone");
+                    "localDate must match start date in anchorTimeZone");
         }
 
         LocalDateTime startUtc = LocalDateTime.ofInstant(sample.getStart().toInstant(), ZoneOffset.UTC);

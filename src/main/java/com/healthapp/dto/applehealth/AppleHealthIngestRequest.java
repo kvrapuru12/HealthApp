@@ -21,7 +21,7 @@ public class AppleHealthIngestRequest {
 
     @NotBlank
     @JsonProperty("anchorTimeZone")
-    @Schema(description = "IANA time zone used to derive local calendar day from sample end", example = "America/Los_Angeles")
+    @Schema(description = "IANA time zone used to derive local calendar day from sample start", example = "America/Los_Angeles")
     private String anchorTimeZone;
 
     @NotEmpty

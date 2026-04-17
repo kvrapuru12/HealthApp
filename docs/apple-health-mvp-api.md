@@ -40,7 +40,7 @@ All endpoints require JWT auth:
 ### Request field rules
 
 - `clientIngestSchemaVersion`: must be `2`.
-- `samples[].localDate`: required; format `YYYY-MM-DD`; must match the sample `end` date in `anchorTimeZone`.
+- `samples[].localDate`: required; format `YYYY-MM-DD`; must match the sample `start` date in `anchorTimeZone`.
 - `anchorTimeZone`: must be valid IANA timezone (example: `America/Los_Angeles`, `UTC`).
 - `samples`: required, non-empty array.
 - `samples[].metric`: MVP supports only `STEPS`.

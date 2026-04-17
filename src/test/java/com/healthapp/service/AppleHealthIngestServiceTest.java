@@ -157,9 +157,10 @@ class AppleHealthIngestServiceTest {
     }
 
     @Test
-    void ingest_V2WithLocalDate_UsesClientDeclaredDate() {
+    void ingest_V2WithLocalDateMatchingStartDateInAnchorZone_IsAccepted() {
         AppleHealthIngestSampleRequest sample = singleSample("ext-v2-local-date", "2026-04-17T23:00:00Z", 289);
-        sample.setLocalDate(LocalDate.of(2026, 4, 18));
+        sample.setStart(OffsetDateTime.parse("2026-04-16T23:00:00Z"));
+        sample.setLocalDate(LocalDate.of(2026, 4, 17));
 
         AppleHealthIngestRequest request = new AppleHealthIngestRequest();
         request.setClientIngestSchemaVersion(2);
@@ -173,11 +174,11 @@ class AppleHealthIngestServiceTest {
         var response = appleHealthIngestService.ingest(42L, request);
 
         assertEquals(1, response.getAccepted());
-        assertEquals(List.of("2026-04-18"), response.getAffectedLocalDates());
+        assertEquals(List.of("2026-04-17"), response.getAffectedLocalDates());
 
         ArgumentCaptor<AppleHealthStepSample> captor = ArgumentCaptor.forClass(AppleHealthStepSample.class);
         verify(appleHealthStepSampleRepository).save(captor.capture());
-        assertEquals(LocalDate.of(2026, 4, 18), captor.getValue().getLocalDate());
+        assertEquals(LocalDate.of(2026, 4, 17), captor.getValue().getLocalDate());
     }
 
     @Test
@@ -197,7 +198,7 @@ class AppleHealthIngestServiceTest {
         assertEquals(0, response.getAccepted());
         assertEquals(1, response.getRejected());
         assertEquals("REJECTED", response.getResults().get(0).getStatus().name());
-        assertTrue(response.getResults().get(0).getMessage().contains("must match end date"));
+        assertTrue(response.getResults().get(0).getMessage().contains("must match start date"));
         verifyNoInteractions(appleHealthStepSampleRepository);
     }
 
