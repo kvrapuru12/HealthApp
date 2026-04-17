@@ -73,6 +73,15 @@ public interface StepEntryRepository extends JpaRepository<StepEntry, Long> {
             @Param("toDate") LocalDateTime toDate,
             @Param("status") StepEntry.Status status
     );
+
+    /** Half-open interval [fromDate, toExclusive) for correct day-boundary totals with UTC-stored timestamps */
+    @Query("SELECT COALESCE(SUM(s.stepCount), 0) FROM StepEntry s WHERE s.user.id = :userId AND s.loggedAt >= :fromDate AND s.loggedAt < :toExclusive AND s.status = :status")
+    Integer sumStepCountByUserIdAndDateRangeHalfOpen(
+            @Param("userId") Long userId,
+            @Param("fromDate") LocalDateTime fromDate,
+            @Param("toExclusive") LocalDateTime toExclusive,
+            @Param("status") StepEntry.Status status
+    );
     
     // Find by ID and status (for soft delete validation)
     Optional<StepEntry> findByIdAndStatus(Long id, StepEntry.Status status);
