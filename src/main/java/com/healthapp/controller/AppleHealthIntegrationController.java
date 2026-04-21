@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/integrations/apple-health")
-@Tag(name = "Apple Health", description = "Ingest HealthKit-backed samples (MVP: steps)")
+@Tag(name = "Apple Health", description = "Ingest HealthKit-backed samples (steps and sleep)")
 @CrossOrigin(origins = "*")
 public class AppleHealthIntegrationController {
 
@@ -31,7 +31,7 @@ public class AppleHealthIntegrationController {
     }
 
     @PostMapping("/ingest")
-    @Operation(summary = "Ingest Apple Health step samples", description = "Idempotent upsert by externalSampleId (schema v2, STEPS only; sample.localDate must match start date in anchorTimeZone)")
+    @Operation(summary = "Ingest Apple Health samples", description = "Idempotent upsert by externalSampleId (schema v2). STEPS: localDate must match start date in anchorTimeZone. SLEEP: sleepStage required; localDate must match end date (wake day) in anchorTimeZone.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Batch processed (per-sample status in body)"),
             @ApiResponse(responseCode = "400", description = "Invalid body or unsupported schema version"),

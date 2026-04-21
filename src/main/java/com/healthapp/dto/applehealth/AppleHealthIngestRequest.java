@@ -9,7 +9,7 @@ import jakarta.validation.constraints.NotNull;
 
 import java.util.List;
 
-@Schema(description = "Apple Health ingest batch (MVP: steps only, schema v2)")
+@Schema(description = "Apple Health ingest batch (STEPS and SLEEP, schema v2)")
 public class AppleHealthIngestRequest {
 
     public static final int SUPPORTED_SCHEMA_VERSION = 2;
@@ -21,7 +21,7 @@ public class AppleHealthIngestRequest {
 
     @NotBlank
     @JsonProperty("anchorTimeZone")
-    @Schema(description = "IANA time zone used to derive local calendar day from sample start", example = "America/Los_Angeles")
+    @Schema(description = "IANA time zone: STEPS localDate vs sample start; SLEEP localDate vs sample end (wake day)", example = "America/Los_Angeles")
     private String anchorTimeZone;
 
     @NotEmpty

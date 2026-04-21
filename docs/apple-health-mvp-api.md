@@ -10,7 +10,7 @@ All endpoints require JWT auth:
 
 ---
 
-## 1) Ingest Apple Health Steps
+## 1) Ingest Apple Health samples (steps and sleep)
 
 ### Endpoint
 
@@ -18,7 +18,7 @@ All endpoints require JWT auth:
 - **Path:** `/integrations/apple-health/ingest`
 - **Full URL (local):** `http://localhost:8080/api/integrations/apple-health/ingest`
 
-### Request body
+### Request body (mixed batch allowed)
 
 ```json
 {
@@ -32,6 +32,14 @@ All endpoints require JWT auth:
       "start": "2026-04-15T07:00:00Z",
       "end": "2026-04-16T07:00:00Z",
       "value": 8432
+    },
+    {
+      "metric": "SLEEP",
+      "externalSampleId": "HKCategoryTypeIdentifierSleepAnalysis:DEF-UUID",
+      "localDate": "2026-04-16",
+      "start": "2026-04-16T04:00:00Z",
+      "end": "2026-04-16T04:30:00Z",
+      "sleepStage": "CORE"
     }
   ]
 }
@@ -40,19 +48,24 @@ All endpoints require JWT auth:
 ### Request field rules
 
 - `clientIngestSchemaVersion`: must be `2`.
-- `samples[].localDate`: required; format `YYYY-MM-DD`; must match the sample `start` date in `anchorTimeZone`.
 - `anchorTimeZone`: must be valid IANA timezone (example: `America/Los_Angeles`, `UTC`).
 - `samples`: required, non-empty array.
-- `samples[].metric`: MVP supports only `STEPS`.
+- `samples[].metric`: `STEPS` or `SLEEP`.
 - `samples[].externalSampleId`: stable per HealthKit sample for idempotency.
-- `samples[].start` and `samples[].end`: ISO-8601 datetime with timezone/offset.
-- `samples[].value`: integer between `0` and `1000000`.
+- `samples[].start` and `samples[].end`: ISO-8601 datetime with timezone/offset; `end` must not be before `start`.
+- **STEPS**
+  - `samples[].localDate`: required; must match the calendar date of `start` in `anchorTimeZone`.
+  - `samples[].value`: required; integer between `0` and `1000000`.
+- **SLEEP**
+  - `samples[].localDate`: required; must match the calendar date of **`end`** in `anchorTimeZone` (wake-day attribution for overnight segments).
+  - `samples[].sleepStage`: required; normalized values (case-insensitive on ingest, stored uppercase): `AWAKE`, `IN_BED`, `ASLEEP`, `ASLEEP_UNSPECIFIED`, `CORE`, `DEEP`, `REM`.
+  - `samples[].value`: not used for `SLEEP` (may be omitted).
 
 ### Success response (`200`)
 
 ```json
 {
-  "accepted": 1,
+  "accepted": 2,
   "unchanged": 0,
   "rejected": 0,
   "affectedLocalDates": [
@@ -61,6 +74,10 @@ All endpoints require JWT auth:
   "results": [
     {
       "externalSampleId": "HKQuantityTypeIdentifierStepCount:ABC-UUID",
+      "status": "UPSERTED"
+    },
+    {
+      "externalSampleId": "HKCategoryTypeIdentifierSleepAnalysis:DEF-UUID",
       "status": "UPSERTED"
     }
   ],
@@ -80,9 +97,13 @@ All endpoints require JWT auth:
 - Invalid sample-level fields are returned as per-item `REJECTED` rows in a `200` response.
 - `401`: missing/invalid access token.
 
+### Dashboard “asleep” total (read path)
+
+For `GET /dashboard/daily`, Apple sleep hours are derived only from segments whose `sleepStage` counts as asleep: `ASLEEP`, `ASLEEP_UNSPECIFIED`, `CORE`, `DEEP`, `REM`. Durations for `AWAKE` and `IN_BED` are stored but excluded from that sum.
+
 ---
 
-## 2) Get Daily Dashboard (Merged Steps)
+## 2) Get Daily Dashboard (merged steps and sleep)
 
 ### Endpoint
 
@@ -108,7 +129,7 @@ curl -X GET "http://localhost:8080/api/dashboard/daily?localDate=2026-04-16&time
 {
   "localDate": "2026-04-16",
   "timeZone": "America/Los_Angeles",
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "generatedAt": "2026-04-16T11:10:03.456Z",
   "steps": {
     "mergePolicy": "PREFER_APPLE_HEALTH_IF_PRESENT",
@@ -127,15 +148,38 @@ curl -X GET "http://localhost:8080/api/dashboard/daily?localDate=2026-04-16&time
       "manualVsAppleMismatch": true,
       "manualIgnoredForDisplay": true
     }
+  },
+  "sleep": {
+    "mergePolicy": "PREFER_APPLE_HEALTH_IF_PRESENT",
+    "displayedSleepHours": 7.5,
+    "bySource": [
+      {
+        "source": "APPLE_HEALTH",
+        "hours": 7.5
+      },
+      {
+        "source": "MANUAL_APP",
+        "hours": 7.0
+      }
+    ],
+    "conflictFlags": {
+      "manualVsAppleMismatch": true,
+      "manualIgnoredForDisplay": true
+    }
   }
 }
 ```
 
-### Merge behavior
+### Merge behavior (steps)
 
-- If Apple data exists for `localDate`, `displayedSteps = APPLE_HEALTH` total.
-- If Apple data does not exist, `displayedSteps = MANUAL_APP` total.
+- If Apple step data exists for `localDate`, `displayedSteps = APPLE_HEALTH` total.
+- If Apple step data does not exist, `displayedSteps = MANUAL_APP` total.
 - `conflictFlags` become `true` when Apple exists and manual steps are non-zero but totals differ.
+
+### Merge behavior (sleep)
+
+- If **any** Apple sleep row exists for `localDate` (any stage), `displayedSleepHours` uses Apple’s **asleep-only** sum (see above). Otherwise it uses the sum of manual `sleep_logs.hours` for that local calendar day.
+- `sleep.conflictFlags` are set when Apple sleep rows exist, manual sleep hours for that day are greater than zero, and the two totals differ.
 
 ### Error responses
 
@@ -147,7 +191,7 @@ curl -X GET "http://localhost:8080/api/dashboard/daily?localDate=2026-04-16&time
 ## Quick FE integration checklist
 
 - Always send authenticated JWT.
-- Prefer `clientIngestSchemaVersion: 2` and send `samples[].localDate` from the UI-selected day.
+- Prefer `clientIngestSchemaVersion: 2` and send `samples[].localDate` from the UI-selected day (steps: align with `start`; sleep: align with `end` / wake day).
 - Treat ingest as idempotent; safe to retry same `externalSampleId`.
-- Use only `steps.displayedSteps` for primary UI number.
-- Use `steps.bySource` and `steps.conflictFlags` for transparency UI.
+- Use `steps.displayedSteps` and `sleep.displayedSleepHours` for primary UI numbers.
+- Use `*.bySource` and `*.conflictFlags` for transparency UI.

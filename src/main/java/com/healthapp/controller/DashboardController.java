@@ -32,7 +32,7 @@ public class DashboardController {
     }
 
     @GetMapping("/daily")
-    @Operation(summary = "Daily dashboard", description = "MVP: merged steps from Apple Health and manual entries for one local calendar day")
+    @Operation(summary = "Daily dashboard", description = "Merged steps and sleep from Apple Health and manual entries for one local calendar day")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Dashboard payload"),
             @ApiResponse(responseCode = "400", description = "Invalid query parameters"),

@@ -2,8 +2,10 @@ package com.healthapp.service;
 
 import com.healthapp.dto.applehealth.AppleHealthIngestRequest;
 import com.healthapp.dto.applehealth.AppleHealthIngestSampleRequest;
+import com.healthapp.entity.AppleHealthSleepSample;
 import com.healthapp.entity.AppleHealthStepSample;
 import com.healthapp.entity.User;
+import com.healthapp.repository.AppleHealthSleepSampleRepository;
 import com.healthapp.repository.AppleHealthStepSampleRepository;
 import com.healthapp.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -30,6 +32,9 @@ class AppleHealthIngestServiceTest {
 
     @Mock
     private AppleHealthStepSampleRepository appleHealthStepSampleRepository;
+
+    @Mock
+    private AppleHealthSleepSampleRepository appleHealthSleepSampleRepository;
 
     @Mock
     private UserRepository userRepository;
@@ -65,6 +70,7 @@ class AppleHealthIngestServiceTest {
         verify(appleHealthStepSampleRepository).save(captor.capture());
         assertNotNull(captor.getValue());
         assertEquals("ext-1", captor.getValue().getExternalSampleId());
+        verifyNoInteractions(appleHealthSleepSampleRepository);
     }
 
     @Test
@@ -92,6 +98,7 @@ class AppleHealthIngestServiceTest {
         assertEquals(0, response.getRejected());
         assertTrue(response.getAffectedLocalDates().isEmpty());
         verify(appleHealthStepSampleRepository, never()).save(any(AppleHealthStepSample.class));
+        verifyNoInteractions(appleHealthSleepSampleRepository);
     }
 
     @Test
@@ -118,6 +125,7 @@ class AppleHealthIngestServiceTest {
         verify(appleHealthStepSampleRepository).save(existing);
         assertEquals(LocalDate.of(2026, 4, 15), existing.getLocalDate());
         assertEquals(9000, existing.getStepCount());
+        verifyNoInteractions(appleHealthSleepSampleRepository);
     }
 
     @Test
@@ -154,6 +162,7 @@ class AppleHealthIngestServiceTest {
         assertEquals("REJECTED", response.getResults().get(0).getStatus().name());
         assertTrue(response.getResults().get(0).getMessage().contains("sample.localDate is required"));
         verifyNoInteractions(appleHealthStepSampleRepository);
+        verifyNoInteractions(appleHealthSleepSampleRepository);
     }
 
     @Test
@@ -179,6 +188,7 @@ class AppleHealthIngestServiceTest {
         ArgumentCaptor<AppleHealthStepSample> captor = ArgumentCaptor.forClass(AppleHealthStepSample.class);
         verify(appleHealthStepSampleRepository).save(captor.capture());
         assertEquals(LocalDate.of(2026, 4, 17), captor.getValue().getLocalDate());
+        verifyNoInteractions(appleHealthSleepSampleRepository);
     }
 
     @Test
@@ -200,6 +210,151 @@ class AppleHealthIngestServiceTest {
         assertEquals("REJECTED", response.getResults().get(0).getStatus().name());
         assertTrue(response.getResults().get(0).getMessage().contains("must match start date"));
         verifyNoInteractions(appleHealthStepSampleRepository);
+        verifyNoInteractions(appleHealthSleepSampleRepository);
+    }
+
+    @Test
+    void ingest_SleepNew_UpsertsWakeDayLocalDate() {
+        AppleHealthIngestSampleRequest sample = sleepSample(
+                "sleep-ext-1",
+                "2026-04-15T22:00:00Z",
+                "2026-04-16T06:00:00Z",
+                LocalDate.of(2026, 4, 16),
+                "core");
+        var request = baseRequest(sample);
+
+        when(userRepository.findById(42L)).thenReturn(Optional.of(user));
+        when(appleHealthSleepSampleRepository.findByUserIdAndExternalSampleId(42L, "sleep-ext-1"))
+                .thenReturn(Optional.empty());
+
+        var response = appleHealthIngestService.ingest(42L, request);
+
+        assertEquals(1, response.getAccepted());
+        assertEquals(List.of("2026-04-16"), response.getAffectedLocalDates());
+        ArgumentCaptor<AppleHealthSleepSample> captor = ArgumentCaptor.forClass(AppleHealthSleepSample.class);
+        verify(appleHealthSleepSampleRepository).save(captor.capture());
+        assertEquals("CORE", captor.getValue().getSleepStage());
+        assertEquals(LocalDate.of(2026, 4, 16), captor.getValue().getLocalDate());
+        verifyNoInteractions(appleHealthStepSampleRepository);
+    }
+
+    @Test
+    void ingest_SleepLocalDateMustMatchEnd_NotStart() {
+        AppleHealthIngestSampleRequest sample = sleepSample(
+                "sleep-ext-2",
+                "2026-04-15T22:00:00Z",
+                "2026-04-16T06:00:00Z",
+                LocalDate.of(2026, 4, 15),
+                "deep");
+        var request = baseRequest(sample);
+
+        when(userRepository.findById(42L)).thenReturn(Optional.of(user));
+
+        var response = appleHealthIngestService.ingest(42L, request);
+
+        assertEquals(1, response.getRejected());
+        assertTrue(response.getResults().get(0).getMessage().contains("end date"));
+        verifyNoInteractions(appleHealthSleepSampleRepository);
+        verifyNoInteractions(appleHealthStepSampleRepository);
+    }
+
+    @Test
+    void ingest_SleepMissingStage_Rejected() {
+        AppleHealthIngestSampleRequest sample = sleepSample(
+                "sleep-ext-3",
+                "2026-04-15T22:00:00Z",
+                "2026-04-16T06:00:00Z",
+                LocalDate.of(2026, 4, 16),
+                null);
+        var request = baseRequest(sample);
+
+        when(userRepository.findById(42L)).thenReturn(Optional.of(user));
+
+        var response = appleHealthIngestService.ingest(42L, request);
+
+        assertEquals(1, response.getRejected());
+        assertTrue(response.getResults().get(0).getMessage().contains("sleepStage"));
+        verifyNoInteractions(appleHealthSleepSampleRepository);
+    }
+
+    @Test
+    void ingest_SleepInvalidStage_Rejected() {
+        AppleHealthIngestSampleRequest sample = sleepSample(
+                "sleep-ext-4",
+                "2026-04-15T22:00:00Z",
+                "2026-04-16T06:00:00Z",
+                LocalDate.of(2026, 4, 16),
+                "UNKNOWN_STAGE");
+        var request = baseRequest(sample);
+
+        when(userRepository.findById(42L)).thenReturn(Optional.of(user));
+
+        var response = appleHealthIngestService.ingest(42L, request);
+
+        assertEquals(1, response.getRejected());
+        assertTrue(response.getResults().get(0).getMessage().contains("sleepStage"));
+        verifyNoInteractions(appleHealthSleepSampleRepository);
+    }
+
+    @Test
+    void ingest_SleepUnchanged_NoSave() {
+        AppleHealthIngestSampleRequest sample = sleepSample(
+                "sleep-ext-5",
+                "2026-04-15T22:00:00Z",
+                "2026-04-16T06:00:00Z",
+                LocalDate.of(2026, 4, 16),
+                "rem");
+        var request = baseRequest(sample);
+
+        AppleHealthSleepSample existing = new AppleHealthSleepSample(
+                user,
+                "sleep-ext-5",
+                LocalDate.of(2026, 4, 16),
+                LocalDateTime.parse("2026-04-15T22:00:00"),
+                LocalDateTime.parse("2026-04-16T06:00:00"),
+                "REM"
+        );
+
+        when(userRepository.findById(42L)).thenReturn(Optional.of(user));
+        when(appleHealthSleepSampleRepository.findByUserIdAndExternalSampleId(42L, "sleep-ext-5"))
+                .thenReturn(Optional.of(existing));
+
+        var response = appleHealthIngestService.ingest(42L, request);
+
+        assertEquals(1, response.getUnchanged());
+        verify(appleHealthSleepSampleRepository, never()).save(any(AppleHealthSleepSample.class));
+        verifyNoInteractions(appleHealthStepSampleRepository);
+    }
+
+    @Test
+    void ingest_UnknownMetric_Rejected() {
+        AppleHealthIngestSampleRequest sample = singleSample("x-1", "2026-04-16T07:00:00Z", 100);
+        sample.setMetric("DISTANCE");
+        var request = baseRequest(sample);
+
+        when(userRepository.findById(42L)).thenReturn(Optional.of(user));
+
+        var response = appleHealthIngestService.ingest(42L, request);
+
+        assertEquals(1, response.getRejected());
+        assertTrue(response.getResults().get(0).getMessage().contains("STEPS and SLEEP"));
+        verifyNoInteractions(appleHealthStepSampleRepository);
+        verifyNoInteractions(appleHealthSleepSampleRepository);
+    }
+
+    @Test
+    void ingest_StepsMissingValue_Rejected() {
+        AppleHealthIngestSampleRequest sample = singleSample("ext-null-val", "2026-04-16T07:00:00Z", 0);
+        sample.setValue(null);
+        var request = baseRequest(sample);
+
+        when(userRepository.findById(42L)).thenReturn(Optional.of(user));
+
+        var response = appleHealthIngestService.ingest(42L, request);
+
+        assertEquals(1, response.getRejected());
+        assertTrue(response.getResults().get(0).getMessage().contains("value"));
+        verifyNoInteractions(appleHealthStepSampleRepository);
     }
 
     private AppleHealthIngestRequest baseRequest(AppleHealthIngestSampleRequest sample) {
@@ -218,6 +373,22 @@ class AppleHealthIngestServiceTest {
         sample.setEnd(OffsetDateTime.parse(endIso));
         sample.setLocalDate(sample.getStart().toLocalDate());
         sample.setValue(value);
+        return sample;
+    }
+
+    private AppleHealthIngestSampleRequest sleepSample(
+            String extId,
+            String startIso,
+            String endIso,
+            LocalDate localDate,
+            String sleepStage) {
+        AppleHealthIngestSampleRequest sample = new AppleHealthIngestSampleRequest();
+        sample.setMetric("SLEEP");
+        sample.setExternalSampleId(extId);
+        sample.setStart(OffsetDateTime.parse(startIso));
+        sample.setEnd(OffsetDateTime.parse(endIso));
+        sample.setLocalDate(localDate);
+        sample.setSleepStage(sleepStage);
         return sample;
     }
 }

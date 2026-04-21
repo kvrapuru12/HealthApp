@@ -5,7 +5,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.time.OffsetDateTime;
 
-@Schema(description = "Single-day dashboard payload (MVP: steps only)")
+@Schema(description = "Single-day dashboard payload (steps and sleep)")
 public class DashboardDailyResponse {
 
     @JsonProperty("localDate")
@@ -15,12 +15,14 @@ public class DashboardDailyResponse {
     private String timeZone;
 
     @JsonProperty("schemaVersion")
-    private int schemaVersion = 1;
+    private int schemaVersion = 2;
 
     @JsonProperty("generatedAt")
     private OffsetDateTime generatedAt;
 
     private DashboardDailyStepsSection steps = new DashboardDailyStepsSection();
+
+    private DashboardDailySleepSection sleep = new DashboardDailySleepSection();
 
     public String getLocalDate() {
         return localDate;
@@ -60,5 +62,13 @@ public class DashboardDailyResponse {
 
     public void setSteps(DashboardDailyStepsSection steps) {
         this.steps = steps;
+    }
+
+    public DashboardDailySleepSection getSleep() {
+        return sleep;
+    }
+
+    public void setSleep(DashboardDailySleepSection sleep) {
+        this.sleep = sleep;
     }
 }

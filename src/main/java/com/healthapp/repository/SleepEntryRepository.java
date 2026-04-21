@@ -8,8 +8,10 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface SleepEntryRepository extends JpaRepository<SleepEntry, Long> {
@@ -65,6 +67,15 @@ public interface SleepEntryRepository extends JpaRepository<SleepEntry, Long> {
             @Param("userId") Long userId,
             @Param("fromDate") LocalDateTime fromDate,
             @Param("toDate") LocalDateTime toDate,
+            @Param("status") SleepEntry.Status status
+    );
+
+    /** Half-open interval [fromInclusive, toExclusive) for calendar-day totals with UTC-stored timestamps */
+    @Query("SELECT SUM(s.hours) FROM SleepEntry s WHERE s.user.id = :userId AND s.loggedAt >= :fromInclusive AND s.loggedAt < :toExclusive AND s.status = :status")
+    Optional<BigDecimal> sumHoursByUserIdAndDateRangeHalfOpen(
+            @Param("userId") Long userId,
+            @Param("fromInclusive") LocalDateTime fromInclusive,
+            @Param("toExclusive") LocalDateTime toExclusive,
             @Param("status") SleepEntry.Status status
     );
 }
