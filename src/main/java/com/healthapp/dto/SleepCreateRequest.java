@@ -6,6 +6,7 @@ import jakarta.validation.constraints.*;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 @Schema(description = "Request DTO for creating a new sleep entry")
 public class SleepCreateRequest {
@@ -24,7 +25,7 @@ public class SleepCreateRequest {
         required = true
     )
     @NotNull(message = "Logged at timestamp is required")
-    private LocalDateTime loggedAt;
+    private OffsetDateTime loggedAt;
     
     @Schema(
         description = "Hours of sleep (0.0 to 24.0, max 1 decimal place)",
@@ -51,14 +52,14 @@ public class SleepCreateRequest {
     public SleepCreateRequest() {}
     
     // Constructor with required fields
-    public SleepCreateRequest(Long userId, LocalDateTime loggedAt, BigDecimal hours) {
+    public SleepCreateRequest(Long userId, OffsetDateTime loggedAt, BigDecimal hours) {
         this.userId = userId;
         this.loggedAt = loggedAt;
         this.hours = hours;
     }
     
     // Constructor with all fields
-    public SleepCreateRequest(Long userId, LocalDateTime loggedAt, BigDecimal hours, String note) {
+    public SleepCreateRequest(Long userId, OffsetDateTime loggedAt, BigDecimal hours, String note) {
         this.userId = userId;
         this.loggedAt = loggedAt;
         this.hours = hours;
@@ -66,10 +67,10 @@ public class SleepCreateRequest {
     }
     
     // Method to convert DTO to Entity
-    public SleepEntry toEntity(User user) {
+    public SleepEntry toEntity(User user, LocalDateTime loggedAt) {
         SleepEntry sleepEntry = new SleepEntry();
         sleepEntry.setUser(user);
-        sleepEntry.setLoggedAt(this.loggedAt);
+        sleepEntry.setLoggedAt(loggedAt);
         sleepEntry.setHours(this.hours);
         sleepEntry.setNote(this.note);
         return sleepEntry;
@@ -84,11 +85,11 @@ public class SleepCreateRequest {
         this.userId = userId;
     }
     
-    public LocalDateTime getLoggedAt() {
+    public OffsetDateTime getLoggedAt() {
         return loggedAt;
     }
     
-    public void setLoggedAt(LocalDateTime loggedAt) {
+    public void setLoggedAt(OffsetDateTime loggedAt) {
         this.loggedAt = loggedAt;
     }
     

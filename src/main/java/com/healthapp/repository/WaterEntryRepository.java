@@ -47,10 +47,11 @@ public interface WaterEntryRepository extends JpaRepository<WaterEntry, Long> {
             Pageable pageable
     );
     
-    // Check for duplicate entries within a time range (for validation)
-    @Query("SELECT COUNT(w) > 0 FROM WaterEntry w WHERE w.user.id = :userId AND w.loggedAt BETWEEN :startTime AND :endTime AND w.status = :status")
-    boolean existsByUserIdAndTimeRangeAndStatus(
+    // Check for duplicate entries with same amount within a short time range
+    @Query("SELECT COUNT(w) > 0 FROM WaterEntry w WHERE w.user.id = :userId AND w.amount = :amount AND w.loggedAt BETWEEN :startTime AND :endTime AND w.status = :status")
+    boolean existsByUserIdAndAmountAndTimeRangeAndStatus(
             @Param("userId") Long userId,
+            @Param("amount") Integer amount,
             @Param("startTime") LocalDateTime startTime,
             @Param("endTime") LocalDateTime endTime,
             @Param("status") WaterEntry.Status status

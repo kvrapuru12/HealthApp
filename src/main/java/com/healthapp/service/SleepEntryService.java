@@ -19,6 +19,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Optional;
@@ -103,15 +105,16 @@ public class SleepEntryService {
         User user = userRepository.findById(request.getUserId())
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
         
-        // Validate loggedAt is not more than 10 minutes in the future
-        LocalDateTime now = LocalDateTime.now();
+        // Validate loggedAt is not more than 10 minutes in the future using UTC-aware comparison
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
         if (request.getLoggedAt().isAfter(now.plus(10, ChronoUnit.MINUTES))) {
             throw new IllegalArgumentException("Logged at timestamp cannot be more than 10 minutes in the future");
         }
+        LocalDateTime loggedAtUtc = toUtcLocalDateTime(request.getLoggedAt());
         
         // Check for duplicate entries within ±5 minutes for the same user
-        LocalDateTime fiveMinutesBefore = request.getLoggedAt().minus(5, ChronoUnit.MINUTES);
-        LocalDateTime fiveMinutesAfter = request.getLoggedAt().plus(5, ChronoUnit.MINUTES);
+        LocalDateTime fiveMinutesBefore = loggedAtUtc.minus(5, ChronoUnit.MINUTES);
+        LocalDateTime fiveMinutesAfter = loggedAtUtc.plus(5, ChronoUnit.MINUTES);
         
         if (sleepEntryRepository.existsByUserIdAndTimeRangeAndStatus(
                 user.getId(), fiveMinutesBefore, fiveMinutesAfter, SleepEntry.Status.ACTIVE)) {
@@ -119,7 +122,7 @@ public class SleepEntryService {
         }
         
         // Create and save the sleep entry
-        SleepEntry sleepEntry = request.toEntity(user);
+        SleepEntry sleepEntry = request.toEntity(user, loggedAtUtc);
         SleepEntry savedSleepEntry = sleepEntryRepository.save(sleepEntry);
         
         logger.info("Created sleep entry with ID: {} for user: {}", savedSleepEntry.getId(), user.getId());
@@ -164,5 +167,9 @@ public class SleepEntryService {
         existingEntry.setStatus(SleepEntry.Status.DELETED);
         sleepEntryRepository.save(existingEntry);
         logger.info("Soft deleted sleep entry with ID: {}", id);
+    }
+
+    private LocalDateTime toUtcLocalDateTime(OffsetDateTime value) {
+        return value.withOffsetSameInstant(ZoneOffset.UTC).toLocalDateTime();
     }
 }

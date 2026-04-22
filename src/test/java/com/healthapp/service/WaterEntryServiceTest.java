@@ -14,6 +14,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -51,7 +52,7 @@ public class WaterEntryServiceTest {
         // Given
         WaterCreateRequest request = new WaterCreateRequest();
         request.setUserId(testUser.getId());
-        request.setLoggedAt(testTime);
+        request.setLoggedAt(LocalDateTime.now(ZoneOffset.UTC).atOffset(ZoneOffset.UTC));
         request.setAmount(350);
         request.setNote("Test water entry");
 
@@ -77,7 +78,7 @@ public class WaterEntryServiceTest {
 
         WaterCreateRequest request = new WaterCreateRequest();
         request.setUserId(otherUser.getId());
-        request.setLoggedAt(testTime);
+        request.setLoggedAt(LocalDateTime.now(ZoneOffset.UTC).atOffset(ZoneOffset.UTC));
         request.setAmount(500);
         request.setNote("Admin created entry");
 

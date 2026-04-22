@@ -1,11 +1,9 @@
 package com.healthapp.dto;
 
-import com.fasterxml.jackson.annotation.JsonFormat;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.*;
-import org.springframework.format.annotation.DateTimeFormat;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 @Schema(description = "Request to create a new water entry")
 public class WaterCreateRequest {
@@ -16,10 +14,8 @@ public class WaterCreateRequest {
     private Long userId;
     
     @NotNull(message = "Logged at time is required")
-    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss'Z'")
-    @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
     @Schema(description = "When the water was consumed", example = "2025-08-14T08:00:00Z")
-    private LocalDateTime loggedAt;
+    private OffsetDateTime loggedAt;
     
     @NotNull(message = "Amount is required")
     @Min(value = 10, message = "Amount must be at least 10 ml")
@@ -34,7 +30,7 @@ public class WaterCreateRequest {
     // Constructors
     public WaterCreateRequest() {}
     
-    public WaterCreateRequest(Long userId, LocalDateTime loggedAt, Integer amount, String note) {
+    public WaterCreateRequest(Long userId, OffsetDateTime loggedAt, Integer amount, String note) {
         this.userId = userId;
         this.loggedAt = loggedAt;
         this.amount = amount;
@@ -45,8 +41,8 @@ public class WaterCreateRequest {
     public Long getUserId() { return userId; }
     public void setUserId(Long userId) { this.userId = userId; }
     
-    public LocalDateTime getLoggedAt() { return loggedAt; }
-    public void setLoggedAt(LocalDateTime loggedAt) { this.loggedAt = loggedAt; }
+    public OffsetDateTime getLoggedAt() { return loggedAt; }
+    public void setLoggedAt(OffsetDateTime loggedAt) { this.loggedAt = loggedAt; }
     
     public Integer getAmount() { return amount; }
     public void setAmount(Integer amount) { this.amount = amount; }

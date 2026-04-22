@@ -19,6 +19,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
 
@@ -105,15 +107,16 @@ public class WaterEntryService {
             
             logger.debug("User access validation passed");
             
-            // Validate loggedAt time (max 10 minutes in future)
-            LocalDateTime now = LocalDateTime.now();
-            LocalDateTime maxFutureTime = now.plusMinutes(10);
+            // Validate loggedAt time (max 10 minutes in future) using UTC-aware comparison
+            OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+            OffsetDateTime maxFutureTime = now.plusMinutes(10);
             if (request.getLoggedAt().isAfter(maxFutureTime)) {
                 logger.warn("Future timestamp validation failed: loggedAt={}, maxFutureTime={}", request.getLoggedAt(), maxFutureTime);
                 throw new IllegalArgumentException("Logged at time cannot be more than 10 minutes in the future");
             }
             
             logger.debug("Timestamp validation passed: loggedAt={}, now={}", request.getLoggedAt(), now);
+            LocalDateTime loggedAtUtc = toUtcLocalDateTime(request.getLoggedAt());
             
             // Get user
             logger.debug("Fetching user with ID: {}", request.getUserId());
@@ -124,25 +127,26 @@ public class WaterEntryService {
                     });
             logger.debug("User found: {}", user.getUsername());
             
-            // Check for duplicate entries within ±5 minutes
-            LocalDateTime fiveMinutesBefore = request.getLoggedAt().minusMinutes(5);
-            LocalDateTime fiveMinutesAfter = request.getLoggedAt().plusMinutes(5);
+            // Check for duplicate submissions with same amount within ±1 minute
+            LocalDateTime oneMinuteBefore = loggedAtUtc.minusMinutes(1);
+            LocalDateTime oneMinuteAfter = loggedAtUtc.plusMinutes(1);
             
-            logger.debug("Checking for duplicates in time range: {} to {}", fiveMinutesBefore, fiveMinutesAfter);
-            boolean duplicateExists = waterEntryRepository.existsByUserIdAndTimeRangeAndStatus(
-                    user.getId(), fiveMinutesBefore, fiveMinutesAfter, WaterEntry.Status.ACTIVE);
+            logger.debug("Checking for duplicates with same amount in time range: {} to {}, amount: {}",
+                    oneMinuteBefore, oneMinuteAfter, request.getAmount());
+            boolean duplicateExists = waterEntryRepository.existsByUserIdAndAmountAndTimeRangeAndStatus(
+                    user.getId(), request.getAmount(), oneMinuteBefore, oneMinuteAfter, WaterEntry.Status.ACTIVE);
             
             if (duplicateExists) {
-                logger.warn("Duplicate water entry detected for user {} in time range {} to {}", 
-                    user.getId(), fiveMinutesBefore, fiveMinutesAfter);
-                throw new IllegalArgumentException("Duplicate water entry detected within ±5 minutes for the same user");
+                logger.warn("Duplicate water entry detected for user {} in time range {} to {} with amount {}", 
+                    user.getId(), oneMinuteBefore, oneMinuteAfter, request.getAmount());
+                throw new IllegalArgumentException("Duplicate water entry detected for the same amount within ±1 minute");
             }
             
             logger.debug("Duplicate check passed");
             
             // Create and save the water entry
             logger.debug("Creating WaterEntry entity");
-            WaterEntry waterEntry = new WaterEntry(user, request.getLoggedAt(), request.getAmount(), request.getNote());
+            WaterEntry waterEntry = new WaterEntry(user, loggedAtUtc, request.getAmount(), request.getNote());
             
             logger.debug("Saving WaterEntry to database");
             WaterEntry savedWaterEntry = waterEntryRepository.save(waterEntry);
@@ -175,13 +179,13 @@ public class WaterEntryService {
         
         // Update fields if provided
         if (request.getLoggedAt() != null) {
-            // Validate loggedAt time (max 10 minutes in future)
-            LocalDateTime now = LocalDateTime.now();
-            LocalDateTime maxFutureTime = now.plusMinutes(10);
+            // Validate loggedAt time (max 10 minutes in future) using UTC-aware comparison
+            OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+            OffsetDateTime maxFutureTime = now.plusMinutes(10);
             if (request.getLoggedAt().isAfter(maxFutureTime)) {
                 throw new IllegalArgumentException("Logged at time cannot be more than 10 minutes in the future");
             }
-            existingEntry.setLoggedAt(request.getLoggedAt());
+            existingEntry.setLoggedAt(toUtcLocalDateTime(request.getLoggedAt()));
         }
         
         if (request.getAmount() != null) {
@@ -233,5 +237,9 @@ public class WaterEntryService {
     public Long getWaterEntryCountByUserAndDateRange(Long userId, LocalDateTime from, LocalDateTime to) {
         return waterEntryRepository.countByUserIdAndDateRangeAndStatus(
                 userId, from, to, WaterEntry.Status.ACTIVE);
+    }
+
+    private LocalDateTime toUtcLocalDateTime(OffsetDateTime value) {
+        return value.withOffsetSameInstant(ZoneOffset.UTC).toLocalDateTime();
     }
 }

@@ -1,19 +1,15 @@
 package com.healthapp.dto;
 
-import com.fasterxml.jackson.annotation.JsonFormat;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.*;
-import org.springframework.format.annotation.DateTimeFormat;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 @Schema(description = "Request to update a water entry")
 public class WaterUpdateRequest {
     
-    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss'Z'")
-    @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
     @Schema(description = "When the water was consumed (optional)", example = "2025-08-14T08:00:00Z")
-    private LocalDateTime loggedAt;
+    private OffsetDateTime loggedAt;
     
     @Min(value = 10, message = "Amount must be at least 10 ml")
     @Max(value = 5000, message = "Amount cannot exceed 5000 ml")
@@ -27,15 +23,15 @@ public class WaterUpdateRequest {
     // Constructors
     public WaterUpdateRequest() {}
     
-    public WaterUpdateRequest(LocalDateTime loggedAt, Integer amount, String note) {
+    public WaterUpdateRequest(OffsetDateTime loggedAt, Integer amount, String note) {
         this.loggedAt = loggedAt;
         this.amount = amount;
         this.note = note;
     }
     
     // Getters and Setters
-    public LocalDateTime getLoggedAt() { return loggedAt; }
-    public void setLoggedAt(LocalDateTime loggedAt) { this.loggedAt = loggedAt; }
+    public OffsetDateTime getLoggedAt() { return loggedAt; }
+    public void setLoggedAt(OffsetDateTime loggedAt) { this.loggedAt = loggedAt; }
     
     public Integer getAmount() { return amount; }
     public void setAmount(Integer amount) { this.amount = amount; }
