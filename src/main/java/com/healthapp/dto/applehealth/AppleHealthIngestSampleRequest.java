@@ -37,7 +37,7 @@ public class AppleHealthIngestSampleRequest {
     private Integer value;
 
     @JsonProperty("sleepStage")
-    @Schema(description = "Normalized sleep stage when metric is SLEEP (e.g. CORE, DEEP, REM, AWAKE, IN_BED, ASLEEP, ASLEEP_UNSPECIFIED)", example = "CORE")
+    @Schema(description = "Sleep stage when metric is SLEEP. Canonical: AWAKE, IN_BED, ASLEEP, ASLEEP_UNSPECIFIED, CORE, DEEP, REM. Also accepts aliases ASLEEP_REM/ASLEEP_CORE/ASLEEP_DEEP.", example = "CORE")
     private String sleepStage;
 
     public String getMetric() {

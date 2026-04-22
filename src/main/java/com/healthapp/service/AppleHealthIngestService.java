@@ -214,11 +214,11 @@ public class AppleHealthIngestService {
             return new AppleHealthIngestSampleResult(extId, AppleHealthIngestSampleResult.Status.REJECTED,
                     "sleepStage is required for metric SLEEP");
         }
+        String sleepStage = AppleHealthSleepStageValidator.normalize(rawStage);
 
-        String sleepStage = rawStage.trim().toUpperCase();
-        if (!AppleHealthSleepStageValidator.isAllowed(sleepStage)) {
+        if (sleepStage == null) {
             return new AppleHealthIngestSampleResult(extId, AppleHealthIngestSampleResult.Status.REJECTED,
-                    "sleepStage is not a supported value");
+                    "sleepStage is not a supported value (accepted: AWAKE, IN_BED, ASLEEP, ASLEEP_UNSPECIFIED, CORE, DEEP, REM; aliases: ASLEEP_REM, ASLEEP_CORE, ASLEEP_DEEP)");
         }
 
         LocalDate localDate = sample.getLocalDate();

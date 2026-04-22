@@ -58,8 +58,10 @@ All endpoints require JWT auth:
   - `samples[].value`: required; integer between `0` and `1000000`.
 - **SLEEP**
   - `samples[].localDate`: required; must match the calendar date of **`end`** in `anchorTimeZone` (wake-day attribution for overnight segments).
-  - `samples[].sleepStage`: required; normalized values (case-insensitive on ingest, stored uppercase): `AWAKE`, `IN_BED`, `ASLEEP`, `ASLEEP_UNSPECIFIED`, `CORE`, `DEEP`, `REM`.
-  - `samples[].value`: not used for `SLEEP` (may be omitted).
+  - `samples[].sleepStage`: required; case-insensitive and normalized to canonical values:
+    - canonical: `AWAKE`, `IN_BED`, `ASLEEP`, `ASLEEP_UNSPECIFIED`, `CORE`, `DEEP`, `REM`
+    - accepted aliases: `ASLEEP_REM -> REM`, `ASLEEP_CORE -> CORE`, `ASLEEP_DEEP -> DEEP`
+  - `samples[].value`: not used for `SLEEP` (duration is always derived from `end - start`, in seconds, then converted to hours for dashboard read models).
 
 ### Success response (`200`)
 
