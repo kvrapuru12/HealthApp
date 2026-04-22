@@ -11,10 +11,13 @@ import java.util.List;
 public class DashboardDailySleepSection {
 
     @JsonProperty("mergePolicy")
-    private String mergePolicy = "PREFER_APPLE_HEALTH_IF_PRESENT";
+    private String mergePolicy = "SUM_WHEN_BOTH_PRESENT";
 
     @JsonProperty("displayedSleepHours")
     private BigDecimal displayedSleepHours = BigDecimal.ZERO;
+
+    @JsonProperty("resolvedSource")
+    private String resolvedSource = "NONE";
 
     @JsonProperty("bySource")
     private List<DashboardDailySourceSleep> bySource = new ArrayList<>();
@@ -36,6 +39,14 @@ public class DashboardDailySleepSection {
 
     public void setDisplayedSleepHours(BigDecimal displayedSleepHours) {
         this.displayedSleepHours = displayedSleepHours;
+    }
+
+    public String getResolvedSource() {
+        return resolvedSource;
+    }
+
+    public void setResolvedSource(String resolvedSource) {
+        this.resolvedSource = resolvedSource;
     }
 
     public List<DashboardDailySourceSleep> getBySource() {

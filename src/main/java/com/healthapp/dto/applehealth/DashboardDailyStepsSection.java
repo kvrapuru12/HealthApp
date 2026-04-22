@@ -10,10 +10,13 @@ import java.util.List;
 public class DashboardDailyStepsSection {
 
     @JsonProperty("mergePolicy")
-    private String mergePolicy = "PREFER_APPLE_HEALTH_IF_PRESENT";
+    private String mergePolicy = "SUM_WHEN_BOTH_PRESENT";
 
     @JsonProperty("displayedSteps")
     private int displayedSteps;
+
+    @JsonProperty("resolvedSource")
+    private String resolvedSource = "NONE";
 
     @JsonProperty("bySource")
     private List<DashboardDailySourceSteps> bySource = new ArrayList<>();
@@ -35,6 +38,14 @@ public class DashboardDailyStepsSection {
 
     public void setDisplayedSteps(int displayedSteps) {
         this.displayedSteps = displayedSteps;
+    }
+
+    public String getResolvedSource() {
+        return resolvedSource;
+    }
+
+    public void setResolvedSource(String resolvedSource) {
+        this.resolvedSource = resolvedSource;
     }
 
     public List<DashboardDailySourceSteps> getBySource() {

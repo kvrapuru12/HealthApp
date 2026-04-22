@@ -134,8 +134,9 @@ curl -X GET "http://localhost:8080/api/dashboard/daily?localDate=2026-04-16&time
   "schemaVersion": 2,
   "generatedAt": "2026-04-16T11:10:03.456Z",
   "steps": {
-    "mergePolicy": "PREFER_APPLE_HEALTH_IF_PRESENT",
-    "displayedSteps": 8432,
+    "mergePolicy": "SUM_WHEN_BOTH_PRESENT",
+    "displayedSteps": 8632,
+    "resolvedSource": "BOTH",
     "bySource": [
       {
         "source": "APPLE_HEALTH",
@@ -148,12 +149,13 @@ curl -X GET "http://localhost:8080/api/dashboard/daily?localDate=2026-04-16&time
     ],
     "conflictFlags": {
       "manualVsAppleMismatch": true,
-      "manualIgnoredForDisplay": true
+      "manualIgnoredForDisplay": false
     }
   },
   "sleep": {
-    "mergePolicy": "PREFER_APPLE_HEALTH_IF_PRESENT",
-    "displayedSleepHours": 7.5,
+    "mergePolicy": "SUM_WHEN_BOTH_PRESENT",
+    "displayedSleepHours": 14.5,
+    "resolvedSource": "BOTH",
     "bySource": [
       {
         "source": "APPLE_HEALTH",
@@ -166,7 +168,7 @@ curl -X GET "http://localhost:8080/api/dashboard/daily?localDate=2026-04-16&time
     ],
     "conflictFlags": {
       "manualVsAppleMismatch": true,
-      "manualIgnoredForDisplay": true
+      "manualIgnoredForDisplay": false
     }
   }
 }
@@ -174,14 +176,19 @@ curl -X GET "http://localhost:8080/api/dashboard/daily?localDate=2026-04-16&time
 
 ### Merge behavior (steps)
 
-- If Apple step data exists for `localDate`, `displayedSteps = APPLE_HEALTH` total.
-- If Apple step data does not exist, `displayedSteps = MANUAL_APP` total.
-- `conflictFlags` become `true` when Apple exists and manual steps are non-zero but totals differ.
+- If both sources exist for `localDate`, `displayedSteps = APPLE_HEALTH + MANUAL_APP` total and `resolvedSource = BOTH`.
+- If only Apple step data exists, `displayedSteps = APPLE_HEALTH` and `resolvedSource = APPLE_HEALTH`.
+- If only manual step data exists, `displayedSteps = MANUAL_APP` and `resolvedSource = MANUAL_APP`.
+- If neither exists, `displayedSteps = 0` and `resolvedSource = NONE`.
+- `conflictFlags.manualVsAppleMismatch` becomes `true` when both sources exist and totals differ.
 
 ### Merge behavior (sleep)
 
-- If **any** Apple sleep row exists for `localDate` (any stage), `displayedSleepHours` uses Apple’s **asleep-only** sum (see above). Otherwise it uses the sum of manual `sleep_logs.hours` for that local calendar day.
-- `sleep.conflictFlags` are set when Apple sleep rows exist, manual sleep hours for that day are greater than zero, and the two totals differ.
+- If both sources exist for `localDate`, `displayedSleepHours = APPLE_HEALTH_ASLEEP_SUM + MANUAL_APP` and `resolvedSource = BOTH`.
+- If only Apple sleep rows exist, `displayedSleepHours` uses Apple’s asleep-only sum and `resolvedSource = APPLE_HEALTH`.
+- If only manual sleep exists, `displayedSleepHours` uses manual `sleep_logs.hours` sum and `resolvedSource = MANUAL_APP`.
+- If neither exists, `displayedSleepHours = 0` and `resolvedSource = NONE`.
+- `sleep.conflictFlags.manualVsAppleMismatch` is set when both sources exist and the two source totals differ.
 
 ### Error responses
 

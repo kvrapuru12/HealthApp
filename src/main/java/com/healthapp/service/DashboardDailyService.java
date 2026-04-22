@@ -31,7 +31,11 @@ import java.util.Objects;
 @Service
 public class DashboardDailyService {
 
-    public static final String MERGE_POLICY = "PREFER_APPLE_HEALTH_IF_PRESENT";
+    public static final String MERGE_POLICY = "SUM_WHEN_BOTH_PRESENT";
+    private static final String SOURCE_NONE = "NONE";
+    private static final String SOURCE_APPLE = "APPLE_HEALTH";
+    private static final String SOURCE_MANUAL = "MANUAL_APP";
+    private static final String SOURCE_BOTH = "BOTH";
 
     private static final int SLEEP_HOURS_SCALE = 2;
 
@@ -74,10 +78,14 @@ public class DashboardDailyService {
                 0);
 
         boolean appleHasData = appleRowCount > 0;
-        int displayed = appleHasData ? appleSteps : manualSteps;
+        boolean manualHasData = manualSteps > 0;
+        int displayed = appleHasData && manualHasData
+                ? appleSteps + manualSteps
+                : (appleHasData ? appleSteps : manualSteps);
+        String resolvedStepsSource = resolveSource(appleHasData, manualHasData);
 
-        boolean mismatch = appleHasData && manualSteps > 0 && appleSteps != manualSteps;
-        boolean manualIgnored = appleHasData && manualSteps > 0 && appleSteps != manualSteps;
+        boolean mismatch = appleHasData && manualHasData && appleSteps != manualSteps;
+        boolean manualIgnored = false;
 
         DashboardDailyResponse response = new DashboardDailyResponse();
         response.setLocalDate(localDate.toString());
@@ -87,10 +95,11 @@ public class DashboardDailyService {
         DashboardDailyStepsSection steps = new DashboardDailyStepsSection();
         steps.setMergePolicy(MERGE_POLICY);
         steps.setDisplayedSteps(displayed);
+        steps.setResolvedSource(resolvedStepsSource);
 
         List<DashboardDailySourceSteps> bySource = new ArrayList<>();
-        bySource.add(new DashboardDailySourceSteps("APPLE_HEALTH", appleSteps));
-        bySource.add(new DashboardDailySourceSteps("MANUAL_APP", manualSteps));
+        bySource.add(new DashboardDailySourceSteps(SOURCE_APPLE, appleSteps));
+        bySource.add(new DashboardDailySourceSteps(SOURCE_MANUAL, manualSteps));
         steps.setBySource(bySource);
 
         steps.setConflictFlags(new DashboardDailyConflictFlags(mismatch, manualIgnored));
@@ -109,24 +118,42 @@ public class DashboardDailyService {
                 .setScale(SLEEP_HOURS_SCALE, RoundingMode.HALF_UP);
 
         boolean appleSleepPresent = appleSleepRowCount > 0;
-        BigDecimal displayedSleepHours = appleSleepPresent ? appleSleepHours : manualSleepHours;
+        boolean manualSleepPresent = manualSleepHours.compareTo(BigDecimal.ZERO) > 0;
+        BigDecimal displayedSleepHours = appleSleepPresent && manualSleepPresent
+                ? appleSleepHours.add(manualSleepHours).setScale(SLEEP_HOURS_SCALE, RoundingMode.HALF_UP)
+                : (appleSleepPresent ? appleSleepHours : manualSleepHours);
+        String resolvedSleepSource = resolveSource(appleSleepPresent, manualSleepPresent);
 
         boolean sleepMismatch = appleSleepPresent
-                && manualSleepHours.compareTo(BigDecimal.ZERO) > 0
+                && manualSleepPresent
                 && manualSleepHours.compareTo(appleSleepHours) != 0;
-        boolean sleepManualIgnored = sleepMismatch;
+        boolean sleepManualIgnored = false;
 
         DashboardDailySleepSection sleep = new DashboardDailySleepSection();
         sleep.setMergePolicy(MERGE_POLICY);
         sleep.setDisplayedSleepHours(displayedSleepHours);
+        sleep.setResolvedSource(resolvedSleepSource);
 
         List<DashboardDailySourceSleep> sleepBySource = new ArrayList<>();
-        sleepBySource.add(new DashboardDailySourceSleep("APPLE_HEALTH", appleSleepHours));
-        sleepBySource.add(new DashboardDailySourceSleep("MANUAL_APP", manualSleepHours));
+        sleepBySource.add(new DashboardDailySourceSleep(SOURCE_APPLE, appleSleepHours));
+        sleepBySource.add(new DashboardDailySourceSleep(SOURCE_MANUAL, manualSleepHours));
         sleep.setBySource(sleepBySource);
         sleep.setConflictFlags(new DashboardDailyConflictFlags(sleepMismatch, sleepManualIgnored));
         response.setSleep(sleep);
 
         return response;
+    }
+
+    private static String resolveSource(boolean applePresent, boolean manualPresent) {
+        if (applePresent && manualPresent) {
+            return SOURCE_BOTH;
+        }
+        if (applePresent) {
+            return SOURCE_APPLE;
+        }
+        if (manualPresent) {
+            return SOURCE_MANUAL;
+        }
+        return SOURCE_NONE;
     }
 }
