@@ -15,6 +15,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -54,7 +55,7 @@ class SleepEntryServiceTest {
 
         createRequest = new SleepCreateRequest();
         createRequest.setUserId(1L);
-        createRequest.setLoggedAt(LocalDateTime.now());
+        createRequest.setLoggedAt(LocalDateTime.now(ZoneOffset.UTC).atOffset(ZoneOffset.UTC));
         createRequest.setHours(new BigDecimal("7.5"));
         createRequest.setNote("Test sleep");
 

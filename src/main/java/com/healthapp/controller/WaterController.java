@@ -152,7 +152,7 @@ public class WaterController {
         @ApiResponse(responseCode = "403", description = "User ID mismatch"),
         @ApiResponse(responseCode = "409", description = "Duplicate entry detected")
     })
-    public ResponseEntity<WaterCreateResponse> createWaterEntry(
+    public ResponseEntity<?> createWaterEntry(
             @Valid @RequestBody WaterCreateRequest request) {
         
         try {
@@ -175,14 +175,30 @@ public class WaterController {
             
         } catch (SecurityException e) {
             logger.warn("Security violation in water entry creation: {}", e.getMessage());
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(createErrorResponse("Forbidden", e.getMessage(), HttpStatus.FORBIDDEN));
         } catch (IllegalArgumentException e) {
             logger.warn("Invalid request in water entry creation: {}", e.getMessage());
-            return ResponseEntity.badRequest().build();
+            if (e.getMessage() != null && e.getMessage().contains("Duplicate water entry")) {
+                return ResponseEntity.status(HttpStatus.CONFLICT)
+                        .body(createErrorResponse("Duplicate entry", e.getMessage(), HttpStatus.CONFLICT));
+            }
+            return ResponseEntity.badRequest()
+                    .body(createErrorResponse("Invalid request", e.getMessage(), HttpStatus.BAD_REQUEST));
         } catch (Exception e) {
             logger.error("Error creating water entry: {}", e.getMessage(), e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(createErrorResponse("Internal server error", "Failed to create water entry", HttpStatus.INTERNAL_SERVER_ERROR));
         }
+    }
+
+    private Map<String, Object> createErrorResponse(String error, String message, HttpStatus status) {
+        Map<String, Object> response = new HashMap<>();
+        response.put("error", error);
+        response.put("message", message != null ? message : "Request failed");
+        response.put("status", status.value());
+        response.put("timestamp", LocalDateTime.now());
+        return response;
     }
     
     @PatchMapping("/{id}")

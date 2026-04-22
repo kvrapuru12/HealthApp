@@ -19,6 +19,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
 
@@ -105,15 +107,16 @@ public class StepEntryService {
             
             logger.debug("User access validation passed");
             
-            // Validate loggedAt time (max 10 minutes in future)
-            LocalDateTime now = LocalDateTime.now();
-            LocalDateTime maxFutureTime = now.plusMinutes(10);
+            // Validate loggedAt time (max 10 minutes in future) using UTC-aware comparison
+            OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+            OffsetDateTime maxFutureTime = now.plusMinutes(10);
             if (request.getLoggedAt().isAfter(maxFutureTime)) {
                 logger.warn("Future timestamp validation failed: loggedAt={}, maxFutureTime={}", request.getLoggedAt(), maxFutureTime);
                 throw new IllegalArgumentException("Logged at time cannot be more than 10 minutes in the future");
             }
             
             logger.debug("Timestamp validation passed: loggedAt={}, now={}", request.getLoggedAt(), now);
+            LocalDateTime loggedAtUtc = toUtcLocalDateTime(request.getLoggedAt());
             
             // Get user
             logger.debug("Fetching user with ID: {}", request.getUserId());
@@ -125,8 +128,8 @@ public class StepEntryService {
             logger.debug("User found: {}", user.getUsername());
             
             // Check for duplicate entries within ±5 minutes
-            LocalDateTime fiveMinutesBefore = request.getLoggedAt().minusMinutes(5);
-            LocalDateTime fiveMinutesAfter = request.getLoggedAt().plusMinutes(5);
+            LocalDateTime fiveMinutesBefore = loggedAtUtc.minusMinutes(5);
+            LocalDateTime fiveMinutesAfter = loggedAtUtc.plusMinutes(5);
             
             logger.debug("Checking for duplicates in time range: {} to {}", fiveMinutesBefore, fiveMinutesAfter);
             boolean duplicateExists = stepEntryRepository.existsByUserIdAndTimeRangeAndStatus(
@@ -142,7 +145,7 @@ public class StepEntryService {
             
             // Create and save the step entry
             logger.debug("Creating StepEntry entity");
-            StepEntry stepEntry = new StepEntry(user, request.getLoggedAt(), request.getStepCount(), request.getNote());
+            StepEntry stepEntry = new StepEntry(user, loggedAtUtc, request.getStepCount(), request.getNote());
             
             logger.debug("Saving StepEntry to database");
             StepEntry savedStepEntry = stepEntryRepository.save(stepEntry);
@@ -175,13 +178,13 @@ public class StepEntryService {
         
         // Update fields if provided
         if (request.getLoggedAt() != null) {
-            // Validate loggedAt time (max 10 minutes in future)
-            LocalDateTime now = LocalDateTime.now();
-            LocalDateTime maxFutureTime = now.plusMinutes(10);
+            // Validate loggedAt time (max 10 minutes in future) using UTC-aware comparison
+            OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+            OffsetDateTime maxFutureTime = now.plusMinutes(10);
             if (request.getLoggedAt().isAfter(maxFutureTime)) {
                 throw new IllegalArgumentException("Logged at time cannot be more than 10 minutes in the future");
             }
-            existingEntry.setLoggedAt(request.getLoggedAt());
+            existingEntry.setLoggedAt(toUtcLocalDateTime(request.getLoggedAt()));
         }
         
         if (request.getStepCount() != null) {
@@ -233,5 +236,9 @@ public class StepEntryService {
     public Long getStepEntryCountByUserAndDateRange(Long userId, LocalDateTime from, LocalDateTime to) {
         return stepEntryRepository.countByUserIdAndDateRangeAndStatus(
                 userId, from, to, StepEntry.Status.ACTIVE);
+    }
+
+    private LocalDateTime toUtcLocalDateTime(OffsetDateTime value) {
+        return value.withOffsetSameInstant(ZoneOffset.UTC).toLocalDateTime();
     }
 }
