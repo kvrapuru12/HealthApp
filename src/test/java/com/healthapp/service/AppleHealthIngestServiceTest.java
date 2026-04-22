@@ -297,6 +297,28 @@ class AppleHealthIngestServiceTest {
     }
 
     @Test
+    void ingest_SleepAliasStage_NormalizesToCanonicalStage() {
+        AppleHealthIngestSampleRequest sample = sleepSample(
+                "sleep-ext-alias-1",
+                "2026-04-15T22:00:00Z",
+                "2026-04-16T06:00:00Z",
+                LocalDate.of(2026, 4, 16),
+                "asleep_rem");
+        var request = baseRequest(sample);
+
+        when(userRepository.findById(42L)).thenReturn(Optional.of(user));
+        when(appleHealthSleepSampleRepository.findByUserIdAndExternalSampleId(42L, "sleep-ext-alias-1"))
+                .thenReturn(Optional.empty());
+
+        var response = appleHealthIngestService.ingest(42L, request);
+
+        assertEquals(1, response.getAccepted());
+        ArgumentCaptor<AppleHealthSleepSample> captor = ArgumentCaptor.forClass(AppleHealthSleepSample.class);
+        verify(appleHealthSleepSampleRepository).save(captor.capture());
+        assertEquals("REM", captor.getValue().getSleepStage());
+    }
+
+    @Test
     void ingest_SleepUnchanged_NoSave() {
         AppleHealthIngestSampleRequest sample = sleepSample(
                 "sleep-ext-5",
