@@ -3,8 +3,10 @@ package com.healthapp.controller;
 import com.healthapp.annotation.RateLimit;
 import com.healthapp.dto.CycleSyncActivityResponse;
 import com.healthapp.dto.CycleSyncFoodResponse;
+import com.healthapp.dto.CycleSyncUnifiedResponse;
 import com.healthapp.dto.VoiceCycleLogRequest;
 import com.healthapp.dto.VoiceCycleLogResponse;
+import com.healthapp.service.CycleSyncRecommendationService;
 import com.healthapp.service.MenstrualCycleService;
 import com.healthapp.service.VoiceCycleLogService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -33,9 +35,34 @@ public class CycleSyncAiController {
     
     @Autowired
     private MenstrualCycleService menstrualCycleService;
+
+    @Autowired
+    private CycleSyncRecommendationService cycleSyncRecommendationService;
     
     @Autowired(required = false)
     private VoiceCycleLogService voiceCycleLogService;
+
+    @GetMapping
+    @RateLimit(value = 15)
+    @Operation(summary = "Get unified cycle-sync recommendations for all phases")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Unified recommendations retrieved successfully"),
+        @ApiResponse(responseCode = "400", description = "No cycle data found"),
+        @ApiResponse(responseCode = "401", description = "Unauthorized")
+    })
+    public ResponseEntity<CycleSyncUnifiedResponse> getUnifiedRecommendations(
+            @RequestParam(required = false) Long userId) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        Long authenticatedUserId = (Long) authentication.getPrincipal();
+        Long targetUserId = userId != null ? userId : authenticatedUserId;
+
+        if (!targetUserId.equals(authenticatedUserId)) {
+            throw new IllegalArgumentException("Users can only access their own cycle recommendations");
+        }
+
+        CycleSyncUnifiedResponse response = cycleSyncRecommendationService.getUnifiedRecommendations(targetUserId);
+        return ResponseEntity.ok(response);
+    }
     
     @GetMapping("/food")
     @RateLimit(value = 15)
