@@ -13,6 +13,7 @@ import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.http.HttpMethod;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -53,8 +54,8 @@ public class SecurityConfig {
                 .requestMatchers("/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                 .requestMatchers("/auth/change-password").authenticated() // Change password requires authentication (must come before /auth/**)
                 .requestMatchers("/auth/**").permitAll() // Allow login and other public auth endpoints
-                .requestMatchers("POST", "/users").permitAll() // Allow user registration (signup) - should be public
-                .requestMatchers("/steps/**", "/sleeps/**", "/moods/**", "/water/**", "/weights/**", "/food-entries/**", "/activity-entries/**", "/activities/**", "/activity-logs/**", "/ai/**", "/users/**", "/foods/**", "/food-logs/**", "/cycles/**", "/app-ratings/**", "/integrations/**", "/dashboard/**").authenticated() // All health tracking and user management endpoints require authentication
+                .requestMatchers(HttpMethod.POST, "/users").permitAll() // Allow user registration (signup) - should be public
+                .requestMatchers("/steps/**", "/sleeps/**", "/moods/**", "/water/**", "/weights/**", "/food-entries/**", "/activity-entries/**", "/activities/**", "/activity-logs/**", "/ai/**", "/users/**", "/foods/**", "/food-logs/**", "/cycles/**", "/app-ratings/**", "/integrations/**", "/dashboard/**", "/notifications/**").authenticated() // All health tracking and user management endpoints require authentication
                 .anyRequest().authenticated() // All other endpoints require authentication
             );
         
@@ -70,7 +71,7 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOriginPatterns(Arrays.asList("*"));
-        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("*"));
         configuration.setAllowCredentials(true);
         
