@@ -84,7 +84,7 @@ public class NotificationService {
         return Map.of("message", "device deregistered");
     }
 
-    @Transactional(readOnly = true)
+    /** Not read-only: getOrCreatePreference may INSERT for new users (class @Transactional applies). */
     public NotificationPreferencesResponse getPreferences(Long userId) {
         ensureUserExists(userId);
         NotificationPreference preference = getOrCreatePreference(userId);
