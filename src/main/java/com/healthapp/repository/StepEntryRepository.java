@@ -47,10 +47,11 @@ public interface StepEntryRepository extends JpaRepository<StepEntry, Long> {
             Pageable pageable
     );
     
-    // Check for duplicate entries within a time range (for validation)
-    @Query("SELECT COUNT(s) > 0 FROM StepEntry s WHERE s.user.id = :userId AND s.loggedAt BETWEEN :startTime AND :endTime AND s.status = :status")
-    boolean existsByUserIdAndTimeRangeAndStatus(
+    // Check for duplicate entries with same step count within a time range
+    @Query("SELECT COUNT(s) > 0 FROM StepEntry s WHERE s.user.id = :userId AND s.stepCount = :stepCount AND s.loggedAt BETWEEN :startTime AND :endTime AND s.status = :status")
+    boolean existsByUserIdAndStepCountAndTimeRangeAndStatus(
             @Param("userId") Long userId,
+            @Param("stepCount") Integer stepCount,
             @Param("startTime") LocalDateTime startTime,
             @Param("endTime") LocalDateTime endTime,
             @Param("status") StepEntry.Status status

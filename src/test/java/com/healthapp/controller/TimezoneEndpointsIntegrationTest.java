@@ -193,6 +193,86 @@ class TimezoneEndpointsIntegrationTest {
         assertEquals(ts.toLocalDateTime(), saved.get(0).getLoggedAt());
     }
 
+    @Test
+    void stepsCreate_allowsImmediateDifferentStepCount() throws Exception {
+        OffsetDateTime ts = OffsetDateTime.now(ZoneOffset.UTC).minusMinutes(1).withNano(0);
+
+        String firstBody = """
+                {
+                  "userId": %d,
+                  "stepCount": 6000,
+                  "note": "first",
+                  "loggedAt": "%s"
+                }
+                """.formatted(user.getId(), formatUtcZ(ts));
+
+        String secondBody = """
+                {
+                  "userId": %d,
+                  "stepCount": 6500,
+                  "note": "second",
+                  "loggedAt": "%s"
+                }
+                """.formatted(user.getId(), formatUtcZ(ts.plusSeconds(20)));
+
+        mockMvc.perform(post("/steps")
+                        .with(authentication(auth(user.getId(), false)))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(firstBody))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(post("/steps")
+                        .with(authentication(auth(user.getId(), false)))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(secondBody))
+                .andExpect(status().isCreated());
+
+        List<StepEntry> saved = stepEntryRepository.findByUserIdAndStatus(user.getId(), StepEntry.Status.ACTIVE);
+        assertEquals(2, saved.size());
+    }
+
+    @Test
+    void sleepCreate_allowsImmediateDifferentHours() throws Exception {
+        OffsetDateTime ts = OffsetDateTime.now(ZoneOffset.UTC).minusMinutes(1).withNano(0);
+
+        String firstBody = """
+                {
+                  "userId": %d,
+                  "hours": 7.5,
+                  "note": "first",
+                  "loggedAt": "%s"
+                }
+                """.formatted(user.getId(), formatUtcZ(ts));
+
+        String secondBody = """
+                {
+                  "userId": %d,
+                  "hours": 8.0,
+                  "note": "second",
+                  "loggedAt": "%s"
+                }
+                """.formatted(user.getId(), formatUtcZ(ts.plusSeconds(20)));
+
+        mockMvc.perform(post("/sleeps")
+                        .with(authentication(auth(user.getId(), false)))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(firstBody))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(post("/sleeps")
+                        .with(authentication(auth(user.getId(), false)))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(secondBody))
+                .andExpect(status().isCreated());
+
+        List<SleepEntry> saved = sleepEntryRepository.findByUserIdAndStatus(user.getId(), SleepEntry.Status.ACTIVE);
+        assertEquals(2, saved.size());
+    }
+
     private static Authentication auth(Long userId, boolean admin) {
         List<SimpleGrantedAuthority> roles = admin
                 ? List.of(new SimpleGrantedAuthority("ROLE_ADMIN"))

@@ -88,7 +88,7 @@ class SleepEntryServiceTest {
     @Test
     void testCreateSleepEntry() {
         when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
-        when(sleepEntryRepository.existsByUserIdAndTimeRangeAndStatus(any(), any(), any(), any())).thenReturn(false);
+        when(sleepEntryRepository.existsByUserIdAndHoursAndTimeRangeAndStatus(any(), any(), any(), any(), any())).thenReturn(false);
         when(sleepEntryRepository.save(any())).thenReturn(testSleepEntry);
 
         var result = sleepEntryService.createSleepEntry(createRequest, 1L, false);
