@@ -52,10 +52,11 @@ public interface SleepEntryRepository extends JpaRepository<SleepEntry, Long> {
             Pageable pageable
     );
     
-    // Check for duplicate entries within ±5 minutes for the same user
-    @Query("SELECT COUNT(s) > 0 FROM SleepEntry s WHERE s.user.id = :userId AND s.loggedAt BETWEEN :startTime AND :endTime AND s.status = :status")
-    boolean existsByUserIdAndTimeRangeAndStatus(
+    // Check for duplicate entries with same hours within ±5 minutes for the same user
+    @Query("SELECT COUNT(s) > 0 FROM SleepEntry s WHERE s.user.id = :userId AND s.hours = :hours AND s.loggedAt BETWEEN :startTime AND :endTime AND s.status = :status")
+    boolean existsByUserIdAndHoursAndTimeRangeAndStatus(
             @Param("userId") Long userId, 
+            @Param("hours") BigDecimal hours,
             @Param("startTime") LocalDateTime startTime, 
             @Param("endTime") LocalDateTime endTime,
             @Param("status") SleepEntry.Status status

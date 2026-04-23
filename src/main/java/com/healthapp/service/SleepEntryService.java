@@ -116,9 +116,9 @@ public class SleepEntryService {
         LocalDateTime fiveMinutesBefore = loggedAtUtc.minus(5, ChronoUnit.MINUTES);
         LocalDateTime fiveMinutesAfter = loggedAtUtc.plus(5, ChronoUnit.MINUTES);
         
-        if (sleepEntryRepository.existsByUserIdAndTimeRangeAndStatus(
-                user.getId(), fiveMinutesBefore, fiveMinutesAfter, SleepEntry.Status.ACTIVE)) {
-            throw new IllegalArgumentException("Duplicate sleep entry detected within ±5 minutes for the same user");
+        if (sleepEntryRepository.existsByUserIdAndHoursAndTimeRangeAndStatus(
+                user.getId(), request.getHours(), fiveMinutesBefore, fiveMinutesAfter, SleepEntry.Status.ACTIVE)) {
+            throw new IllegalArgumentException("Duplicate sleep entry detected for the same hours within ±5 minutes");
         }
         
         // Create and save the sleep entry

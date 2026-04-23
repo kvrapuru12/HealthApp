@@ -131,14 +131,15 @@ public class StepEntryService {
             LocalDateTime fiveMinutesBefore = loggedAtUtc.minusMinutes(5);
             LocalDateTime fiveMinutesAfter = loggedAtUtc.plusMinutes(5);
             
-            logger.debug("Checking for duplicates in time range: {} to {}", fiveMinutesBefore, fiveMinutesAfter);
-            boolean duplicateExists = stepEntryRepository.existsByUserIdAndTimeRangeAndStatus(
-                    user.getId(), fiveMinutesBefore, fiveMinutesAfter, StepEntry.Status.ACTIVE);
+            logger.debug("Checking for duplicates in time range: {} to {}, stepCount: {}",
+                    fiveMinutesBefore, fiveMinutesAfter, request.getStepCount());
+            boolean duplicateExists = stepEntryRepository.existsByUserIdAndStepCountAndTimeRangeAndStatus(
+                    user.getId(), request.getStepCount(), fiveMinutesBefore, fiveMinutesAfter, StepEntry.Status.ACTIVE);
             
             if (duplicateExists) {
-                logger.warn("Duplicate step entry detected for user {} in time range {} to {}", 
-                    user.getId(), fiveMinutesBefore, fiveMinutesAfter);
-                throw new IllegalArgumentException("Duplicate step entry detected within ±5 minutes for the same user");
+                logger.warn("Duplicate step entry detected for user {} in time range {} to {} with stepCount {}",
+                        user.getId(), fiveMinutesBefore, fiveMinutesAfter, request.getStepCount());
+                throw new IllegalArgumentException("Duplicate step entry detected for the same step count within ±5 minutes");
             }
             
             logger.debug("Duplicate check passed");
