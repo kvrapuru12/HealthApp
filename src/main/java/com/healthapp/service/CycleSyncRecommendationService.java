@@ -12,6 +12,7 @@ import com.theokanning.openai.service.OpenAiService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -19,6 +20,10 @@ import java.time.Period;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 @Service
 public class CycleSyncRecommendationService {
@@ -73,6 +78,9 @@ public class CycleSyncRecommendationService {
     @Autowired
     private MenstrualCycleService menstrualCycleService;
 
+    @Value("${cycle.sync.ai.timeout.seconds:8}")
+    private int aiTimeoutSeconds;
+
     public CycleSyncUnifiedResponse getUnifiedRecommendations(Long authenticatedUserId) {
         Objects.requireNonNull(authenticatedUserId, "authenticatedUserId is required");
         CyclePhaseResponse currentPhase = menstrualCycleService.getCurrentPhase(authenticatedUserId);
@@ -92,18 +100,28 @@ public class CycleSyncRecommendationService {
                             new ChatMessage("system", SYSTEM_PROMPT),
                             new ChatMessage("user", userPrompt)
                     ))
-                    .maxTokens(2200)
+                    .maxTokens(1600)
                     .temperature(0.15)
                     .build();
 
-            String responseText = openAiService.createChatCompletion(request)
-                    .getChoices()
-                    .get(0)
-                    .getMessage()
-                    .getContent();
+            String responseText = CompletableFuture.supplyAsync(() -> openAiService.createChatCompletion(request)
+                            .getChoices()
+                            .get(0)
+                            .getMessage()
+                            .getContent())
+                    .orTimeout(aiTimeoutSeconds, TimeUnit.SECONDS)
+                    .join();
 
             CycleSyncUnifiedResponse parsed = parseAiResponse(responseText, normalizePhase(currentPhase.getPhase()));
             return ensureComplete(parsed, normalizePhase(currentPhase.getPhase()));
+        } catch (CompletionException e) {
+            if (e.getCause() instanceof TimeoutException) {
+                logger.warn("OpenAI request timed out after {}s; using fallback recommendations for user {}",
+                        aiTimeoutSeconds, authenticatedUserId);
+                return buildFallbackRecommendations(normalizePhase(currentPhase.getPhase()));
+            }
+            logger.error("Failed to generate unified cycle-sync recommendations: {}", e.getMessage(), e);
+            return buildFallbackRecommendations(normalizePhase(currentPhase.getPhase()));
         } catch (Exception e) {
             logger.error("Failed to generate unified cycle-sync recommendations: {}", e.getMessage(), e);
             return buildFallbackRecommendations(normalizePhase(currentPhase.getPhase()));
