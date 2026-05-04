@@ -1,6 +1,7 @@
 package com.healthapp.dto;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
+import com.healthapp.entity.FoodLog;
 import jakarta.validation.constraints.*;
 import java.time.LocalDateTime;
 
@@ -18,7 +19,7 @@ public class FoodLogUpdateRequest {
     @Size(max = 20, message = "Unit cannot exceed 20 characters")
     private String unit;
     
-    @Size(max = 200, message = "Note cannot exceed 200 characters")
+    @Size(max = FoodLog.NOTE_MAX_LENGTH, message = "Note cannot exceed " + FoodLog.NOTE_MAX_LENGTH + " characters")
     private String note;
     
     // Constructors

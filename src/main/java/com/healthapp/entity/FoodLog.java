@@ -11,7 +11,10 @@ import java.time.LocalDateTime;
 @Table(name = "food_logs")
 @EntityListeners(AuditingEntityListener.class)
 public class FoodLog {
-    
+
+    /** Max length for {@link #note}; keep in sync with Flyway and {@code FoodLogCreateRequest} / {@code FoodLogUpdateRequest}. */
+    public static final int NOTE_MAX_LENGTH = 2000;
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -45,7 +48,7 @@ public class FoodLog {
     
     private Double fiber;
     
-    @Column(length = 200)
+    @Column(length = NOTE_MAX_LENGTH)
     private String note;
     
     @Enumerated(EnumType.STRING)

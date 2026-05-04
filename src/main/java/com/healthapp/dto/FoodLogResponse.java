@@ -48,7 +48,7 @@ public class FoodLogResponse {
     @Schema(description = "Calculated fiber (grams)")
     private Double fiber;
     
-    @Schema(description = "Additional notes")
+    @Schema(description = "Additional notes", maxLength = FoodLog.NOTE_MAX_LENGTH)
     private String note;
     
     @Schema(description = "Timestamp when the food log was created")

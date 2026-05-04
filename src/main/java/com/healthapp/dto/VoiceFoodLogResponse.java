@@ -37,6 +37,8 @@ public class VoiceFoodLogResponse {
         private String food;
         private Double quantity;
         private String mealType;
+        /** True when this log was created from a compositeMeal (single dish from many ingredients). */
+        private boolean compositeMeal;
         private Double calories;
         private Double protein;
         private Double carbs;
@@ -47,11 +49,12 @@ public class VoiceFoodLogResponse {
         // Constructors
         public LoggedFoodItem() {}
         
-        public LoggedFoodItem(String food, Double quantity, String mealType, 
+        public LoggedFoodItem(String food, Double quantity, String mealType, boolean compositeMeal,
                              Double calories, Double protein, Double carbs, Double fat, Double fiber, String loggedAt) {
             this.food = food;
             this.quantity = quantity;
             this.mealType = mealType;
+            this.compositeMeal = compositeMeal;
             this.calories = calories;
             this.protein = protein;
             this.carbs = carbs;
@@ -83,6 +86,14 @@ public class VoiceFoodLogResponse {
         
         public void setMealType(String mealType) {
             this.mealType = mealType;
+        }
+
+        public boolean isCompositeMeal() {
+            return compositeMeal;
+        }
+
+        public void setCompositeMeal(boolean compositeMeal) {
+            this.compositeMeal = compositeMeal;
         }
         
         public Double getCalories() {

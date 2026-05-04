@@ -26,58 +26,84 @@ public class AiFoodVoiceParsingService {
         
         CURRENT DATE AND TIME: %s
         
-        Parse the input text and return a JSON object with the following structure:
+        Parse the input text and return a JSON object with this shape:
         {
+            "compositeMeals": [],
+            "foodItems": []
+        }
+        
+        compositeMeals — use when the user describes ONE dish or drink made from many ingredients consumed together as a single thing:
+        - Examples: a smoothie or shake listing ingredients; a blended bowl; one soup/stew with listed vegetables; one salad bowl where components are not separate orders.
+        - Return exactly ONE entry per such dish. Pick a short, natural display name (e.g. "Berry chia breakfast smoothie").
+        - approximateTotalGrams: your best estimate of total grams for everything in that dish (sum ingredient weights).
+        - nutrition: estimated macros **per 100g** for that combined mixture (not per ingredient).
+        - note: briefly list main ingredients from the user text (for transparency).
+        - Do NOT also list those ingredients again in foodItems (no duplication).
+        
+        foodItems — use when foods are **distinct** items people usually log separately:
+        - Examples: "chicken burger and chips" → TWO entries (burger, chips). "Pizza and soda" → two entries.
+        - Each entry has foodName, quantity, unit, mealType, loggedAt, note, nutrition (per 100g for that food).
+        - Use foodItems for separate beverages unless the user clearly blended everything into one drink.
+        
+        If unsure whether something is one blended dish vs separate items, prefer **foodItems** (safer).
+        
+        Shared rules:
+        - Convert time references to ISO 8601 (YYYY-MM-DDTHH:mm:ssZ) using CURRENT DATE AND TIME:
+          "this morning" → today 08:00:00; "yesterday evening" → yesterday 18:00:00; "last night" → yesterday 21:00:00;
+          "today"/"now" → use CURRENT DATE AND TIME.
+        - If no time given, use CURRENT DATE AND TIME.
+        - Meal type: breakfast / lunch / dinner / snack from context.
+        - Nutrition: reasonable database-style values; composite mixture is an estimate for the blend.
+        - Every compositeMeals entry MUST include approximateTotalGrams (positive number).
+        - Return ONLY valid JSON, no markdown or extra text.
+        - loggedAt must follow ISO 8601 and align with CURRENT DATE AND TIME when inferring dates.
+        
+        Example A — distinct items:
+        Input: "chicken burger and chips for lunch"
+        Output: {
+            "compositeMeals": [],
             "foodItems": [
                 {
-                    "foodName": "string - the name of the food item",
-                    "quantity": "number - quantity consumed",
-                    "unit": "string - unit of measurement (grams, pieces, glass, cup, tablespoon, teaspoon, etc.)",
-                    "mealType": "string - meal type (breakfast/lunch/dinner/snack)",
-                    "loggedAt": "ISO 8601 datetime string (YYYY-MM-DDTHH:mm:ssZ format)",
-                    "note": "string - optional additional context",
-                    "nutrition": {
-                        "caloriesPer100g": "number - calories per 100g",
-                        "proteinPer100g": "number - protein in grams per 100g",
-                        "carbsPer100g": "number - carbohydrates in grams per 100g",
-                        "fatPer100g": "number - fat in grams per 100g",
-                        "fiberPer100g": "number - fiber in grams per 100g"
-                    }
+                    "foodName": "chicken burger",
+                    "quantity": 1,
+                    "unit": "serving",
+                    "mealType": "lunch",
+                    "loggedAt": "2024-01-15T12:30:00Z",
+                    "note": "chicken burger",
+                    "nutrition": {"caloriesPer100g": 250, "proteinPer100g": 15, "carbsPer100g": 22, "fatPer100g": 12, "fiberPer100g": 2}
+                },
+                {
+                    "foodName": "chips",
+                    "quantity": 1,
+                    "unit": "serving",
+                    "mealType": "lunch",
+                    "loggedAt": "2024-01-15T12:30:00Z",
+                    "note": "fried potato chips",
+                    "nutrition": {"caloriesPer100g": 536, "proteinPer100g": 7, "carbsPer100g": 53, "fatPer100g": 35, "fiberPer100g": 4.8}
                 }
             ]
         }
         
-        Rules:
-        1. Extract ALL food items mentioned in the input text
-        2. Each food item should be a separate entry in the foodItems array
-        3. Extract the food name clearly (e.g., "boiled egg", "orange juice", "chicken curry")
-        4. Convert time references to ISO 8601 format (YYYY-MM-DDTHH:mm:ss) using the CURRENT DATE AND TIME above:
-           - "this morning" → today's date at 08:00:00
-           - "yesterday evening" → yesterday's date at 18:00:00
-           - "last night" → yesterday's date at 21:00:00
-           - "today" → today's date at current time (use the CURRENT DATE AND TIME provided)
-           - "now" → current date and time (use the CURRENT DATE AND TIME provided)
-        5. If no specific time is mentioned, use the CURRENT DATE AND TIME provided above
-        6. Determine meal type based on context and timing:
-           - morning/breakfast time → "breakfast"
-           - afternoon/lunch time → "lunch"
-           - evening/dinner time → "dinner"
-           - between meals → "snack"
-        7. For multiple foods mentioned together, infer meal context:
-           - If foods are mentioned with "for breakfast" → all are breakfast
-           - If foods are mentioned with "for lunch" → all are lunch
-           - If foods span multiple meals, assign appropriate meal type to each
-        8. Provide accurate nutritional information per 100g for each food item
-        9. Use ACCURATE nutritional values based on USDA/standard food databases - do not guess or estimate
-        9a. For South Indian foods: idly ~130-150 cal/100g, dosa ~200-250 cal/100g, rice ~130 cal/100g
-        9b. For common foods: bread ~250 cal/100g, chicken ~165 cal/100g, fish ~200 cal/100g
-        10. ALWAYS provide a meaningful note - include cooking method, preparation style, or any relevant context from the input
-        11. Return ONLY valid JSON, no additional text
-        12. IMPORTANT: loggedAt must be in ISO 8601 format (YYYY-MM-DDTHH:mm:ssZ) and must use the CURRENT DATE AND TIME provided above
+        Example B — multi-ingredient smoothie as ONE composite meal:
+        Input: "breakfast smoothie: chia, almonds, banana, berries, oats"
+        Output: {
+            "compositeMeals": [
+                {
+                    "displayName": "Chia almond berry breakfast smoothie",
+                    "approximateTotalGrams": 380,
+                    "mealType": "breakfast",
+                    "loggedAt": "2024-01-15T08:00:00Z",
+                    "note": "chia seeds, almonds, banana, berries, oats",
+                    "nutrition": {"caloriesPer100g": 165, "proteinPer100g": 6, "carbsPer100g": 20, "fatPer100g": 7, "fiberPer100g": 5}
+                }
+            ],
+            "foodItems": []
+        }
         
-        Examples:
+        Example C — breakfast with distinct foods:
         Input: "I ate 2 boiled eggs and 1 coffee for breakfast then I had chicken salad for lunch"
         Output: {
+            "compositeMeals": [],
             "foodItems": [
                 {
                     "foodName": "boiled egg",
@@ -117,6 +143,38 @@ public class AiFoodVoiceParsingService {
     @Autowired
     private ObjectMapper objectMapper;
 
+    /**
+     * Models often wrap JSON in markdown fences or add a short preamble; extract a parseable JSON object.
+     */
+    static String extractJsonObject(String raw) {
+        if (raw == null) {
+            return "";
+        }
+        String s = raw.trim();
+        if (s.startsWith("```")) {
+            int firstLineBreak = s.indexOf('\n');
+            if (firstLineBreak > 0) {
+                s = s.substring(firstLineBreak + 1);
+            } else {
+                s = s.replaceFirst("^```(?:json)?", "").trim();
+            }
+            int closingFence = s.lastIndexOf("```");
+            if (closingFence >= 0) {
+                s = s.substring(0, closingFence).trim();
+            }
+        }
+        s = s.trim();
+        if (s.startsWith("{")) {
+            return s;
+        }
+        int start = s.indexOf('{');
+        int end = s.lastIndexOf('}');
+        if (start >= 0 && end > start) {
+            return s.substring(start, end + 1);
+        }
+        return s;
+    }
+
     public ParsedFoodDataList parseVoiceText(String voiceText) {
         try {
             logger.info("Parsing food voice text: {}", voiceText);
@@ -131,7 +189,7 @@ public class AiFoodVoiceParsingService {
                             new ChatMessage("system", getSystemPrompt()),
                             new ChatMessage("user", voiceText)
                     ))
-                    .maxTokens(1000) // Increased for multiple food items
+                    .maxTokens(3500)
                     .temperature(0.1)
                     .build();
 
@@ -142,54 +200,33 @@ public class AiFoodVoiceParsingService {
 
             // Parse the JSON response
             logger.info("Attempting to parse JSON from AI response");
-            JsonNode jsonNode = objectMapper.readTree(response);
+            String jsonPayload = extractJsonObject(response);
+            JsonNode jsonNode = objectMapper.readTree(jsonPayload);
             
             ParsedFoodDataList dataList = new ParsedFoodDataList();
-            
-            // Parse foodItems array
-            JsonNode foodItemsNode = jsonNode.get("foodItems");
-            if (foodItemsNode != null && foodItemsNode.isArray()) {
-                for (JsonNode foodItemNode : foodItemsNode) {
-                    ParsedFoodData data = new ParsedFoodData();
-                    data.setFoodName(foodItemNode.get("foodName").asText());
-                    data.setQuantity(foodItemNode.get("quantity").asDouble());
-                    data.setUnit(foodItemNode.get("unit").asText());
-                    data.setMealType(foodItemNode.get("mealType").asText());
-                    
-                    // Parse loggedAt with fallback to current time if parsing fails
-                    String loggedAtText = foodItemNode.get("loggedAt").asText();
-                    try {
-                        // Handle both formats: YYYY-MM-DDTHH:mm:ssZ and YYYY-MM-DDTHH:mm:ss
-                        if (loggedAtText.endsWith("Z")) {
-                            loggedAtText = loggedAtText.substring(0, loggedAtText.length() - 1);
-                        }
-                        data.setLoggedAt(LocalDateTime.parse(loggedAtText));
-                    } catch (Exception e) {
-                        logger.warn("Failed to parse loggedAt '{}', using current time", loggedAtText);
-                        data.setLoggedAt(LocalDateTime.now());
+
+            JsonNode compositeNode = jsonNode.get("compositeMeals");
+            if (compositeNode != null && compositeNode.isArray()) {
+                for (JsonNode compositeMealNode : compositeNode) {
+                    ParsedFoodData data = parseCompositeMealNode(compositeMealNode);
+                    if (data != null) {
+                        dataList.addCompositeMeal(data);
                     }
-                    
-                    if (foodItemNode.has("note") && !foodItemNode.get("note").isNull()) {
-                        data.setNote(foodItemNode.get("note").asText());
-                    }
-                    
-                    // Parse nutrition data
-                    if (foodItemNode.has("nutrition") && !foodItemNode.get("nutrition").isNull()) {
-                        JsonNode nutritionNode = foodItemNode.get("nutrition");
-                        NutritionData nutrition = new NutritionData();
-                        nutrition.setCaloriesPer100g(nutritionNode.get("caloriesPer100g").asDouble());
-                        nutrition.setProteinPer100g(nutritionNode.get("proteinPer100g").asDouble());
-                        nutrition.setCarbsPer100g(nutritionNode.get("carbsPer100g").asDouble());
-                        nutrition.setFatPer100g(nutritionNode.get("fatPer100g").asDouble());
-                        nutrition.setFiberPer100g(nutritionNode.get("fiberPer100g").asDouble());
-                        data.setNutrition(nutrition);
-                    }
-                    
-                    dataList.addFoodItem(data);
                 }
             }
 
-            logger.info("Successfully parsed {} food items: {}", dataList.getFoodItems().size(), dataList);
+            JsonNode foodItemsNode = jsonNode.get("foodItems");
+            if (foodItemsNode != null && foodItemsNode.isArray()) {
+                for (JsonNode foodItemNode : foodItemsNode) {
+                    ParsedFoodData data = parseStandardFoodItemNode(foodItemNode);
+                    if (data != null) {
+                        dataList.addFoodItem(data);
+                    }
+                }
+            }
+
+            logger.info("Successfully parsed {} composite meal(s), {} separate food item(s): {}",
+                    dataList.getCompositeMeals().size(), dataList.getFoodItems().size(), dataList);
             return dataList;
 
         } catch (Exception e) {
@@ -199,11 +236,135 @@ public class AiFoodVoiceParsingService {
         }
     }
 
+    private LocalDateTime parseLoggedAtFromNode(JsonNode node) {
+        if (!node.has("loggedAt") || node.get("loggedAt").isNull()) {
+            return LocalDateTime.now();
+        }
+        String loggedAtText = node.get("loggedAt").asText();
+        try {
+            if (loggedAtText.endsWith("Z")) {
+                loggedAtText = loggedAtText.substring(0, loggedAtText.length() - 1);
+            }
+            return LocalDateTime.parse(loggedAtText);
+        } catch (Exception e) {
+            logger.warn("Failed to parse loggedAt '{}', using current time", loggedAtText);
+            return LocalDateTime.now();
+        }
+    }
+
+    private static Double readNutritionDouble(JsonNode nutritionNode, String field) {
+        if (nutritionNode == null || !nutritionNode.has(field)) {
+            return null;
+        }
+        JsonNode n = nutritionNode.get(field);
+        if (n == null || n.isNull()) {
+            return null;
+        }
+        if (n.isNumber()) {
+            return n.asDouble();
+        }
+        if (n.isTextual()) {
+            try {
+                return Double.parseDouble(n.asText().trim());
+            } catch (NumberFormatException ignored) {
+                return null;
+            }
+        }
+        return null;
+    }
+
+    private NutritionData parseNutritionFromNode(JsonNode foodItemNode) {
+        if (!foodItemNode.has("nutrition") || foodItemNode.get("nutrition").isNull()) {
+            return null;
+        }
+        JsonNode nutritionNode = foodItemNode.get("nutrition");
+        if (!nutritionNode.isObject()) {
+            return null;
+        }
+        Double calories = readNutritionDouble(nutritionNode, "caloriesPer100g");
+        Double protein = readNutritionDouble(nutritionNode, "proteinPer100g");
+        Double carbs = readNutritionDouble(nutritionNode, "carbsPer100g");
+        Double fat = readNutritionDouble(nutritionNode, "fatPer100g");
+        Double fiber = readNutritionDouble(nutritionNode, "fiberPer100g");
+        if (calories == null || protein == null || carbs == null || fat == null || fiber == null) {
+            logger.warn("Skipping AI nutrition: missing or non-numeric macro field(s)");
+            return null;
+        }
+        NutritionData nutrition = new NutritionData();
+        nutrition.setCaloriesPer100g(calories);
+        nutrition.setProteinPer100g(protein);
+        nutrition.setCarbsPer100g(carbs);
+        nutrition.setFatPer100g(fat);
+        nutrition.setFiberPer100g(fiber);
+        return nutrition;
+    }
+
+    private ParsedFoodData parseStandardFoodItemNode(JsonNode foodItemNode) {
+        if (!foodItemNode.hasNonNull("foodName")) {
+            logger.warn("Skipping food item with missing foodName");
+            return null;
+        }
+        ParsedFoodData data = new ParsedFoodData();
+        data.setFoodName(foodItemNode.get("foodName").asText());
+        data.setQuantity(foodItemNode.has("quantity") && !foodItemNode.get("quantity").isNull()
+                ? foodItemNode.get("quantity").asDouble() : 1.0);
+        data.setUnit(foodItemNode.has("unit") && !foodItemNode.get("unit").isNull()
+                ? foodItemNode.get("unit").asText() : "serving");
+        data.setMealType(foodItemNode.has("mealType") && !foodItemNode.get("mealType").isNull()
+                ? foodItemNode.get("mealType").asText() : "snack");
+        data.setLoggedAt(parseLoggedAtFromNode(foodItemNode));
+        if (foodItemNode.has("note") && !foodItemNode.get("note").isNull()) {
+            data.setNote(foodItemNode.get("note").asText());
+        }
+        data.setNutrition(parseNutritionFromNode(foodItemNode));
+        return data;
+    }
+
+    private ParsedFoodData parseCompositeMealNode(JsonNode node) {
+        if (!node.hasNonNull("displayName")) {
+            logger.warn("Skipping composite meal with missing displayName");
+            return null;
+        }
+        ParsedFoodData data = new ParsedFoodData();
+        data.setFoodName(node.get("displayName").asText());
+        double grams = 350.0;
+        if (node.has("approximateTotalGrams") && !node.get("approximateTotalGrams").isNull()) {
+            grams = node.get("approximateTotalGrams").asDouble();
+        }
+        if (grams < 1.0) {
+            grams = 350.0;
+        }
+        data.setQuantity(grams);
+        data.setUnit("grams");
+        data.setMealType(node.has("mealType") && !node.get("mealType").isNull()
+                ? node.get("mealType").asText() : "snack");
+        data.setLoggedAt(parseLoggedAtFromNode(node));
+        if (node.has("note") && !node.get("note").isNull()) {
+            data.setNote(node.get("note").asText());
+        }
+        data.setNutrition(parseNutritionFromNode(node));
+        return data;
+    }
+
     public static class ParsedFoodDataList {
+        private List<ParsedFoodData> compositeMeals;
         private List<ParsedFoodData> foodItems;
 
         public ParsedFoodDataList() {
+            this.compositeMeals = new ArrayList<>();
             this.foodItems = new ArrayList<>();
+        }
+
+        public List<ParsedFoodData> getCompositeMeals() {
+            return compositeMeals;
+        }
+
+        public void setCompositeMeals(List<ParsedFoodData> compositeMeals) {
+            this.compositeMeals = compositeMeals;
+        }
+
+        public void addCompositeMeal(ParsedFoodData compositeMeal) {
+            this.compositeMeals.add(compositeMeal);
         }
 
         public List<ParsedFoodData> getFoodItems() {
@@ -220,7 +381,7 @@ public class AiFoodVoiceParsingService {
 
         @Override
         public String toString() {
-            return String.format("ParsedFoodDataList{foodItems=%s}", foodItems);
+            return String.format("ParsedFoodDataList{compositeMeals=%s, foodItems=%s}", compositeMeals, foodItems);
         }
     }
 

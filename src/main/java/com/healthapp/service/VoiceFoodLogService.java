@@ -2,6 +2,7 @@ package com.healthapp.service;
 
 import com.healthapp.dto.*;
 import com.healthapp.entity.FoodItem;
+import com.healthapp.entity.FoodLog;
 
 import com.healthapp.repository.FoodItemRepository;
 import com.healthapp.repository.UserRepository;
@@ -11,6 +12,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.Optional;
@@ -55,54 +57,36 @@ public class VoiceFoodLogService {
             // Parse voice text using AI
             AiFoodVoiceParsingService.ParsedFoodDataList parsedDataList = aiFoodVoiceParsingService.parseVoiceText(request.getVoiceText());
             
-            // Process the parsed data
             List<VoiceFoodLogResponse.LoggedFoodItem> loggedItems = new ArrayList<>();
-            
-            for (AiFoodVoiceParsingService.ParsedFoodData parsedData : parsedDataList.getFoodItems()) {
-                try {
-                    // Find or create food item
-                    FoodItem foodItem = findOrCreateFoodItem(parsedData, authenticatedUserId);
-                    
-                    // Create food log
-                    FoodLogCreateRequest logRequest = new FoodLogCreateRequest();
-                    logRequest.setUserId(authenticatedUserId);
-                    logRequest.setFoodItemId(foodItem.getId());
-                    logRequest.setLoggedAt(parsedData.getLoggedAt());
-                    logRequest.setMealType(parsedData.getMealType().toUpperCase());
-                    logRequest.setQuantity(parsedData.getQuantity());
-                    logRequest.setUnit(parsedData.getUnit());
-                    logRequest.setNote(parsedData.getNote() != null && !parsedData.getNote().trim().isEmpty() ? parsedData.getNote() : "Created from voice input: " + request.getVoiceText());
-                    
-                    FoodLogCreateResponse logResponse = foodLogService.createFoodLog(logRequest, authenticatedUserId);
-                    
-                    // Add to response
-                    loggedItems.add(new VoiceFoodLogResponse.LoggedFoodItem(
-                            foodItem.getName(),
-                            parsedData.getQuantity(),
-                            parsedData.getMealType().toUpperCase(),
-                            logResponse.getCalories(),
-                            logResponse.getProtein(),
-                            logResponse.getCarbs(),
-                            logResponse.getFat(),
-                            logResponse.getFiber(),
-                            parsedData.getLoggedAt().toString()
-                    ));
-                    
-                } catch (Exception e) {
-                    logger.warn("Failed to process food item: {}", parsedData.getFoodName(), e);
-                    // Continue processing other items instead of failing completely
-                }
+
+            for (AiFoodVoiceParsingService.ParsedFoodData parsedData : parsedDataList.getCompositeMeals()) {
+                appendParsedFoodLog(request, authenticatedUserId, parsedData, true, loggedItems);
             }
-            
+            for (AiFoodVoiceParsingService.ParsedFoodData parsedData : parsedDataList.getFoodItems()) {
+                appendParsedFoodLog(request, authenticatedUserId, parsedData, false, loggedItems);
+            }
+
             if (loggedItems.isEmpty()) {
-                return new VoiceFoodLogResponse("Failed to create any food logs. Please try again.", 
+                return new VoiceFoodLogResponse("Failed to create any food logs. Please try again.",
                                              new ArrayList<>());
             }
-            
-            String message = loggedItems.size() == 1 ? 
-                "Food log created from voice input" : 
-                String.format("Created %d food logs from voice input", loggedItems.size());
-            
+
+            long compositeCount = loggedItems.stream().filter(VoiceFoodLogResponse.LoggedFoodItem::isCompositeMeal).count();
+            long separateCount = loggedItems.size() - compositeCount;
+
+            String message;
+            if (loggedItems.size() == 1) {
+                message = compositeCount == 1
+                        ? "Food log created from voice input (composite meal)"
+                        : "Food log created from voice input";
+            } else if (compositeCount > 0 && separateCount > 0) {
+                message = String.format("Created %d composite meal(s) and %d separate food log(s)", compositeCount, separateCount);
+            } else if (compositeCount > 0) {
+                message = String.format("Created %d composite meal(s) from voice input", compositeCount);
+            } else {
+                message = String.format("Created %d food logs from voice input", separateCount);
+            }
+
             return new VoiceFoodLogResponse(message, loggedItems);
             
         } catch (Exception e) {
@@ -110,8 +94,64 @@ public class VoiceFoodLogService {
             throw new RuntimeException("Failed to process voice input: " + e.getMessage());
         }
     }
+
+    private void appendParsedFoodLog(VoiceFoodLogRequest request, Long authenticatedUserId,
+            AiFoodVoiceParsingService.ParsedFoodData parsedData, boolean compositeMeal,
+            List<VoiceFoodLogResponse.LoggedFoodItem> loggedItems) {
+        try {
+            FoodItem foodItem = findOrCreateFoodItem(parsedData, authenticatedUserId);
+
+            FoodLogCreateRequest logRequest = new FoodLogCreateRequest();
+            logRequest.setUserId(authenticatedUserId);
+            logRequest.setFoodItemId(foodItem.getId());
+            LocalDateTime loggedAt = parsedData.getLoggedAt() != null ? parsedData.getLoggedAt() : LocalDateTime.now();
+            LocalDateTime now = LocalDateTime.now();
+            if (loggedAt.isAfter(now.plusMinutes(10))) {
+                logger.warn("Clamping AI loggedAt {} to now (future time rejected by food log rules)", loggedAt);
+                loggedAt = now;
+            }
+            logRequest.setLoggedAt(loggedAt);
+            String mealType = parsedData.getMealType() != null && !parsedData.getMealType().isBlank()
+                    ? parsedData.getMealType().toUpperCase()
+                    : "SNACK";
+            logRequest.setMealType(mealType);
+            logRequest.setQuantity(parsedData.getQuantity());
+            String unit = parsedData.getUnit();
+            if (unit != null && unit.length() > 20) {
+                unit = unit.substring(0, 20);
+            }
+            logRequest.setUnit(unit);
+            String note = parsedData.getNote() != null && !parsedData.getNote().trim().isEmpty()
+                    ? parsedData.getNote()
+                    : "Created from voice input: " + request.getVoiceText();
+            if (note.length() > FoodLog.NOTE_MAX_LENGTH) {
+                note = note.substring(0, FoodLog.NOTE_MAX_LENGTH - 3) + "...";
+            }
+            logRequest.setNote(note);
+
+            FoodLogCreateResponse logResponse = foodLogService.createFoodLog(logRequest, authenticatedUserId);
+
+            loggedItems.add(new VoiceFoodLogResponse.LoggedFoodItem(
+                    foodItem.getName(),
+                    parsedData.getQuantity(),
+                    mealType,
+                    compositeMeal,
+                    logResponse.getCalories(),
+                    logResponse.getProtein(),
+                    logResponse.getCarbs(),
+                    logResponse.getFat(),
+                    logResponse.getFiber(),
+                    loggedAt.toString()
+            ));
+        } catch (Exception e) {
+            logger.warn("Failed to process food item: {}", parsedData.getFoodName(), e);
+        }
+    }
     
     private FoodItem findOrCreateFoodItem(AiFoodVoiceParsingService.ParsedFoodData parsedData, Long userId) {
+        if (parsedData.getFoodName() != null && parsedData.getFoodName().length() > 100) {
+            parsedData.setFoodName(parsedData.getFoodName().substring(0, 100));
+        }
         // First, try to find existing food item with exact match
         String normalizedName = normalizeFoodName(parsedData.getFoodName());
         
