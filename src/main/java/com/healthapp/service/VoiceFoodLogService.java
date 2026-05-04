@@ -3,12 +3,14 @@ package com.healthapp.service;
 import com.healthapp.dto.*;
 import com.healthapp.entity.FoodItem;
 import com.healthapp.entity.FoodLog;
+import com.healthapp.exception.VoiceFoodLogException;
 
 import com.healthapp.repository.FoodItemRepository;
 import com.healthapp.repository.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -39,65 +41,81 @@ public class VoiceFoodLogService {
     private AiFoodVoiceParsingService aiFoodVoiceParsingService;
     
     public VoiceFoodLogResponse processVoiceFoodLog(VoiceFoodLogRequest request, Long authenticatedUserId) {
-        try {
-            // Validate user access
-            if (!request.getUserId().equals(authenticatedUserId)) {
-                throw new IllegalArgumentException("Users can only create food logs for themselves");
-            }
-            
-            // Validate user exists
-            userRepository.findById(authenticatedUserId)
-                    .orElseThrow(() -> new IllegalArgumentException("User not found"));
-            
-            // Check if AI service is available
-            if (aiFoodVoiceParsingService == null) {
-                throw new RuntimeException("AI voice parsing service is not available. Please configure OpenAI API key.");
-            }
-            
-            // Parse voice text using AI
-            AiFoodVoiceParsingService.ParsedFoodDataList parsedDataList = aiFoodVoiceParsingService.parseVoiceText(request.getVoiceText());
-            
-            List<VoiceFoodLogResponse.LoggedFoodItem> loggedItems = new ArrayList<>();
-
-            for (AiFoodVoiceParsingService.ParsedFoodData parsedData : parsedDataList.getCompositeMeals()) {
-                appendParsedFoodLog(request, authenticatedUserId, parsedData, true, loggedItems);
-            }
-            for (AiFoodVoiceParsingService.ParsedFoodData parsedData : parsedDataList.getFoodItems()) {
-                appendParsedFoodLog(request, authenticatedUserId, parsedData, false, loggedItems);
-            }
-
-            if (loggedItems.isEmpty()) {
-                return new VoiceFoodLogResponse("Failed to create any food logs. Please try again.",
-                                             new ArrayList<>());
-            }
-
-            long compositeCount = loggedItems.stream().filter(VoiceFoodLogResponse.LoggedFoodItem::isCompositeMeal).count();
-            long separateCount = loggedItems.size() - compositeCount;
-
-            String message;
-            if (loggedItems.size() == 1) {
-                message = compositeCount == 1
-                        ? "Food log created from voice input (composite meal)"
-                        : "Food log created from voice input";
-            } else if (compositeCount > 0 && separateCount > 0) {
-                message = String.format("Created %d composite meal(s) and %d separate food log(s)", compositeCount, separateCount);
-            } else if (compositeCount > 0) {
-                message = String.format("Created %d composite meal(s) from voice input", compositeCount);
-            } else {
-                message = String.format("Created %d food logs from voice input", separateCount);
-            }
-
-            return new VoiceFoodLogResponse(message, loggedItems);
-            
-        } catch (Exception e) {
-            logger.error("Error processing voice food log: {}", e.getMessage(), e);
-            throw new RuntimeException("Failed to process voice input: " + e.getMessage());
+        // Validate user access
+        if (!request.getUserId().equals(authenticatedUserId)) {
+            throw new IllegalArgumentException("You can only create food logs for your own account.");
         }
+
+        userRepository.findById(authenticatedUserId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found."));
+
+        if (aiFoodVoiceParsingService == null) {
+            throw new VoiceFoodLogException(
+                    "AI_SERVICE_UNAVAILABLE",
+                    "Voice food logging is not available right now. Please try again later or add food manually.",
+                    HttpStatus.SERVICE_UNAVAILABLE);
+        }
+
+        AiFoodVoiceParsingService.ParsedFoodDataList parsedDataList;
+        try {
+            parsedDataList = aiFoodVoiceParsingService.parseVoiceText(request.getVoiceText());
+        } catch (RuntimeException e) {
+            logger.error("AI food voice parse failed: {}", e.getMessage(), e);
+            throw new VoiceFoodLogException(
+                    "AI_PARSE_FAILED",
+                    "We could not interpret your food from that description. Try shorter wording, name each food clearly, or add manually.",
+                    HttpStatus.BAD_GATEWAY,
+                    e);
+        }
+
+        if (parsedDataList.getCompositeMeals().isEmpty() && parsedDataList.getFoodItems().isEmpty()) {
+            throw new VoiceFoodLogException(
+                    "NO_FOOD_PARSED",
+                    "No foods were recognized from what you said. Try again with specific items (for example, \"two eggs and toast\") or add manually.",
+                    HttpStatus.UNPROCESSABLE_ENTITY);
+        }
+
+        List<VoiceFoodLogResponse.LoggedFoodItem> loggedItems = new ArrayList<>();
+
+        for (AiFoodVoiceParsingService.ParsedFoodData parsedData : parsedDataList.getCompositeMeals()) {
+            appendParsedFoodLog(request, authenticatedUserId, parsedData, true, loggedItems);
+        }
+        for (AiFoodVoiceParsingService.ParsedFoodData parsedData : parsedDataList.getFoodItems()) {
+            appendParsedFoodLog(request, authenticatedUserId, parsedData, false, loggedItems);
+        }
+
+        if (loggedItems.isEmpty()) {
+            throw new VoiceFoodLogException(
+                    "NO_LOGS_CREATED",
+                    "We understood your message but could not create any food logs. Check quantities and meal types, then try again or add manually.",
+                    HttpStatus.UNPROCESSABLE_ENTITY);
+        }
+
+        long compositeCount = loggedItems.stream().filter(VoiceFoodLogResponse.LoggedFoodItem::isCompositeMeal).count();
+        long separateCount = loggedItems.size() - compositeCount;
+
+        String message;
+        if (loggedItems.size() == 1) {
+            message = compositeCount == 1
+                    ? "Food log created from voice input (composite meal)"
+                    : "Food log created from voice input";
+        } else if (compositeCount > 0 && separateCount > 0) {
+            message = String.format("Created %d composite meal(s) and %d separate food log(s)", compositeCount, separateCount);
+        } else if (compositeCount > 0) {
+            message = String.format("Created %d composite meal(s) from voice input", compositeCount);
+        } else {
+            message = String.format("Created %d food logs from voice input", separateCount);
+        }
+
+        return new VoiceFoodLogResponse(message, loggedItems);
     }
 
     private void appendParsedFoodLog(VoiceFoodLogRequest request, Long authenticatedUserId,
             AiFoodVoiceParsingService.ParsedFoodData parsedData, boolean compositeMeal,
             List<VoiceFoodLogResponse.LoggedFoodItem> loggedItems) {
+        String foodLabel = parsedData.getFoodName() != null && !parsedData.getFoodName().isBlank()
+                ? parsedData.getFoodName()
+                : "this item";
         try {
             FoodItem foodItem = findOrCreateFoodItem(parsedData, authenticatedUserId);
 
@@ -143,8 +161,16 @@ public class VoiceFoodLogService {
                     logResponse.getFiber(),
                     loggedAt.toString()
             ));
-        } catch (Exception e) {
-            logger.warn("Failed to process food item: {}", parsedData.getFoodName(), e);
+        } catch (IllegalArgumentException e) {
+            logger.warn("Validation failed for voice food item \"{}\": {}", foodLabel, e.getMessage());
+            throw new IllegalArgumentException("Could not log \"" + foodLabel + "\": " + e.getMessage(), e);
+        } catch (RuntimeException e) {
+            logger.error("Failed to save voice food item \"{}\": {}", foodLabel, e.getMessage(), e);
+            throw new VoiceFoodLogException(
+                    "FOOD_ITEM_SAVE_FAILED",
+                    "Could not save \"" + foodLabel + "\". Try again or add that item manually.",
+                    HttpStatus.INTERNAL_SERVER_ERROR,
+                    e);
         }
     }
     
@@ -367,11 +393,24 @@ public class VoiceFoodLogService {
     }
     
     private double getWeightForServing(String foodName) {
-        // Weight per serving
+        // Weight per serving — prefer typical label / common portions when quantity is unknown.
+        if (foodName.contains("fish") && foodName.contains("chip")) return 200.0;
+        if (foodName.contains("fries") || foodName.contains("french fry")) return 130.0;
+        if (foodName.contains("tortilla chip") || foodName.contains("potato chip") || foodName.contains("kettle chip")) {
+            return 32.0;
+        }
+        if ((foodName.contains("crisp") || foodName.contains("crisps")) && !foodName.contains("crispy")) {
+            return 32.0;
+        }
+        if (foodName.contains("chip")
+                && !foodName.contains("chocolate")
+                && !foodName.contains("cookie")) {
+            return 32.0;
+        }
         if (foodName.contains("salad")) return 200.0;
         if (foodName.contains("soup")) return 250.0;
         if (foodName.contains("curry") || foodName.contains("stew")) return 250.0;
-        return 200.0; // Default
+        return 200.0; // Default for plated mains / unknown
     }
     
     private FoodItemCreateRequest estimateFoodMacros(AiFoodVoiceParsingService.ParsedFoodData parsedData, Long userId) {

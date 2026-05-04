@@ -21,6 +21,9 @@ public class AiFoodVoiceParsingService {
     
     private String getSystemPrompt() {
         String currentDateTime = LocalDateTime.now().toString();
+        String assumptionRules = AiPromptGuidelines.SHARED_INFERENCE_PRINCIPLES
+                + "\n        "
+                + AiPromptGuidelines.FOOD_PORTION_ASSUMPTION_RULES;
         return String.format("""
         You are an AI assistant that parses natural language descriptions of food consumption into structured data.
         
@@ -52,6 +55,8 @@ public class AiFoodVoiceParsingService {
         - Use foodItems for separate beverages unless the user clearly blended everything into one drink.
         
         If unsure whether something is one blended dish vs separate items, prefer **foodItems** (safer).
+        
+        %s
         
         Shared rules:
         - Convert time references to ISO 8601 (YYYY-MM-DDTHH:mm:ssZ) using CURRENT DATE AND TIME:
@@ -85,7 +90,7 @@ public class AiFoodVoiceParsingService {
                     "unit": "serving",
                     "mealType": "lunch",
                     "loggedAt": "2024-01-15T12:30:00Z",
-                    "note": "Assumed: chips 1 serving ~150 g (user did not state quantity).",
+                    "note": "Assumed: potato crisps/chips 1 typical snack serving ~30 g (user did not state quantity).",
                     "nutrition": {"caloriesPer100g": 536, "proteinPer100g": 7, "carbsPer100g": 53, "fatPer100g": 35, "fiberPer100g": 4.8}
                 }
             ]
@@ -141,7 +146,7 @@ public class AiFoodVoiceParsingService {
                 }
             ]
         }
-        """, currentDateTime);
+        """, currentDateTime, assumptionRules);
     }
 
     @Autowired(required = false)

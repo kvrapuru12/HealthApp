@@ -30,7 +30,7 @@ public class AiActivityVoiceParsingService {
             "activityName": "string - the name of the activity",
             "durationMinutes": "number - duration in minutes",
             "loggedAt": "ISO 8601 datetime string (YYYY-MM-DDTHH:mm:ss format)",
-            "note": "string - the original voice text input"
+            "note": "string - see rule 4: Voice / optional Stated / optional Assumed (same labeling idea as food voice logs)"
         }
         
         Rules:
@@ -41,11 +41,16 @@ public class AiActivityVoiceParsingService {
            - "last night" → yesterday's date at 21:00:00
            - "today" → today's date at current time (use the CURRENT DATE AND TIME provided)
            - "now" → current date and time (use the CURRENT DATE AND TIME provided)
-        3. If no specific time is mentioned, use the CURRENT DATE AND TIME provided above
-        4. ALWAYS include the original voice text input in the note field
+        3. If no specific time is mentioned, use the CURRENT DATE AND TIME provided above when inferring loggedAt
+        4. **note** field (required): always include **`Voice:`** with the user's exact words. If they explicitly stated duration and/or when the activity occurred, add **`Stated:`** with only those facts. If you inferred durationMinutes and/or loggedAt, add **`Assumed:`** with concrete numbers and datetimes (omit the whole Assumed clause if nothing was inferred). Never `Assumed: none`.
         5. Return ONLY valid JSON, no additional text
         6. IMPORTANT: loggedAt must be in ISO 8601 format (YYYY-MM-DDTHH:mm:ss) and must use the CURRENT DATE AND TIME provided above
-        """, currentDateTime);
+        
+        %s
+        %s
+        """, currentDateTime,
+                AiPromptGuidelines.SHARED_INFERENCE_PRINCIPLES,
+                AiPromptGuidelines.ACTIVITY_DURATION_ASSUMPTION_RULES);
     }
 
     @Autowired(required = false)
@@ -97,9 +102,9 @@ public class AiActivityVoiceParsingService {
             if (jsonNode.has("note") && !jsonNode.get("note").isNull()) {
                 data.setNote(jsonNode.get("note").asText());
             } else {
-                // Fallback: use the original voice text as note if AI didn't provide one
-                data.setNote(voiceText);
+                data.setNote("");
             }
+            ensureVoiceLineInNote(data, voiceText);
 
             logger.info("Successfully parsed activity: {}", data);
             return data;
@@ -109,6 +114,27 @@ public class AiActivityVoiceParsingService {
             logger.error("Full exception details: ", e);
             throw new RuntimeException("Unable to parse activity information from voice text: " + e.getMessage(), e);
         }
+    }
+
+    /**
+     * Food voice logs always separate the utterance from Stated/Assumed; mirror that by guaranteeing a Voice line
+     * even when the model returns only a fragment or the legacy "note = raw text" shape.
+     */
+    static void ensureVoiceLineInNote(ParsedActivityData data, String voiceText) {
+        if (voiceText == null) {
+            voiceText = "";
+        }
+        String trimmedVoice = voiceText.trim();
+        String note = data.getNote() == null ? "" : data.getNote().trim();
+        if (note.contains("Voice:")) {
+            return;
+        }
+        String voiceLine = "Voice: " + trimmedVoice;
+        if (note.isEmpty()) {
+            data.setNote(voiceLine);
+            return;
+        }
+        data.setNote(voiceLine + " " + note);
     }
 
     public static class ParsedActivityData {

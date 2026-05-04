@@ -42,7 +42,11 @@ public class AiCycleVoiceParsingService {
            - isCycleRegular: true
         3. Return ONLY valid JSON, no additional text
         4. IMPORTANT: periodStartDate must be in ISO format (YYYY-MM-DD)
-        """;
+        
+        """
+        + AiPromptGuidelines.SHARED_INFERENCE_PRINCIPLES
+        + "\n"
+        + AiPromptGuidelines.CYCLE_DEFAULT_ASSUMPTION_RULES;
 
     @Autowired(required = false)
     private OpenAiService openAiService;
