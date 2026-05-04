@@ -345,16 +345,18 @@ For CI/CD pipeline to work, configure these secrets in GitHub:
 
 ### Pipeline Overview
 
-The CI/CD pipeline consists of GitHub Actions workflows:
+There is **one** GitHub Actions workflow for AWS deploy: **Deploy HealthApp to AWS** (file: `.github/workflows/deploy.yml`). It runs only on **`push` to `main`** (not on pull requests).
 
-1. **Test Stage**: Runs on every push and pull request
-   - Executes unit tests
-   - Builds the application
+| Job | Purpose |
+|-----|---------|
+| **Test Application** | `mvn test`, then `mvn clean package` |
+| **Build and Deploy to AWS** | Runs after tests pass: `mvn clean package`, Docker build, push image to **ECR** (commit SHA tag and `latest`), render task definition, **ECS** service update, wait for service stability, then ALB health checks |
 
-2. **Build & Deploy Stage**: Only runs on main branch pushes
-   - Builds Docker image
-   - Pushes to Amazon ECR
-   - Deploys to ECS
+**Why a single workflow:** Previously a second workflow also deployed the same ECS service on every `main` push. That caused parallel rollouts, race conditions, and flaky `servicesStable` failures. **Do not add another workflow** that deploys `healthapp-service` on the same trigger unless you intentionally replace this one.
+
+### ECS deploy step timeout (wait-for-minutes)
+
+The **Deploy Amazon ECS task definition** step sets `wait-for-minutes: 45`. That is a **maximum** time to wait for the service to become stable; the step finishes as soon as ECS reports steady state. If the rollout never stabilizes, the job fails after that cap instead of hanging for hours.
 
 ### Automated Deployment
 
@@ -369,10 +371,11 @@ Monitor deployment progress:
 - Monitor ECS service health in AWS Console
 - Check application logs in CloudWatch
 
-### Workflow Files
+### Workflow file
 
-- `.github/workflows/deploy.yml` - Main deployment pipeline
-- `.github/workflows/aws-deploy.yml` - AWS-specific deployment
+| Path | Description |
+|------|-------------|
+| `.github/workflows/deploy.yml` | Sole pipeline: tests, build, ECR push, ECS deploy, post-deploy health verification |
 
 ---
 
@@ -505,6 +508,14 @@ The infrastructure includes 6 CloudWatch alarms:
 - Verify RDS security group rules
 - Check RDS endpoint is correct
 - Ensure database is accessible from private subnet
+
+### GitHub Actions deploy failures
+
+**`Error: Resource is not in the state servicesStable` (ECS deploy step)**
+
+- The new tasks did not reach a steady rollout within **`wait-for-minutes`** (see [ECS deploy step timeout](#ecs-deploy-step-timeout-wait-for-minutes)), or the service kept cycling (failed health checks, crash loops, image pull errors).
+- In **ECS Console** → service → **Events** and **Stopped tasks**, read the stopped reason and container exit code.
+- **Avoid duplicate deploy workflows** targeting the same cluster/service on the same `main` push; overlapping deployments extend instability and can cause this error in CI even when a later single deploy succeeds.
 
 ---
 

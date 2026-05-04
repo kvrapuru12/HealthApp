@@ -75,8 +75,7 @@ For AWS deployment, CI/CD setup, and infrastructure configuration, see **[DEPLOY
 
 **Quick Overview:**
 - Complete Terraform infrastructure setup
-- Automated CI/CD pipeline via GitHub Actions
-- Deploys automatically on push to main branch
+- Single GitHub Actions workflow (`.github/workflows/deploy.yml`, “Deploy HealthApp to AWS”) for test, build, ECR, and ECS on push to `main`
 - Includes monitoring, security, and scaling guidance
 
 ## Project Structure
@@ -95,6 +94,3 @@ src/main/resources/
 ├── application.properties
 └── application-aws.properties
 ```
-# Infrastructure deployed successfully! Ready for first application deployment.
-# Ready for deployment - Fri Jul 25 16:55:37 BST 2025
-# Triggering deployment - Fri Jul 25 17:04:16 BST 2025
