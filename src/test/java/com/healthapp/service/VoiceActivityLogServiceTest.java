@@ -23,6 +23,8 @@ import java.time.LocalDateTime;
 
 import java.util.Optional;
 
+import org.mockito.ArgumentCaptor;
+
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
@@ -224,5 +226,67 @@ class VoiceActivityLogServiceTest {
         verify(aiActivityVoiceParsingService).parseVoiceText(voiceText);
         verify(activityService).createActivity(any(ActivityCreateRequest.class), eq(userId), eq(false));
         verify(activityLogService).createActivityLog(any(ActivityLogCreateRequest.class), eq(authenticatedUserId), eq(isAdmin));
+    }
+
+    /**
+     * Documents current behaviour: one voice string listing many segments still produces exactly one activity log
+     * (AI is mocked here as if it collapsed the session into one row — real models vary).
+     */
+    @Test
+    void processVoiceActivityLog_multiSegmentVoice_singleActivityLogOnly() {
+        String voiceText = "I did 5 min running, 5 min push ups, 5 min cross trainer, 5 min walk, and 5 min swim";
+        Long userId = 1L;
+        Long authenticatedUserId = 1L;
+        boolean isAdmin = false;
+
+        AiActivityVoiceParsingService.ParsedActivityData multiParsed = new AiActivityVoiceParsingService.ParsedActivityData();
+        multiParsed.setActivityName("Mixed cardio circuit");
+        multiParsed.setDurationMinutes(25);
+        multiParsed.setLoggedAt(LocalDateTime.of(2026, 5, 4, 9, 0));
+        multiParsed.setNote(
+                "Voice: I did 5 min running, 5 min push ups, 5 min cross trainer, 5 min walk, and 5 min swim "
+                        + "Stated: 5 min each segment. Assumed: loggedAt morning 09:00 (not stated).");
+
+        Activity mixedActivity = new Activity();
+        mixedActivity.setId(7L);
+        mixedActivity.setName("Mixed cardio circuit");
+        mixedActivity.setVisibility(Activity.Visibility.PRIVATE);
+        mixedActivity.setCreatedBy(testUser);
+
+        ActivityLog mixedLog = new ActivityLog();
+        mixedLog.setId(7L);
+        mixedLog.setUser(testUser);
+        mixedLog.setActivity(mixedActivity);
+        mixedLog.setDurationMinutes(25);
+        mixedLog.setCaloriesBurned(new BigDecimal("200.0"));
+        mixedLog.setLoggedAt(multiParsed.getLoggedAt());
+        mixedLog.setNote(multiParsed.getNote());
+
+        when(userRepository.findById(userId)).thenReturn(Optional.of(testUser));
+        when(aiActivityVoiceParsingService.parseVoiceText(voiceText)).thenReturn(multiParsed);
+        when(activityRepository.findByCreatedByAndNameAndStatus(userId, "Mixed cardio circuit", Activity.Status.ACTIVE))
+                .thenReturn(Optional.empty());
+        when(activityService.createActivity(any(ActivityCreateRequest.class), eq(userId), eq(false)))
+                .thenReturn(new ActivityCreateResponse(7L, LocalDateTime.now()));
+        when(activityRepository.findById(7L)).thenReturn(Optional.of(mixedActivity));
+        when(activityLogService.createActivityLog(any(ActivityLogCreateRequest.class), eq(authenticatedUserId), eq(isAdmin)))
+                .thenReturn(new ActivityLogCreateResponse(7L, LocalDateTime.now(), new BigDecimal("200.0")));
+        when(activityLogRepository.findById(7L)).thenReturn(Optional.of(mixedLog));
+
+        VoiceActivityLogResponse response = voiceActivityLogService.processVoiceActivityLog(
+                userId, voiceText, authenticatedUserId, isAdmin);
+
+        assertNotNull(response.getActivityLog());
+        assertEquals(7L, response.getActivityLog().getId());
+        assertEquals("Mixed cardio circuit", response.getActivityLog().getActivity());
+        assertEquals(25, response.getActivityLog().getDurationMinutes());
+
+        ArgumentCaptor<ActivityLogCreateRequest> logCaptor = ArgumentCaptor.forClass(ActivityLogCreateRequest.class);
+        verify(activityLogService).createActivityLog(logCaptor.capture(), eq(authenticatedUserId), eq(isAdmin));
+        ActivityLogCreateRequest sent = logCaptor.getValue();
+        assertEquals(25, sent.getDurationMinutes());
+        assertEquals(7L, sent.getActivityId());
+        assertEquals(multiParsed.getNote(), sent.getNote());
+        verify(activityLogService, times(1)).createActivityLog(any(), anyLong(), anyBoolean());
     }
 }
