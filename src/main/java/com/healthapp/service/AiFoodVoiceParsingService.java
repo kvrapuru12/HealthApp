@@ -37,12 +37,18 @@ public class AiFoodVoiceParsingService {
         - Return exactly ONE entry per such dish. Pick a short, natural display name (e.g. "Berry chia breakfast smoothie").
         - approximateTotalGrams: your best estimate of total grams for everything in that dish (sum ingredient weights).
         - nutrition: estimated macros **per 100g** for that combined mixture (not per ingredient).
-        - note: briefly list main ingredients from the user text (for transparency).
+        - note: keep **user measurements** and **model guesses** in separate labeled clauses when each applies (same string, one JSON field):
+          • Include **`Stated:`** only if the user gave at least one explicit amount for this dish. Put only verbatim quantities (spoons, g, pieces, cups, etc.); semicolons between items. **Do not** add a Stated line if they stated no amounts.
+          • Include **`Assumed:`** only if you inferred at least one portion the user did not state. Put only inferred items with concrete units (g, pieces, tbsp, cup, medium fruit). **Do not** write `Assumed: none` or any Assumed section when nothing was guessed.
+          • If both apply: `Stated: … Assumed: …` (space between). If only one applies, output that single clause only.
+          Do not mix inferred grams into the Stated line. Vague size words are not enough alone; always add a number or gram estimate in Assumed.
+          Example (mixed): `Stated: 2 tbsp chia; 10 almonds; 50 g bran flakes; 2 tbsp sunflower seeds; 2 tbsp pumpkin seeds. Assumed: berries ~50 g; grapes ~12 grapes ~80 g; banana 1 medium ~120 g.`
         - Do NOT also list those ingredients again in foodItems (no duplication).
         
         foodItems — use when foods are **distinct** items people usually log separately:
         - Examples: "chicken burger and chips" → TWO entries (burger, chips). "Pizza and soda" → two entries.
         - Each entry has foodName, quantity, unit, mealType, loggedAt, note, nutrition (per 100g for that food).
+        - note: same rules as composite for this line item: include **`Stated:`** only if the user stated a quantity for this food; include **`Assumed:`** only if you inferred a portion. Never output `Assumed: none`. If fully user-stated, a single `Stated: …` line is enough.
         - Use foodItems for separate beverages unless the user clearly blended everything into one drink.
         
         If unsure whether something is one blended dish vs separate items, prefer **foodItems** (safer).
@@ -55,6 +61,7 @@ public class AiFoodVoiceParsingService {
         - Meal type: breakfast / lunch / dinner / snack from context.
         - Nutrition: reasonable database-style values; composite mixture is an estimate for the blend.
         - Every compositeMeals entry MUST include approximateTotalGrams (positive number).
+        - Notes (composite and foodItems): use **`Stated:`** and/or **`Assumed:`** labels only when that section has content; omit empty sections entirely (no placeholder "none").
         - Return ONLY valid JSON, no markdown or extra text.
         - loggedAt must follow ISO 8601 and align with CURRENT DATE AND TIME when inferring dates.
         
@@ -69,7 +76,7 @@ public class AiFoodVoiceParsingService {
                     "unit": "serving",
                     "mealType": "lunch",
                     "loggedAt": "2024-01-15T12:30:00Z",
-                    "note": "chicken burger",
+                    "note": "Assumed: chicken burger 1 serving ~200 g (user did not state quantity).",
                     "nutrition": {"caloriesPer100g": 250, "proteinPer100g": 15, "carbsPer100g": 22, "fatPer100g": 12, "fiberPer100g": 2}
                 },
                 {
@@ -78,7 +85,7 @@ public class AiFoodVoiceParsingService {
                     "unit": "serving",
                     "mealType": "lunch",
                     "loggedAt": "2024-01-15T12:30:00Z",
-                    "note": "fried potato chips",
+                    "note": "Assumed: chips 1 serving ~150 g (user did not state quantity).",
                     "nutrition": {"caloriesPer100g": 536, "proteinPer100g": 7, "carbsPer100g": 53, "fatPer100g": 35, "fiberPer100g": 4.8}
                 }
             ]
@@ -93,7 +100,7 @@ public class AiFoodVoiceParsingService {
                     "approximateTotalGrams": 380,
                     "mealType": "breakfast",
                     "loggedAt": "2024-01-15T08:00:00Z",
-                    "note": "chia seeds, almonds, banana, berries, oats",
+                    "note": "Assumed: chia ~12 g (~1 tbsp); almonds ~18 g (~15 nuts); banana 1 medium ~120 g; mixed berries ~50 g; dry oats ~40 g (user listed ingredients without amounts).",
                     "nutrition": {"caloriesPer100g": 165, "proteinPer100g": 6, "carbsPer100g": 20, "fatPer100g": 7, "fiberPer100g": 5}
                 }
             ],
@@ -111,7 +118,7 @@ public class AiFoodVoiceParsingService {
                     "unit": "pieces",
                     "mealType": "breakfast",
                     "loggedAt": "2024-01-15T08:00:00Z",
-                    "note": "boiled eggs for breakfast",
+                    "note": "Stated: 2 boiled eggs for breakfast.",
                     "nutrition": {"caloriesPer100g": 155, "proteinPer100g": 13, "carbsPer100g": 1.1, "fatPer100g": 11, "fiberPer100g": 0}
                 },
                 {
@@ -120,7 +127,7 @@ public class AiFoodVoiceParsingService {
                     "unit": "cup",
                     "mealType": "breakfast",
                     "loggedAt": "2024-01-15T08:00:00Z",
-                    "note": "coffee for breakfast",
+                    "note": "Stated: 1 cup coffee for breakfast.",
                     "nutrition": {"caloriesPer100g": 2, "proteinPer100g": 0.3, "carbsPer100g": 0, "fatPer100g": 0, "fiberPer100g": 0}
                 },
                 {
@@ -129,7 +136,7 @@ public class AiFoodVoiceParsingService {
                     "unit": "serving",
                     "mealType": "lunch",
                     "loggedAt": "2024-01-15T12:00:00Z",
-                    "note": "chicken salad for lunch",
+                    "note": "Assumed: chicken salad 1 serving ~200 g (user did not state quantity).",
                     "nutrition": {"caloriesPer100g": 120, "proteinPer100g": 15, "carbsPer100g": 8, "fatPer100g": 3, "fiberPer100g": 2}
                 }
             ]
