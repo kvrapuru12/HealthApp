@@ -1,11 +1,16 @@
 package com.healthapp.dto;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+
 import java.util.List;
 
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class VoiceFoodLogResponse {
     
     private String message;
     private List<LoggedFoodItem> logs;
+    /** Set on error responses for client routing and analytics; null on success. */
+    private String errorCode;
     
     // Constructors
     public VoiceFoodLogResponse() {}
@@ -13,6 +18,15 @@ public class VoiceFoodLogResponse {
     public VoiceFoodLogResponse(String message, List<LoggedFoodItem> logs) {
         this.message = message;
         this.logs = logs;
+    }
+
+    /**
+     * Error payload for voice food logging. {@code logs} is always an empty list.
+     */
+    public static VoiceFoodLogResponse error(String userMessage, String errorCode) {
+        VoiceFoodLogResponse r = new VoiceFoodLogResponse(userMessage, List.of());
+        r.setErrorCode(errorCode);
+        return r;
     }
     
     // Getters and Setters
@@ -30,6 +44,14 @@ public class VoiceFoodLogResponse {
     
     public void setLogs(List<LoggedFoodItem> logs) {
         this.logs = logs;
+    }
+
+    public String getErrorCode() {
+        return errorCode;
+    }
+
+    public void setErrorCode(String errorCode) {
+        this.errorCode = errorCode;
     }
     
     // Inner class for logged food items

@@ -64,7 +64,8 @@ public class CycleSyncRecommendationService {
             - theme: { accent: string(hex), background: string(hex) }
             Never return scalar strings for move/eatToday/feel/avoidDetailed/theme.
             Keep recommendations practical and concise. Avoid diagnosis and medical certainty.
-            """;
+            """
+            + AiPromptGuidelines.RECOMMENDATION_QUALITATIVE_GUIDANCE;
 
     @Autowired(required = false)
     private OpenAiService openAiService;

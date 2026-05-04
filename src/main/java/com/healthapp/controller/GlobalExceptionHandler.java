@@ -1,5 +1,7 @@
 package com.healthapp.controller;
 
+import com.healthapp.dto.VoiceFoodLogResponse;
+import com.healthapp.exception.VoiceFoodLogException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -36,6 +38,12 @@ public class GlobalExceptionHandler {
         response.put("timestamp", java.time.LocalDateTime.now().toString());
         
         return ResponseEntity.badRequest().body(response);
+    }
+
+    @ExceptionHandler(VoiceFoodLogException.class)
+    public ResponseEntity<VoiceFoodLogResponse> handleVoiceFoodLogException(VoiceFoodLogException ex) {
+        return ResponseEntity.status(ex.getHttpStatus())
+                .body(VoiceFoodLogResponse.error(ex.getUserMessage(), ex.getErrorCode()));
     }
 
     @ExceptionHandler(RuntimeException.class)
