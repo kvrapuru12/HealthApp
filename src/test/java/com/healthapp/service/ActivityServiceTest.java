@@ -143,6 +143,47 @@ class ActivityServiceTest {
         assertEquals(1, result.getItems().size());
         assertEquals(1L, result.getTotal());
     }
+
+    @Test
+    void getActivities_AnonymousWithSearch_RestrictsToPublic() {
+        // Arrange
+        Pageable pageable = PageRequest.of(0, 20, Sort.by(Sort.Direction.DESC, "createdAt"));
+        Page<Activity> page = new PageImpl<>(List.of(testActivity), pageable, 1);
+        when(activityRepository.findByStatusAndVisibilityAndSearch(
+                Activity.Status.ACTIVE, Activity.Visibility.PUBLIC, "gard", pageable))
+                .thenReturn(page);
+
+        // Act
+        var result = activityService.getActivities("gard", null, 1, 20, "createdAt", "desc", null, false);
+
+        // Assert
+        assertNotNull(result);
+        assertEquals(1, result.getItems().size());
+        verify(activityRepository).findByStatusAndVisibilityAndSearch(
+                Activity.Status.ACTIVE, Activity.Visibility.PUBLIC, "gard", pageable);
+        verify(activityRepository, never()).findByStatusAndSearch(any(), anyString(), any(Pageable.class));
+    }
+
+    @Test
+    void getActivities_AnonymousPrivateVisibility_DowngradesToPublic() {
+        // Arrange
+        Pageable pageable = PageRequest.of(0, 20, Sort.by(Sort.Direction.DESC, "createdAt"));
+        Page<Activity> page = new PageImpl<>(List.of(testActivity), pageable, 1);
+        when(activityRepository.findByStatusAndVisibility(
+                Activity.Status.ACTIVE, Activity.Visibility.PUBLIC, pageable))
+                .thenReturn(page);
+
+        // Act
+        var result = activityService.getActivities(null, "PRIVATE", 1, 20, "createdAt", "desc", null, false);
+
+        // Assert
+        assertNotNull(result);
+        assertEquals(1, result.getItems().size());
+        verify(activityRepository).findByStatusAndVisibility(
+                Activity.Status.ACTIVE, Activity.Visibility.PUBLIC, pageable);
+        verify(activityRepository, never()).findByStatusAndVisibility(
+                Activity.Status.ACTIVE, Activity.Visibility.PRIVATE, pageable);
+    }
     
     @Test
     void updateActivity_Success() {

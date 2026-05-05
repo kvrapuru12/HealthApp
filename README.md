@@ -78,6 +78,10 @@ For AWS deployment, CI/CD setup, and infrastructure configuration, see **[DEPLOY
 - Single GitHub Actions workflow (`.github/workflows/deploy.yml`, “Deploy HealthApp to AWS”) for test, build, ECR, and ECS on push to `main`
 - Includes monitoring, security, and scaling guidance
 
+## Roadmap
+
+- Future roadmap items are tracked in **[`docs/future-roadmap.md`](docs/future-roadmap.md)**.
+
 ## Project Structure
 
 ```
