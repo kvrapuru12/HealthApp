@@ -18,6 +18,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.validation.Valid;
@@ -33,13 +34,29 @@ public class ActivityController {
     
     @Autowired
     private ActivityService activityService;
+
+    private Long resolveAuthenticatedUserId(Authentication authentication) {
+        if (authentication == null
+                || !authentication.isAuthenticated()
+                || authentication instanceof AnonymousAuthenticationToken) {
+            return null;
+        }
+        Object principal = authentication.getPrincipal();
+        return principal instanceof Long ? (Long) principal : null;
+    }
+
+    private boolean hasAdminRole(Authentication authentication) {
+        return authentication != null
+                && authentication.getAuthorities() != null
+                && authentication.getAuthorities().stream()
+                        .anyMatch(authority -> authority.getAuthority().equals("ROLE_ADMIN"));
+    }
     
     @GetMapping
     @Operation(summary = "List activities")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "Activities retrieved successfully"),
-        @ApiResponse(responseCode = "400", description = "Invalid request parameters"),
-        @ApiResponse(responseCode = "401", description = "Unauthorized")
+        @ApiResponse(responseCode = "400", description = "Invalid request parameters")
     })
     public ResponseEntity<ActivityPaginatedResponse> getActivities(
             @RequestParam(value = "search", required = false) String search,
@@ -51,9 +68,8 @@ public class ActivityController {
         
         try {
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-            Long authenticatedUserId = (Long) authentication.getPrincipal();
-            boolean isAdmin = authentication.getAuthorities().stream()
-                    .anyMatch(authority -> authority.getAuthority().equals("ROLE_ADMIN"));
+            Long authenticatedUserId = resolveAuthenticatedUserId(authentication);
+            boolean isAdmin = hasAdminRole(authentication);
             
             ActivityPaginatedResponse response = activityService.getActivities(
                     search, visibility, page, limit, sortBy, sortDir, authenticatedUserId, isAdmin);
@@ -74,15 +90,13 @@ public class ActivityController {
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "Activity retrieved successfully"),
         @ApiResponse(responseCode = "404", description = "Activity not found"),
-        @ApiResponse(responseCode = "401", description = "Unauthorized"),
         @ApiResponse(responseCode = "403", description = "Forbidden - Access denied")
     })
     public ResponseEntity<ActivityResponse> getActivityById(@PathVariable Long id) {
         try {
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-            Long authenticatedUserId = (Long) authentication.getPrincipal();
-            boolean isAdmin = authentication.getAuthorities().stream()
-                    .anyMatch(authority -> authority.getAuthority().equals("ROLE_ADMIN"));
+            Long authenticatedUserId = resolveAuthenticatedUserId(authentication);
+            boolean isAdmin = hasAdminRole(authentication);
             
             var activity = activityService.getActivityById(id, authenticatedUserId, isAdmin);
             

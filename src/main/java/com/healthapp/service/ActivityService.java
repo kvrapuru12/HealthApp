@@ -88,21 +88,34 @@ public class ActivityService {
         Pageable pageable = PageRequest.of(page - 1, limit, sort);
         
         Page<Activity> activityPage;
+        Activity.Visibility parsedVisibility = null;
+        if (visibility != null && !visibility.trim().isEmpty()) {
+            parsedVisibility = Activity.Visibility.valueOf(visibility.trim().toUpperCase());
+        }
+        boolean isAnonymousRequest = authenticatedUserId == null;
         
         // Build query based on parameters
         if (search != null && !search.trim().isEmpty()) {
-            if (visibility != null && !visibility.trim().isEmpty()) {
-                Activity.Visibility vis = Activity.Visibility.valueOf(visibility.toUpperCase());
-                activityPage = activityRepository.findByStatusAndVisibilityAndSearch(Activity.Status.ACTIVE, vis, search.trim(), pageable);
+            if (isAnonymousRequest) {
+                activityPage = activityRepository.findByStatusAndVisibilityAndSearch(
+                        Activity.Status.ACTIVE, Activity.Visibility.PUBLIC, search.trim(), pageable);
+            } else if (parsedVisibility != null) {
+                activityPage = activityRepository.findByStatusAndVisibilityAndSearch(
+                        Activity.Status.ACTIVE, parsedVisibility, search.trim(), pageable);
             } else {
                 activityPage = activityRepository.findByStatusAndSearch(Activity.Status.ACTIVE, search.trim(), pageable);
             }
-        } else if (visibility != null && !visibility.trim().isEmpty()) {
-            Activity.Visibility vis = Activity.Visibility.valueOf(visibility.toUpperCase());
-            activityPage = activityRepository.findByStatusAndVisibility(Activity.Status.ACTIVE, vis, pageable);
+        } else if (parsedVisibility != null) {
+            Activity.Visibility effectiveVisibility = isAnonymousRequest ? Activity.Visibility.PUBLIC : parsedVisibility;
+            activityPage = activityRepository.findByStatusAndVisibility(Activity.Status.ACTIVE, effectiveVisibility, pageable);
         } else {
-            // Default: show user's activities and public activities
-            activityPage = activityRepository.findByUserOrPublicAndStatus(authenticatedUserId, Activity.Status.ACTIVE, pageable);
+            if (isAnonymousRequest) {
+                activityPage = activityRepository.findByStatusAndVisibility(
+                        Activity.Status.ACTIVE, Activity.Visibility.PUBLIC, pageable);
+            } else {
+                // Default: show user's activities and public activities
+                activityPage = activityRepository.findByUserOrPublicAndStatus(authenticatedUserId, Activity.Status.ACTIVE, pageable);
+            }
         }
         
         List<ActivityResponse> activities = activityPage.getContent().stream()

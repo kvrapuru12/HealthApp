@@ -55,6 +55,7 @@ public class SecurityConfig {
                 .requestMatchers("/auth/change-password").authenticated() // Change password requires authentication (must come before /auth/**)
                 .requestMatchers("/auth/**").permitAll() // Allow login and other public auth endpoints
                 .requestMatchers(HttpMethod.POST, "/users").permitAll() // Allow user registration (signup) - should be public
+                .requestMatchers(HttpMethod.GET, "/activities/**").permitAll() // Public activity catalog reads should work without access token
                 .requestMatchers("/steps/**", "/sleeps/**", "/moods/**", "/water/**", "/weights/**", "/food-entries/**", "/activity-entries/**", "/activities/**", "/activity-logs/**", "/ai/**", "/users/**", "/foods/**", "/food-logs/**", "/cycles/**", "/app-ratings/**", "/integrations/**", "/dashboard/**", "/notifications/**").authenticated() // All health tracking and user management endpoints require authentication
                 .anyRequest().authenticated() // All other endpoints require authentication
             );
