@@ -6,6 +6,7 @@ import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
@@ -22,9 +23,17 @@ public class RateLimitAspect {
     
     @Autowired
     private RateLimitService rateLimitService;
+
+    /** Disabled in test profile so integration suites do not share one IP bucket across hundreds of requests. */
+    @Value("${app.rate-limit.enabled:true}")
+    private boolean rateLimitEnabled;
     
     @Around("@annotation(rateLimit)")
     public Object rateLimit(ProceedingJoinPoint joinPoint, RateLimit rateLimit) throws Throwable {
+        if (!rateLimitEnabled) {
+            return joinPoint.proceed();
+        }
+
         // Get client IP for rate limiting
         String clientKey = getClientKey();
         
