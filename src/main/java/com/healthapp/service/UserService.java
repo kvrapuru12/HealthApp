@@ -6,6 +6,7 @@ import com.healthapp.repository.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -29,7 +30,14 @@ public class UserService {
     
     @Autowired
     private PasswordEncoder passwordEncoder;
-    
+
+    /**
+     * When false (default), public registration always creates {@link User.UserRole#USER} even if the client sends ADMIN.
+     * Enable on trusted dev profiles (e.g. {@code local}) to register an admin via POST /users for testing.
+     */
+    @Value("${app.registration.allow-role-selection:false}")
+    private boolean allowRegistrationRoleSelection;
+
     @Transactional(readOnly = true)
     public List<User> getAllUsers() {
         return userRepository.findAll();
@@ -259,6 +267,9 @@ public class UserService {
     @Transactional
     public User createUser(User user) {
         try {
+            if (!allowRegistrationRoleSelection) {
+                user.setRole(User.UserRole.USER);
+            }
             // Check if username or email already exists
             if (userRepository.existsByUsername(user.getUsername())) {
                 logger.warn("Username already exists: {}", user.getUsername());

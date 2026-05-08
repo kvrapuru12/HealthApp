@@ -4,6 +4,7 @@ import com.healthapp.entity.FoodItem;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -60,4 +61,18 @@ public interface FoodItemRepository extends JpaRepository<FoodItem, Long> {
     
     // Find by name (case insensitive), status and visibility
     Optional<FoodItem> findByNameIgnoreCaseAndStatusAndVisibility(String name, FoodItem.FoodStatus status, FoodItem.FoodVisibility visibility);
+
+    /**
+     * Deletes food items created by the user when no food_logs row references them.
+     * Safe when other users may still reference public items this user created.
+     */
+    @Modifying(clearAutomatically = true)
+    @Query(value = """
+            DELETE FROM food_items fi
+            WHERE fi.created_by = :userId
+              AND NOT EXISTS (
+                  SELECT 1 FROM food_logs fl WHERE fl.food_item_id = fi.id
+              )
+            """, nativeQuery = true)
+    int deleteOwnedFoodItemsWithNoReferencingLogs(@Param("userId") Long userId);
 }

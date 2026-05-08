@@ -4,6 +4,7 @@ import com.healthapp.entity.Activity;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -42,4 +43,17 @@ public interface ActivityRepository extends JpaRepository<Activity, Long> {
     
     @Query("SELECT a FROM Activity a WHERE a.id = :id AND a.status = :status AND (a.createdBy.id = :userId OR a.visibility = 'PUBLIC')")
     Optional<Activity> findByIdAndStatusAndAccessible(@Param("id") Long id, @Param("status") Activity.Status status, @Param("userId") Long userId);
+
+    /**
+     * Deletes activities created by the user when no activity_logs row references them.
+     */
+    @Modifying(clearAutomatically = true)
+    @Query(value = """
+            DELETE FROM activities a
+            WHERE a.created_by = :userId
+              AND NOT EXISTS (
+                  SELECT 1 FROM activity_logs al WHERE al.activity_id = a.id
+              )
+            """, nativeQuery = true)
+    int deleteOwnedActivitiesWithNoReferencingLogs(@Param("userId") Long userId);
 }

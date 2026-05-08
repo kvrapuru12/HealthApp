@@ -3,10 +3,13 @@ package com.healthapp.controller;
 import com.healthapp.annotation.RateLimit;
 import com.healthapp.entity.User;
 import com.healthapp.dto.UserCreateRequest;
+import com.healthapp.dto.UserFoodActivityHardDeleteResponse;
 import com.healthapp.dto.UserPatchRequest;
 import com.healthapp.dto.UserResponse;
+import com.healthapp.service.UserFoodActivityHardDeleteService;
 import com.healthapp.service.UserService;
 import com.healthapp.service.ValidationService;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
@@ -44,7 +47,32 @@ public class UserController {
     
     @Autowired
     private ValidationService validationService;
-    
+
+    @Autowired
+    private UserFoodActivityHardDeleteService userFoodActivityHardDeleteService;
+
+    @DeleteMapping("/admin/hard-delete-food-activity-data")
+    @PreAuthorize("hasRole('ADMIN')")
+    @RateLimit(value = 5, timeUnit = "MINUTES")
+    @Operation(
+            summary = "Hard-delete food and activity data by user email",
+            description = """
+                    Admin only. Physically deletes all food_logs and activity_logs for the user, then deletes food_items \
+                    and activities they created when no logs reference those rows. Does not delete the user account."""
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Deletion completed"),
+            @ApiResponse(responseCode = "400", description = "Missing email"),
+            @ApiResponse(responseCode = "403", description = "Admin role required"),
+            @ApiResponse(responseCode = "404", description = "User not found for email"),
+            @ApiResponse(responseCode = "429", description = "Rate limit exceeded")
+    })
+    public ResponseEntity<UserFoodActivityHardDeleteResponse> hardDeleteFoodActivityDataByEmail(
+            @Parameter(description = "User email (exact match after trim)", required = true)
+            @RequestParam String email) {
+        return ResponseEntity.ok(userFoodActivityHardDeleteService.hardDeleteFoodAndActivityDataByEmail(email));
+    }
+
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
     @RateLimit(value = 10, timeUnit = "MINUTES")

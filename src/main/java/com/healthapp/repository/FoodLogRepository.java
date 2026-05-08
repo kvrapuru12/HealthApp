@@ -4,6 +4,7 @@ import com.healthapp.entity.FoodLog;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -63,4 +64,9 @@ public interface FoodLogRepository extends JpaRepository<FoodLog, Long> {
     @Query("SELECT COUNT(f) FROM FoodLog f WHERE f.userId = :userId AND f.status = 'ACTIVE' AND " +
            "DATE(f.loggedAt) = DATE(:date)")
     long countByUserIdAndDate(@Param("userId") Long userId, @Param("date") LocalDateTime date);
+
+    /** Hard delete all food log rows for the user (any status). */
+    @Modifying(clearAutomatically = true)
+    @Query("DELETE FROM FoodLog f WHERE f.userId = :userId")
+    int deleteAllByUserId(@Param("userId") Long userId);
 }

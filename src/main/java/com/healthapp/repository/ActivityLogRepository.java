@@ -4,6 +4,7 @@ import com.healthapp.entity.ActivityLog;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -37,4 +38,9 @@ public interface ActivityLogRepository extends JpaRepository<ActivityLog, Long> 
     
     @Query("SELECT al FROM ActivityLog al WHERE al.id = :id AND al.status = :status AND al.user.id = :userId")
     Optional<ActivityLog> findByIdAndStatusAndUser(@Param("id") Long id, @Param("status") ActivityLog.Status status, @Param("userId") Long userId);
+
+    /** Hard delete all activity log rows for the user (any status). */
+    @Modifying(clearAutomatically = true)
+    @Query("DELETE FROM ActivityLog al WHERE al.user.id = :userId")
+    int deleteAllByUserId(@Param("userId") Long userId);
 }

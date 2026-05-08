@@ -4,9 +4,11 @@ import com.healthapp.dto.VoiceFoodLogResponse;
 import com.healthapp.exception.VoiceFoodLogException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -44,6 +46,24 @@ public class GlobalExceptionHandler {
     public ResponseEntity<VoiceFoodLogResponse> handleVoiceFoodLogException(VoiceFoodLogException ex) {
         return ResponseEntity.status(ex.getHttpStatus())
                 .body(VoiceFoodLogResponse.error(ex.getUserMessage(), ex.getErrorCode()));
+    }
+
+    @ExceptionHandler(ResponseStatusException.class)
+    public ResponseEntity<Map<String, Object>> handleResponseStatusException(ResponseStatusException ex) {
+        Map<String, Object> response = new HashMap<>();
+        response.put("error", "Request failed");
+        response.put("message", ex.getReason() != null ? ex.getReason() : ex.getStatusCode().toString());
+        response.put("timestamp", java.time.LocalDateTime.now().toString());
+        return ResponseEntity.status(ex.getStatusCode()).body(response);
+    }
+
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<Map<String, Object>> handleAccessDeniedException(AccessDeniedException ex) {
+        Map<String, Object> response = new HashMap<>();
+        response.put("error", "Access denied");
+        response.put("message", ex.getMessage() != null ? ex.getMessage() : "Forbidden");
+        response.put("timestamp", java.time.LocalDateTime.now().toString());
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
     }
 
     @ExceptionHandler(RuntimeException.class)
