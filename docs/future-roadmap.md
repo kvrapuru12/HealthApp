@@ -28,3 +28,23 @@ Implementation notes (for later):
 - Update service mapping in `FoodItemService`.
 - Backfill existing food items with default `iconKey` values.
 - Add/update API documentation with new fields.
+
+### Test coverage hardening for releases
+
+Status: In progress
+
+Current state:
+- Unit and integration coverage improved, but not fully comprehensive yet.
+- CI currently enforces a low baseline coverage gate (line `>= 15%`, branch `>= 5%`) to avoid blocking builds while test suites are expanded.
+
+Release-confidence target:
+- Raise overall line coverage to `>= 70%` (then toward `80%+`).
+- Raise overall branch coverage to `>= 50%`.
+- Achieve near-complete coverage for critical paths (authentication, core logging flows, cycle-sync recommendation logic).
+
+Planned next steps:
+- Add missing negative/edge case tests for auth and token lifecycle.
+- Expand controller-level validation and failure-path tests.
+- Deepen branch coverage in high-risk services (`CycleSyncRecommendationService`, `VoiceFoodLogService`, `UserService`, `ValidationService`).
+- Add post-deploy smoke tests that call real deployed endpoints every release.
+- Tighten JaCoCo thresholds incrementally as coverage rises.
