@@ -311,7 +311,27 @@ resource "aws_secretsmanager_secret" "jwt_secret" {
 
 resource "aws_secretsmanager_secret_version" "jwt_secret" {
   secret_id     = aws_secretsmanager_secret.jwt_secret.id
-  secret_string = var.jwt_secret != null ? var.jwt_secret : "default-jwt-secret-change-in-production"
+  secret_string = var.jwt_secret
+}
+
+resource "aws_ssm_parameter" "openai_api_key" {
+  name  = "/healthapp/openai-api-key"
+  type  = "SecureString"
+  value = var.openai_api_key
+
+  tags = merge(local.common_tags, {
+    Name = "healthapp-openai-api-key"
+  })
+}
+
+resource "aws_ssm_parameter" "usda_api_key" {
+  name  = "/healthapp/usda-api-key"
+  type  = "SecureString"
+  value = var.usda_api_key
+
+  tags = merge(local.common_tags, {
+    Name = "healthapp-usda-api-key"
+  })
 }
 
 # =========================================
@@ -391,12 +411,28 @@ resource "aws_iam_role_policy_attachment" "ecs_task_execution_role_policy" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
 }
 
-resource "aws_iam_role_policy_attachment" "ecs_task_execution_role_secrets" {
-  role       = aws_iam_role.ecs_task_execution_role.name
-  policy_arn = "arn:aws:iam::aws:policy/SecretsManagerReadWrite"
+resource "aws_iam_role_policy" "ecs_task_execution_role_secrets" {
+  name = "ecs-task-execution-secrets-read"
+  role = aws_iam_role.ecs_task_execution_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "secretsmanager:GetSecretValue"
+        ]
+        Resource = [
+          aws_secretsmanager_secret.db_password.arn,
+          aws_secretsmanager_secret.jwt_secret.arn
+        ]
+      }
+    ]
+  })
 }
 
-# SSM Parameter Store access - required for OPENAI_API_KEY and other SSM parameters
+# SSM Parameter Store access - required for OPENAI_API_KEY, USDA_API_KEY
 resource "aws_iam_role_policy" "ecs_task_execution_role_ssm" {
   name = "ecs-task-execution-ssm-parameters"
   role = aws_iam_role.ecs_task_execution_role.id
@@ -407,7 +443,10 @@ resource "aws_iam_role_policy" "ecs_task_execution_role_ssm" {
       {
         Effect   = "Allow"
         Action   = "ssm:GetParameters"
-        Resource = "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter/*"
+        Resource = [
+          aws_ssm_parameter.openai_api_key.arn,
+          aws_ssm_parameter.usda_api_key.arn
+        ]
       },
       {
         Effect   = "Allow"
@@ -577,7 +616,11 @@ resource "aws_ecs_task_definition" "healthapp_task" {
         },
         {
           name      = "OPENAI_API_KEY"
-          valueFrom = "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter/healthapp/openai-api-key"
+          valueFrom = aws_ssm_parameter.openai_api_key.arn
+        },
+        {
+          name      = "USDA_API_KEY"
+          valueFrom = aws_ssm_parameter.usda_api_key.arn
         }
       ]
       healthCheck = {

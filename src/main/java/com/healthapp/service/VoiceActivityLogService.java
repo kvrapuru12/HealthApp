@@ -17,8 +17,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
-
+import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -57,38 +57,52 @@ public class VoiceActivityLogService {
             throw new RuntimeException("AI voice parsing service is not available. Please configure OpenAI API key.");
         }
 
-        // Parse voice text using AI
-        AiActivityVoiceParsingService.ParsedActivityData parsedData = aiActivityVoiceParsingService.parseVoiceText(voiceText);
+        List<AiActivityVoiceParsingService.ParsedActivityData> parsedActivities =
+                aiActivityVoiceParsingService.parseAllActivities(voiceText);
 
-        // Find or create activity
+        List<VoiceActivityLogResponse.ActivityLogSummary> summaries = new ArrayList<>();
+        for (AiActivityVoiceParsingService.ParsedActivityData parsedData : parsedActivities) {
+            summaries.add(createActivityLogFromParsedData(parsedData, userId, authenticatedUserId, isAdmin));
+        }
+
+        String message = summaries.size() == 1
+                ? "Activity logged successfully"
+                : String.format("Logged %d activities from voice input", summaries.size());
+        logger.info("Successfully processed {} voice activity log(s)", summaries.size());
+        return new VoiceActivityLogResponse(message, summaries);
+    }
+
+    private VoiceActivityLogResponse.ActivityLogSummary createActivityLogFromParsedData(
+            AiActivityVoiceParsingService.ParsedActivityData parsedData,
+            Long userId, Long authenticatedUserId, boolean isAdmin) {
         Activity activity = findOrCreateActivity(parsedData.getActivityName(), userId);
 
-        // Create activity log
         ActivityLogCreateRequest logRequest = new ActivityLogCreateRequest();
         logRequest.setUserId(userId);
         logRequest.setActivityId(activity.getId());
-        logRequest.setLoggedAt(parsedData.getLoggedAt());
+        LocalDateTime loggedAt = parsedData.getLoggedAt() != null ? parsedData.getLoggedAt() : LocalDateTime.now();
+        if (loggedAt.isAfter(LocalDateTime.now().plusMinutes(10))) {
+            logger.warn("Clamping AI activity loggedAt {} to now (future time rejected by activity log rules)", loggedAt);
+            loggedAt = LocalDateTime.now();
+        }
+        logRequest.setLoggedAt(loggedAt);
         logRequest.setDurationMinutes(parsedData.getDurationMinutes());
         logRequest.setNote(parsedData.getNote());
 
         ActivityLogCreateResponse logResponse = activityLogService.createActivityLog(logRequest, authenticatedUserId, isAdmin);
 
-        // Get the created activity log for response
         ActivityLog activityLog = activityLogRepository.findById(logResponse.getId())
                 .orElseThrow(() -> new RuntimeException("Failed to retrieve created activity log"));
 
-                            // Build response
-                    VoiceActivityLogResponse.ActivityLogSummary summary = new VoiceActivityLogResponse.ActivityLogSummary(
-                            activityLog.getId(),
-                            activity.getName(),
-                            activityLog.getDurationMinutes(),
-                            activityLog.getCaloriesBurned() != null ? activityLog.getCaloriesBurned().doubleValue() : null,
-                            activityLog.getLoggedAt(),
-                            activityLog.getNote()
-                    );
-
         logger.info("Successfully processed voice activity log: {}", activityLog.getId());
-        return new VoiceActivityLogResponse("Activity logged successfully", summary);
+        return new VoiceActivityLogResponse.ActivityLogSummary(
+                activityLog.getId(),
+                activity.getName(),
+                activityLog.getDurationMinutes(),
+                activityLog.getCaloriesBurned() != null ? activityLog.getCaloriesBurned().doubleValue() : null,
+                activityLog.getLoggedAt(),
+                activityLog.getNote()
+        );
     }
 
     private void validateUserAccess(Long userId, Long authenticatedUserId, boolean isAdmin) {
@@ -132,8 +146,8 @@ public class VoiceActivityLogService {
         activityRequest.setName(activityName);
         activityRequest.setVisibility(Activity.Visibility.PRIVATE);
         activityRequest.setCategory(determineActivityCategory(activityName));
-        // Set a default calories per minute for new activities
-        activityRequest.setCaloriesPerMinute(new BigDecimal("3.0")); // Default moderate activity
+        activityRequest.setCaloriesPerMinute(
+                ActivityCalorieEstimator.estimateCaloriesPerMinute(activityName, activityRequest.getCategory()));
 
         ActivityCreateResponse activityResponse = activityService.createActivity(activityRequest, userId, false);
         
@@ -153,6 +167,10 @@ public class VoiceActivityLogService {
         String name = activityName.toLowerCase();
         
         // Cardio activities
+        if (name.contains("hiit") || name.contains("interval") || name.contains("tabata")
+                || name.contains("crossfit") || name.contains("circuit")) {
+            return "cardio";
+        }
         if (name.contains("walk") || name.contains("run") || name.contains("jog") || 
             name.contains("cycle") || name.contains("bike") || name.contains("row") ||
             name.contains("elliptical") || name.contains("dance") || name.contains("zumba")) {

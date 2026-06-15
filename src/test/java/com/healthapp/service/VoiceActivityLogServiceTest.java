@@ -21,6 +21,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+import java.util.List;
 import java.util.Optional;
 
 import org.mockito.ArgumentCaptor;
@@ -95,7 +96,7 @@ class VoiceActivityLogServiceTest {
         boolean isAdmin = false;
 
         when(userRepository.findById(userId)).thenReturn(Optional.of(testUser));
-        when(aiActivityVoiceParsingService.parseVoiceText(voiceText)).thenReturn(parsedData);
+        when(aiActivityVoiceParsingService.parseAllActivities(voiceText)).thenReturn(List.of(parsedData));
         when(activityRepository.findByCreatedByAndNameAndStatus(userId, "Brisk walk", Activity.Status.ACTIVE))
                 .thenReturn(Optional.empty());
         when(activityService.createActivity(any(ActivityCreateRequest.class), eq(userId), eq(false)))
@@ -119,7 +120,7 @@ class VoiceActivityLogServiceTest {
         assertEquals(135.0, response.getActivityLog().getCaloriesBurned());
         assertEquals("after breakfast", response.getActivityLog().getNote());
 
-        verify(aiActivityVoiceParsingService).parseVoiceText(voiceText);
+        verify(aiActivityVoiceParsingService).parseAllActivities(voiceText);
         verify(activityService).createActivity(any(ActivityCreateRequest.class), eq(userId), eq(false));
         verify(activityLogService).createActivityLog(any(ActivityLogCreateRequest.class), eq(authenticatedUserId), eq(isAdmin));
     }
@@ -133,7 +134,7 @@ class VoiceActivityLogServiceTest {
         boolean isAdmin = false;
 
         when(userRepository.findById(userId)).thenReturn(Optional.of(testUser));
-        when(aiActivityVoiceParsingService.parseVoiceText(voiceText)).thenReturn(parsedData);
+        when(aiActivityVoiceParsingService.parseAllActivities(voiceText)).thenReturn(List.of(parsedData));
         when(activityRepository.findByCreatedByAndNameAndStatus(userId, "Brisk walk", Activity.Status.ACTIVE))
                 .thenReturn(Optional.of(testActivity));
         when(activityLogService.createActivityLog(any(ActivityLogCreateRequest.class), eq(authenticatedUserId), eq(isAdmin)))
@@ -148,7 +149,7 @@ class VoiceActivityLogServiceTest {
         assertNotNull(response);
         assertEquals("Activity logged successfully", response.getMessage());
 
-        verify(aiActivityVoiceParsingService).parseVoiceText(voiceText);
+        verify(aiActivityVoiceParsingService).parseAllActivities(voiceText);
         verify(activityService, never()).createActivity(any(), any(), anyBoolean());
         verify(activityLogService).createActivityLog(any(ActivityLogCreateRequest.class), eq(authenticatedUserId), eq(isAdmin));
     }
@@ -168,7 +169,7 @@ class VoiceActivityLogServiceTest {
             voiceActivityLogService.processVoiceActivityLog(userId, voiceText, authenticatedUserId, isAdmin);
         });
 
-        verify(aiActivityVoiceParsingService, never()).parseVoiceText(any());
+        verify(aiActivityVoiceParsingService, never()).parseAllActivities(any());
         verify(activityService, never()).createActivity(any(), any(), anyBoolean());
         verify(activityLogService, never()).createActivityLog(any(), any(), anyBoolean());
     }
@@ -187,7 +188,7 @@ class VoiceActivityLogServiceTest {
         });
 
         verify(userRepository, never()).findById(any());
-        verify(aiActivityVoiceParsingService, never()).parseVoiceText(any());
+        verify(aiActivityVoiceParsingService, never()).parseAllActivities(any());
         verify(activityService, never()).createActivity(any(), any(), anyBoolean());
         verify(activityLogService, never()).createActivityLog(any(), any(), anyBoolean());
     }
@@ -205,7 +206,7 @@ class VoiceActivityLogServiceTest {
         otherUser.setUsername("otheruser");
 
         when(userRepository.findById(userId)).thenReturn(Optional.of(otherUser));
-        when(aiActivityVoiceParsingService.parseVoiceText(voiceText)).thenReturn(parsedData);
+        when(aiActivityVoiceParsingService.parseAllActivities(voiceText)).thenReturn(List.of(parsedData));
         when(activityRepository.findByCreatedByAndNameAndStatus(userId, "Brisk walk", Activity.Status.ACTIVE))
                 .thenReturn(Optional.empty());
         when(activityService.createActivity(any(ActivityCreateRequest.class), eq(userId), eq(false)))
@@ -223,70 +224,53 @@ class VoiceActivityLogServiceTest {
         assertNotNull(response);
         assertEquals("Activity logged successfully", response.getMessage());
 
-        verify(aiActivityVoiceParsingService).parseVoiceText(voiceText);
+        verify(aiActivityVoiceParsingService).parseAllActivities(voiceText);
         verify(activityService).createActivity(any(ActivityCreateRequest.class), eq(userId), eq(false));
         verify(activityLogService).createActivityLog(any(ActivityLogCreateRequest.class), eq(authenticatedUserId), eq(isAdmin));
     }
 
-    /**
-     * Documents current behaviour: one voice string listing many segments still produces exactly one activity log
-     * (AI is mocked here as if it collapsed the session into one row — real models vary).
-     */
     @Test
-    void processVoiceActivityLog_multiSegmentVoice_singleActivityLogOnly() {
+    void processVoiceActivityLog_multiSegmentVoice_createsMultipleActivityLogs() {
         String voiceText = "I did 5 min running, 5 min push ups, 5 min cross trainer, 5 min walk, and 5 min swim";
         Long userId = 1L;
         Long authenticatedUserId = 1L;
         boolean isAdmin = false;
 
-        AiActivityVoiceParsingService.ParsedActivityData multiParsed = new AiActivityVoiceParsingService.ParsedActivityData();
-        multiParsed.setActivityName("Mixed cardio circuit");
-        multiParsed.setDurationMinutes(25);
-        multiParsed.setLoggedAt(LocalDateTime.of(2026, 5, 4, 9, 0));
-        multiParsed.setNote(
-                "Voice: I did 5 min running, 5 min push ups, 5 min cross trainer, 5 min walk, and 5 min swim "
-                        + "Stated: 5 min each segment. Assumed: loggedAt morning 09:00 (not stated).");
-
-        Activity mixedActivity = new Activity();
-        mixedActivity.setId(7L);
-        mixedActivity.setName("Mixed cardio circuit");
-        mixedActivity.setVisibility(Activity.Visibility.PRIVATE);
-        mixedActivity.setCreatedBy(testUser);
-
-        ActivityLog mixedLog = new ActivityLog();
-        mixedLog.setId(7L);
-        mixedLog.setUser(testUser);
-        mixedLog.setActivity(mixedActivity);
-        mixedLog.setDurationMinutes(25);
-        mixedLog.setCaloriesBurned(new BigDecimal("200.0"));
-        mixedLog.setLoggedAt(multiParsed.getLoggedAt());
-        mixedLog.setNote(multiParsed.getNote());
+        List<AiActivityVoiceParsingService.ParsedActivityData> segments = List.of(
+                segment("running", 5),
+                segment("push ups", 5),
+                segment("cross trainer", 5),
+                segment("walk", 5),
+                segment("swim", 5)
+        );
 
         when(userRepository.findById(userId)).thenReturn(Optional.of(testUser));
-        when(aiActivityVoiceParsingService.parseVoiceText(voiceText)).thenReturn(multiParsed);
-        when(activityRepository.findByCreatedByAndNameAndStatus(userId, "Mixed cardio circuit", Activity.Status.ACTIVE))
+        when(aiActivityVoiceParsingService.parseAllActivities(voiceText)).thenReturn(segments);
+        when(activityRepository.findByCreatedByAndNameAndStatus(eq(userId), any(), eq(Activity.Status.ACTIVE)))
                 .thenReturn(Optional.empty());
         when(activityService.createActivity(any(ActivityCreateRequest.class), eq(userId), eq(false)))
                 .thenReturn(new ActivityCreateResponse(7L, LocalDateTime.now()));
-        when(activityRepository.findById(7L)).thenReturn(Optional.of(mixedActivity));
+        when(activityRepository.findById(7L)).thenReturn(Optional.of(testActivity));
         when(activityLogService.createActivityLog(any(ActivityLogCreateRequest.class), eq(authenticatedUserId), eq(isAdmin)))
-                .thenReturn(new ActivityLogCreateResponse(7L, LocalDateTime.now(), new BigDecimal("200.0")));
-        when(activityLogRepository.findById(7L)).thenReturn(Optional.of(mixedLog));
+                .thenReturn(new ActivityLogCreateResponse(7L, LocalDateTime.now(), new BigDecimal("40.0")));
+        when(activityLogRepository.findById(7L)).thenReturn(Optional.of(testActivityLog));
 
         VoiceActivityLogResponse response = voiceActivityLogService.processVoiceActivityLog(
                 userId, voiceText, authenticatedUserId, isAdmin);
 
+        assertEquals("Logged 5 activities from voice input", response.getMessage());
+        assertEquals(5, response.getActivityLogs().size());
         assertNotNull(response.getActivityLog());
-        assertEquals(7L, response.getActivityLog().getId());
-        assertEquals("Mixed cardio circuit", response.getActivityLog().getActivity());
-        assertEquals(25, response.getActivityLog().getDurationMinutes());
 
-        ArgumentCaptor<ActivityLogCreateRequest> logCaptor = ArgumentCaptor.forClass(ActivityLogCreateRequest.class);
-        verify(activityLogService).createActivityLog(logCaptor.capture(), eq(authenticatedUserId), eq(isAdmin));
-        ActivityLogCreateRequest sent = logCaptor.getValue();
-        assertEquals(25, sent.getDurationMinutes());
-        assertEquals(7L, sent.getActivityId());
-        assertEquals(multiParsed.getNote(), sent.getNote());
-        verify(activityLogService, times(1)).createActivityLog(any(), anyLong(), anyBoolean());
+        verify(activityLogService, times(5)).createActivityLog(any(ActivityLogCreateRequest.class), eq(authenticatedUserId), eq(isAdmin));
+    }
+
+    private static AiActivityVoiceParsingService.ParsedActivityData segment(String name, int minutes) {
+        AiActivityVoiceParsingService.ParsedActivityData data = new AiActivityVoiceParsingService.ParsedActivityData();
+        data.setActivityName(name);
+        data.setDurationMinutes(minutes);
+        data.setLoggedAt(LocalDateTime.of(2026, 5, 4, 9, 0));
+        data.setNote("Voice segment: " + name);
+        return data;
     }
 }

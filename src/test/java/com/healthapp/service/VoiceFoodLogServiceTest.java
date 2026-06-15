@@ -1,5 +1,6 @@
 package com.healthapp.service;
 
+import com.healthapp.config.AiFoodProperties;
 import com.healthapp.dto.FoodLogCreateResponse;
 import com.healthapp.dto.VoiceFoodLogRequest;
 import com.healthapp.dto.VoiceFoodLogResponse;
@@ -37,6 +38,14 @@ class VoiceFoodLogServiceTest {
     private UserRepository userRepository;
     @Mock
     private AiFoodVoiceParsingService aiFoodVoiceParsingService;
+    @Mock
+    private AiFoodProperties aiFoodProperties;
+    @Mock
+    private PortionGramEstimator portionGramEstimator;
+    @Mock
+    private com.healthapp.service.nutrition.SimpleFoodNutritionResolver simpleFoodNutritionResolver;
+    @Mock
+    private com.healthapp.service.nutrition.CompositeFoodNutritionResolver compositeFoodNutritionResolver;
 
     @InjectMocks
     private VoiceFoodLogService voiceFoodLogService;
@@ -74,6 +83,7 @@ class VoiceFoodLogServiceTest {
         parsed.setUnit("pieces");
         parsed.setMealType("breakfast");
         parsed.setLoggedAt(LocalDateTime.now().minusMinutes(1));
+        parsed.setEstimatedGrams(100.0);
 
         AiFoodVoiceParsingService.ParsedFoodDataList parsedList = new AiFoodVoiceParsingService.ParsedFoodDataList();
         parsedList.addFoodItem(parsed);
@@ -81,6 +91,8 @@ class VoiceFoodLogServiceTest {
         FoodItem foodItem = new FoodItem();
         foodItem.setId(5L);
         foodItem.setName("eggs");
+        foodItem.setCreatedBy(10L);
+        foodItem.setCaloriesPerUnit(155);
         foodItem.setStatus(FoodItem.FoodStatus.ACTIVE);
 
         FoodLogCreateResponse response = new FoodLogCreateResponse();
@@ -91,6 +103,8 @@ class VoiceFoodLogServiceTest {
         response.setFiber(0.0);
 
         when(userRepository.findById(10L)).thenReturn(Optional.of(new User()));
+        when(aiFoodProperties.isShowConfidence()).thenReturn(false);
+        when(portionGramEstimator.resolveEffectiveGrams(any(), any(), any(), any())).thenReturn(100.0);
         when(aiFoodVoiceParsingService.parseVoiceText("2 eggs")).thenReturn(parsedList);
         when(foodItemRepository.findByNameIgnoreCaseAndStatusAndCreatedBy(eq("eggs"), eq(FoodItem.FoodStatus.ACTIVE), eq(10L)))
                 .thenReturn(Optional.of(foodItem));

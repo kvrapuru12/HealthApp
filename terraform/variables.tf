@@ -21,10 +21,14 @@ variable "db_password" {
 }
 
 variable "jwt_secret" {
-  description = "JWT secret key (optional, will use default if not provided)"
+  description = "JWT secret key (required, at least 32 characters)"
   type        = string
   sensitive   = true
-  default     = null
+
+  validation {
+    condition     = length(var.jwt_secret) >= 32
+    error_message = "jwt_secret must be at least 32 characters."
+  }
 }
 
 variable "environment" {
@@ -88,5 +92,19 @@ variable "apple_client_id_android" {
 variable "apple_client_id_web" {
   description = "Apple Sign In Web Services ID (APPLE_CLIENT_ID_WEB)"
   type        = string
+  default     = ""
+}
+
+variable "usda_api_key" {
+  description = "USDA FoodData Central API key (stored in SSM as /healthapp/usda-api-key; optional)"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "openai_api_key" {
+  description = "OpenAI API key (stored in SSM as /healthapp/openai-api-key)"
+  type        = string
+  sensitive   = true
   default     = ""
 }

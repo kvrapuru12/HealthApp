@@ -1,0 +1,11 @@
+{
+  "type": "object",
+  "properties": {
+    "periodStartDate": { "type": "string" },
+    "cycleLength": { "type": "integer" },
+    "periodDuration": { "type": "integer" },
+    "isCycleRegular": { "type": "boolean" }
+  },
+  "required": ["periodStartDate", "cycleLength", "periodDuration", "isCycleRegular"],
+  "additionalProperties": false
+}

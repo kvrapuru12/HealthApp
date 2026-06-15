@@ -58,6 +58,8 @@ public class VoiceFoodLogResponse {
     public static class LoggedFoodItem {
         private String food;
         private Double quantity;
+        /** Resolved edible weight in grams used for macro calculation. */
+        private Double estimatedGrams;
         private String mealType;
         /** True when this log was created from a compositeMeal (single dish from many ingredients). */
         private boolean compositeMeal;
@@ -67,14 +69,22 @@ public class VoiceFoodLogResponse {
         private Double fat;
         private Double fiber;
         private String loggedAt;
+        private String nutritionConfidence;
         
         // Constructors
         public LoggedFoodItem() {}
         
         public LoggedFoodItem(String food, Double quantity, String mealType, boolean compositeMeal,
                              Double calories, Double protein, Double carbs, Double fat, Double fiber, String loggedAt) {
+            this(food, quantity, null, mealType, compositeMeal, calories, protein, carbs, fat, fiber, loggedAt, null);
+        }
+
+        public LoggedFoodItem(String food, Double quantity, Double estimatedGrams, String mealType, boolean compositeMeal,
+                             Double calories, Double protein, Double carbs, Double fat, Double fiber,
+                             String loggedAt, String nutritionConfidence) {
             this.food = food;
             this.quantity = quantity;
+            this.estimatedGrams = estimatedGrams;
             this.mealType = mealType;
             this.compositeMeal = compositeMeal;
             this.calories = calories;
@@ -83,6 +93,7 @@ public class VoiceFoodLogResponse {
             this.fat = fat;
             this.fiber = fiber;
             this.loggedAt = loggedAt;
+            this.nutritionConfidence = nutritionConfidence;
         }
         
         // Getters and Setters
@@ -100,6 +111,14 @@ public class VoiceFoodLogResponse {
         
         public void setQuantity(Double quantity) {
             this.quantity = quantity;
+        }
+
+        public Double getEstimatedGrams() {
+            return estimatedGrams;
+        }
+
+        public void setEstimatedGrams(Double estimatedGrams) {
+            this.estimatedGrams = estimatedGrams;
         }
         
         public String getMealType() {
@@ -164,6 +183,14 @@ public class VoiceFoodLogResponse {
         
         public void setLoggedAt(String loggedAt) {
             this.loggedAt = loggedAt;
+        }
+
+        public String getNutritionConfidence() {
+            return nutritionConfidence;
+        }
+
+        public void setNutritionConfidence(String nutritionConfidence) {
+            this.nutritionConfidence = nutritionConfidence;
         }
     }
 }

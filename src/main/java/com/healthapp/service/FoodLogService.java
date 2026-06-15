@@ -173,8 +173,8 @@ public class FoodLogService {
             String unit = request.getUnit() != null ? request.getUnit() : foodItem.getDefaultUnit();
             
             // Calculate macros using weight-based approach
-            // Step 1: Calculate total weight consumed in grams
-            double totalWeightConsumed = calculateConsumedWeightInGrams(request.getQuantity(), unit, foodItem);
+            double totalWeightConsumed = calculateConsumedWeightInGrams(
+                    request.getQuantity(), unit, foodItem, request.getEstimatedGrams());
             
             // Step 2: Calculate scale factor (how many 100g portions)
             double scale = totalWeightConsumed / 100.0;
@@ -266,7 +266,8 @@ public class FoodLogService {
                         .orElseThrow(() -> new IllegalArgumentException("Food item not found"));
 
                 String unitForCalculation = foodLog.getUnit() != null ? foodLog.getUnit() : foodItem.getDefaultUnit();
-                double totalWeightConsumed = calculateConsumedWeightInGrams(foodLog.getQuantity(), unitForCalculation, foodItem);
+                double totalWeightConsumed = calculateConsumedWeightInGrams(
+                        foodLog.getQuantity(), unitForCalculation, foodItem, null);
                 double scale = totalWeightConsumed / 100.0;
                 foodLog.setCalories(foodItem.getCaloriesPerUnit() != null ? scale * foodItem.getCaloriesPerUnit() : null);
                 foodLog.setProtein(foodItem.getProteinPerUnit() != null ? scale * foodItem.getProteinPerUnit() : null);
@@ -314,7 +315,10 @@ public class FoodLogService {
         }
     }
 
-    private double calculateConsumedWeightInGrams(Double quantity, String unit, FoodItem foodItem) {
+    private double calculateConsumedWeightInGrams(Double quantity, String unit, FoodItem foodItem, Double estimatedGrams) {
+        if (estimatedGrams != null && estimatedGrams > 0) {
+            return estimatedGrams;
+        }
         String normalizedUnit = normalizeUnit(unit);
 
         // Treat direct mass/volume entries as direct consumed amount.

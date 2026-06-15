@@ -4,6 +4,7 @@ import com.healthapp.entity.MenstrualCycle;
 import com.healthapp.entity.User;
 import com.healthapp.repository.MenstrualCycleRepository;
 import com.healthapp.repository.UserRepository;
+import com.healthapp.service.OpenAiChatClient;
 import com.theokanning.openai.completion.chat.ChatCompletionChoice;
 import com.theokanning.openai.completion.chat.ChatCompletionRequest;
 import com.theokanning.openai.completion.chat.ChatCompletionResult;
@@ -28,6 +29,7 @@ import java.time.LocalDate;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -37,7 +39,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 /**
  * Exercises HTTP endpoints backed by recent AI voice parsing and cycle-sync recommendation code paths,
- * with {@link OpenAiService} mocked so tests do not call the external OpenAI API.
+ * with {@link OpenAiService} and {@link OpenAiChatClient} mocked so tests do not call the external OpenAI API.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -56,6 +58,9 @@ class AiVoiceAndCycleSyncEndpointsIntegrationTest {
 
     @MockBean
     private OpenAiService openAiService;
+
+    @MockBean
+    private OpenAiChatClient openAiChatClient;
 
     private User user;
 
@@ -76,59 +81,53 @@ class AiVoiceAndCycleSyncEndpointsIntegrationTest {
         cycle.setStatus(MenstrualCycle.Status.ACTIVE);
         menstrualCycleRepository.save(cycle);
 
-        when(openAiService.createChatCompletion(any(ChatCompletionRequest.class)))
+        when(openAiChatClient.isAvailable()).thenReturn(true);
+        when(openAiChatClient.createStructuredCompletion(any(), any(), any(), any(), any(), anyInt()))
                 .thenAnswer(invocation -> {
-                    ChatCompletionRequest req = invocation.getArgument(0);
-                    String content;
-                    if ("gpt-4o-mini".equals(req.getModel())) {
-                        content = "{}";
-                    } else {
-                        String system = req.getMessages().stream()
-                                .filter(m -> "system".equals(m.getRole()))
-                                .map(ChatMessage::getContent)
-                                .findFirst()
-                                .orElse("");
-                        if (system.contains("menstrual cycle events")) {
-                            content = """
-                                    {"periodStartDate":"%s","cycleLength":28,"periodDuration":5,"isCycleRegular":true}
-                                    """.formatted(LocalDate.now().minusDays(1));
-                        } else if (system.contains("physical activities")) {
-                            String userMsg = req.getMessages().stream()
-                                    .filter(m -> "user".equals(m.getRole()))
-                                    .map(ChatMessage::getContent)
-                                    .reduce((a, b) -> b)
-                                    .orElse("")
-                                    .toLowerCase();
-                            if (userMsg.contains("running") && userMsg.contains("push")) {
-                                content = """
-                                        {"activityName":"Mixed cardio circuit","durationMinutes":25,"loggedAt":"2026-05-04T11:00:00","note":"Voice: multi-segment workout Stated: 5 min each. Assumed: single log row."}
-                                        """;
-                            } else if (userMsg.contains("swim") || userMsg.contains("swam")) {
-                                content = """
-                                        {"activityName":"swimming","durationMinutes":20,"loggedAt":"2026-05-04T07:30:00","note":"Voice: pool session Assumed: duration 20 min."}
-                                        """;
-                            } else {
-                                content = """
-                                        {"activityName":"Walking","durationMinutes":30,"loggedAt":"2026-05-04T10:00:00","note":"Voice: morning walk Stated: 30 minutes."}
-                                        """;
-                            }
-                        } else {
-                            String userMsg = req.getMessages().stream()
-                                    .filter(m -> "user".equals(m.getRole()))
-                                    .map(ChatMessage::getContent)
-                                    .findFirst()
-                                    .orElse("");
-                            if (userMsg.contains("__EMPTY_FOOD__")) {
-                                content = "{\"compositeMeals\":[],\"foodItems\":[]}";
-                            } else {
-                                content = """
-                                        {"compositeMeals":[],"foodItems":[{"foodName":"Integration Test Apple","quantity":1,"unit":"piece","mealType":"snack","loggedAt":"2026-05-04T12:00:00"}]}
-                                        """;
-                            }
-                        }
+                    String system = invocation.getArgument(1);
+                    String userMsg = invocation.getArgument(2);
+                    if (system.contains("menstrual cycle events")) {
+                        return """
+                                {"periodStartDate":"%s","cycleLength":28,"periodDuration":5,"isCycleRegular":true}
+                                """.formatted(LocalDate.now().minusDays(1));
                     }
-                    return chatCompletionResult(content);
+                    if (system.contains("physical activities")) {
+                        String lower = userMsg.toLowerCase();
+                        if (lower.contains("running") && lower.contains("push")) {
+                            return """
+                                    {"activities":[
+                                      {"activityName":"running","durationMinutes":5,"loggedAt":"2026-05-04T11:00:00","note":"Voice: running segment"},
+                                      {"activityName":"push ups","durationMinutes":5,"loggedAt":"2026-05-04T11:05:00","note":"Voice: push ups segment"},
+                                      {"activityName":"cross trainer","durationMinutes":5,"loggedAt":"2026-05-04T11:10:00","note":"Voice: cross trainer segment"},
+                                      {"activityName":"walk","durationMinutes":5,"loggedAt":"2026-05-04T11:15:00","note":"Voice: walk segment"},
+                                      {"activityName":"swim","durationMinutes":5,"loggedAt":"2026-05-04T11:20:00","note":"Voice: swim segment"}
+                                    ]}
+                                    """;
+                        }
+                        if (lower.contains("swim") || lower.contains("swam")) {
+                            return """
+                                    {"activities":[{"activityName":"swimming","durationMinutes":20,"loggedAt":"2026-05-04T07:30:00","note":"Voice: pool session Assumed: duration 20 min."}]}
+                                    """;
+                        }
+                        return """
+                                {"activities":[{"activityName":"Walking","durationMinutes":30,"loggedAt":"2026-05-04T10:00:00","note":"Voice: morning walk Stated: 30 minutes."}]}
+                                """;
+                    }
+                    if (userMsg.contains("__EMPTY_FOOD__")) {
+                        return "{\"compositeMeals\":[],\"foodItems\":[]}";
+                    }
+                    if (userMsg.toLowerCase().contains("avocado")) {
+                        return """
+                                {"compositeMeals":[],"foodItems":[{"foodName":"avocado","quantity":1,"unit":"medium","estimatedGrams":150,"mealType":"snack","loggedAt":"2026-05-04T12:00:00","note":"Stated: 1 medium avocado.","nutrition":{"caloriesPer100g":160,"proteinPer100g":2,"carbsPer100g":8.5,"fatPer100g":14.7,"fiberPer100g":6.7}}]}
+                                """;
+                    }
+                    return """
+                            {"compositeMeals":[],"foodItems":[{"foodName":"Integration Test Apple","quantity":1,"unit":"piece","estimatedGrams":150,"mealType":"snack","loggedAt":"2026-05-04T12:00:00","note":"Assumed: 1 apple ~150 g.","nutrition":{"caloriesPer100g":52,"proteinPer100g":0.3,"carbsPer100g":14,"fatPer100g":0.2,"fiberPer100g":2.4}}]}
+                            """;
                 });
+
+        when(openAiService.createChatCompletion(any(ChatCompletionRequest.class)))
+                .thenAnswer(invocation -> chatCompletionResult("{}"));
     }
 
     private static ChatCompletionResult chatCompletionResult(String assistantContent) {
@@ -200,6 +199,24 @@ class AiVoiceAndCycleSyncEndpointsIntegrationTest {
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.phase").exists());
+    }
+
+    @Test
+    void postFoodLogFromVoice_avocado_realisticCalories() throws Exception {
+        String body = """
+                {"userId":%d,"voiceText":"I ate 1 medium size avocado"}
+                """.formatted(user.getId());
+
+        mockMvc.perform(post("/ai/food-log/from-voice")
+                        .with(authentication(auth(user.getId())))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.logs[0].food").value("avocado"))
+                .andExpect(jsonPath("$.logs[0].estimatedGrams").value(150.0))
+                .andExpect(jsonPath("$.logs[0].calories").value(org.hamcrest.Matchers.allOf(
+                        org.hamcrest.Matchers.greaterThan(200.0),
+                        org.hamcrest.Matchers.lessThan(320.0))));
     }
 
     @Test
@@ -322,11 +339,14 @@ class AiVoiceAndCycleSyncEndpointsIntegrationTest {
                 .andExpect(jsonPath("$.message").value("Activity logged successfully"))
                 .andExpect(jsonPath("$.activityLog.activity").value("Walking"))
                 .andExpect(jsonPath("$.activityLog.durationMinutes").value(30))
-                .andExpect(jsonPath("$.activityLog.note").value("Voice: morning walk Stated: 30 minutes."));
+                .andExpect(jsonPath("$.activityLog.note").value("Voice: morning walk Stated: 30 minutes."))
+                .andExpect(jsonPath("$.activityLogs").isArray())
+                .andExpect(jsonPath("$.activityLogs.length()").value(1))
+                .andExpect(jsonPath("$.activityLogs[0].activity").value("Walking"));
     }
 
     @Test
-    void postActivityLogFromVoice_multiSegment_collapsedToSingleLog() throws Exception {
+    void postActivityLogFromVoice_multiSegment_createsMultipleActivityLogs() throws Exception {
         String body = """
                 {"userId":%d,"voiceText":"I did 5 min running, 5 min push ups, 5 min cross trainer, 5 min walk, and 5 min swim"}
                 """.formatted(user.getId());
@@ -336,8 +356,11 @@ class AiVoiceAndCycleSyncEndpointsIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.activityLog.activity").value("Mixed cardio circuit"))
-                .andExpect(jsonPath("$.activityLog.durationMinutes").value(25));
+                .andExpect(jsonPath("$.message").value("Logged 5 activities from voice input"))
+                .andExpect(jsonPath("$.activityLogs.length()").value(5))
+                .andExpect(jsonPath("$.activityLog.activity").value("running"))
+                .andExpect(jsonPath("$.activityLog.durationMinutes").value(5))
+                .andExpect(jsonPath("$.activityLogs[4].activity").value("swim"));
     }
 
     @Test

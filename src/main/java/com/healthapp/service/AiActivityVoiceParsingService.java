@@ -2,22 +2,34 @@ package com.healthapp.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.theokanning.openai.completion.chat.ChatCompletionRequest;
-import com.theokanning.openai.completion.chat.ChatMessage;
-import com.theokanning.openai.service.OpenAiService;
+import com.healthapp.config.OpenAiModelProperties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
 
+import java.io.InputStream;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
 public class AiActivityVoiceParsingService {
 
     private static final Logger logger = LoggerFactory.getLogger(AiActivityVoiceParsingService.class);
-    
+
+    @Autowired(required = false)
+    private OpenAiChatClient openAiChatClient;
+
+    @Autowired
+    private OpenAiModelProperties modelProperties;
+
+    @Autowired
+    private ObjectMapper objectMapper;
+
+    private JsonNode activityVoiceSchema;
+
     private String getSystemPrompt() {
         String currentDateTime = LocalDateTime.now().toString();
         return String.format("""
@@ -25,26 +37,14 @@ public class AiActivityVoiceParsingService {
         
         CURRENT DATE AND TIME: %s
         
-        Parse the input text and return a JSON object with the following structure:
-        {
-            "activityName": "string - the name of the activity",
-            "durationMinutes": "number - duration in minutes",
-            "loggedAt": "ISO 8601 datetime string (YYYY-MM-DDTHH:mm:ss format)",
-            "note": "string - see rule 4: Voice / optional Stated / optional Assumed (same labeling idea as food voice logs)"
-        }
+        Parse the input text and return a JSON object with an activities array (one entry per distinct activity).
         
         Rules:
-        1. Extract the activity name clearly (e.g., "brisk walk", "yoga", "swimming")
-        2. Convert time references to ISO 8601 format (YYYY-MM-DDTHH:mm:ss) using the CURRENT DATE AND TIME above:
-           - "this morning" → today's date at 08:00:00
-           - "yesterday evening" → yesterday's date at 18:00:00
-           - "last night" → yesterday's date at 21:00:00
-           - "today" → today's date at current time (use the CURRENT DATE AND TIME provided)
-           - "now" → current date and time (use the CURRENT DATE AND TIME provided)
-        3. If no specific time is mentioned, use the CURRENT DATE AND TIME provided above when inferring loggedAt
-        4. **note** field (required): always include **`Voice:`** with the user's exact words. If they explicitly stated duration and/or when the activity occurred, add **`Stated:`** with only those facts. If you inferred durationMinutes and/or loggedAt, add **`Assumed:`** with concrete numbers and datetimes (omit the whole Assumed clause if nothing was inferred). Never `Assumed: none`.
-        5. Return ONLY valid JSON, no additional text
-        6. IMPORTANT: loggedAt must be in ISO 8601 format (YYYY-MM-DDTHH:mm:ss) and must use the CURRENT DATE AND TIME provided above
+        1. Extract each activity clearly (e.g., "brisk walk", "yoga", "weight training")
+        2. When the user describes multiple activities (e.g. "cycled 40 minutes then did 25 minutes weights"), return multiple activities entries
+        3. Convert time references to ISO 8601 using CURRENT DATE AND TIME
+        4. If no specific time is mentioned, use CURRENT DATE AND TIME for loggedAt
+        5. Each note field is required with Voice: line plus optional Stated:/Assumed:
         
         %s
         %s
@@ -53,73 +53,126 @@ public class AiActivityVoiceParsingService {
                 AiPromptGuidelines.ACTIVITY_DURATION_ASSUMPTION_RULES);
     }
 
-    @Autowired(required = false)
-    private OpenAiService openAiService;
-
-    @Autowired
-    private ObjectMapper objectMapper;
-
     public ParsedActivityData parseVoiceText(String voiceText) {
+        List<ParsedActivityData> activities = parseAllActivities(voiceText);
+        if (activities.isEmpty()) {
+            throw new RuntimeException("Unable to parse activity information from voice text");
+        }
+        return activities.get(0);
+    }
+
+    public List<ParsedActivityData> parseAllActivities(String voiceText) {
         try {
             logger.info("Parsing activity voice text: {}", voiceText);
 
-            if (openAiService == null) {
+            if (openAiChatClient == null || !openAiChatClient.isAvailable()) {
                 throw new RuntimeException("OpenAI service is not available. Please configure OpenAI API key.");
             }
 
-            ChatCompletionRequest request = ChatCompletionRequest.builder()
-                    .model("gpt-3.5-turbo")
-                    .messages(List.of(
-                            new ChatMessage("system", getSystemPrompt()),
-                            new ChatMessage("user", voiceText)
-                    ))
-                    .maxTokens(500)
-                    .temperature(0.1)
-                    .build();
-
-            var completion = openAiService.createChatCompletion(request);
-            String response = completion.getChoices().get(0).getMessage().getContent();
+            String response = openAiChatClient.createStructuredCompletion(
+                    modelProperties.getVoiceActivityModel(),
+                    getSystemPrompt(),
+                    voiceText,
+                    loadActivityVoiceSchema(),
+                    "activity_voice_parse",
+                    800
+            );
 
             logger.info("Raw AI response: '{}'", response);
+            JsonNode jsonNode = objectMapper.readTree(AiFoodVoiceParsingService.extractJsonObject(response));
 
-            // Parse the JSON response
-            logger.info("Attempting to parse JSON from AI response");
-            JsonNode jsonNode = objectMapper.readTree(response);
-            
-            ParsedActivityData data = new ParsedActivityData();
-            data.setActivityName(jsonNode.get("activityName").asText());
-            data.setDurationMinutes(jsonNode.get("durationMinutes").asInt());
-            
-            // Parse loggedAt with fallback to current time if parsing fails
-            String loggedAtText = jsonNode.get("loggedAt").asText();
-            try {
-                data.setLoggedAt(LocalDateTime.parse(loggedAtText));
-            } catch (Exception e) {
-                logger.warn("Failed to parse loggedAt '{}', using current time", loggedAtText);
-                data.setLoggedAt(LocalDateTime.now());
+            List<ParsedActivityData> results = new ArrayList<>();
+            JsonNode activitiesNode = jsonNode.get("activities");
+            if (activitiesNode != null && activitiesNode.isArray()) {
+                for (JsonNode activityNode : activitiesNode) {
+                    ParsedActivityData data = parseActivityNode(activityNode);
+                    ensureVoiceLineInNote(data, voiceText);
+                    results.add(data);
+                }
+            } else if (jsonNode.has("activityName")) {
+                ParsedActivityData data = parseActivityNode(jsonNode);
+                ensureVoiceLineInNote(data, voiceText);
+                results.add(data);
             }
-            
-            if (jsonNode.has("note") && !jsonNode.get("note").isNull()) {
-                data.setNote(jsonNode.get("note").asText());
-            } else {
-                data.setNote("");
+
+            if (results.isEmpty()) {
+                throw new RuntimeException("No activities parsed from voice text");
             }
-            ensureVoiceLineInNote(data, voiceText);
 
-            logger.info("Successfully parsed activity: {}", data);
-            return data;
+            if (results.size() == 1) {
+                results = maybeSplitCompoundActivities(voiceText, results.get(0));
+            }
 
+            logger.info("Successfully parsed {} activity/activities", results.size());
+            return results;
+
+        } catch (RuntimeException e) {
+            throw e;
         } catch (Exception e) {
             logger.error("Error parsing activity voice text: {}", e.getMessage(), e);
-            logger.error("Full exception details: ", e);
             throw new RuntimeException("Unable to parse activity information from voice text: " + e.getMessage(), e);
         }
     }
 
-    /**
-     * Food voice logs always separate the utterance from Stated/Assumed; mirror that by guaranteeing a Voice line
-     * even when the model returns only a fragment or the legacy "note = raw text" shape.
-     */
+    private static final int MAX_COMPOUND_ACTIVITY_SEGMENTS = 3;
+
+    private List<ParsedActivityData> maybeSplitCompoundActivities(String voiceText, ParsedActivityData single) {
+        if (voiceText == null || !voiceText.toLowerCase().contains(" then ")) {
+            return List.of(single);
+        }
+        String[] parts = voiceText.split("(?i)\\s+then\\s+");
+        if (parts.length < 2) {
+            return List.of(single);
+        }
+        int limit = Math.min(parts.length, MAX_COMPOUND_ACTIVITY_SEGMENTS);
+        if (parts.length > MAX_COMPOUND_ACTIVITY_SEGMENTS) {
+            logger.warn("Truncating compound activity voice text from {} to {} segments", parts.length, limit);
+        }
+        List<ParsedActivityData> split = new ArrayList<>();
+        for (int i = 0; i < limit; i++) {
+            String trimmed = parts[i].trim();
+            if (trimmed.isEmpty()) {
+                continue;
+            }
+            ParsedActivityData segment = parseAllActivities(trimmed).get(0);
+            split.add(segment);
+        }
+        return split.isEmpty() ? List.of(single) : split;
+    }
+
+    private ParsedActivityData parseActivityNode(JsonNode activityNode) {
+        ParsedActivityData data = new ParsedActivityData();
+        data.setActivityName(activityNode.get("activityName").asText());
+        data.setDurationMinutes(activityNode.get("durationMinutes").asInt());
+
+        String loggedAtText = activityNode.get("loggedAt").asText();
+        try {
+            data.setLoggedAt(LocalDateTime.parse(loggedAtText.replace("Z", "")));
+        } catch (Exception e) {
+            logger.warn("Failed to parse loggedAt '{}', using current time", loggedAtText);
+            data.setLoggedAt(LocalDateTime.now());
+        }
+
+        if (activityNode.has("note") && !activityNode.get("note").isNull()) {
+            data.setNote(activityNode.get("note").asText());
+        } else {
+            data.setNote("");
+        }
+        return data;
+    }
+
+    private JsonNode loadActivityVoiceSchema() {
+        if (activityVoiceSchema != null) {
+            return activityVoiceSchema;
+        }
+        try (InputStream in = new ClassPathResource("ai/activity-voice-schema.json").getInputStream()) {
+            activityVoiceSchema = objectMapper.readTree(in);
+            return activityVoiceSchema;
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to load activity voice schema", e);
+        }
+    }
+
     static void ensureVoiceLineInNote(ParsedActivityData data, String voiceText) {
         if (voiceText == null) {
             voiceText = "";
@@ -145,37 +198,14 @@ public class AiActivityVoiceParsingService {
 
         public ParsedActivityData() {}
 
-        public String getActivityName() {
-            return activityName;
-        }
-
-        public void setActivityName(String activityName) {
-            this.activityName = activityName;
-        }
-
-        public Integer getDurationMinutes() {
-            return durationMinutes;
-        }
-
-        public void setDurationMinutes(Integer durationMinutes) {
-            this.durationMinutes = durationMinutes;
-        }
-
-        public LocalDateTime getLoggedAt() {
-            return loggedAt;
-        }
-
-        public void setLoggedAt(LocalDateTime loggedAt) {
-            this.loggedAt = loggedAt;
-        }
-
-        public String getNote() {
-            return note;
-        }
-
-        public void setNote(String note) {
-            this.note = note;
-        }
+        public String getActivityName() { return activityName; }
+        public void setActivityName(String activityName) { this.activityName = activityName; }
+        public Integer getDurationMinutes() { return durationMinutes; }
+        public void setDurationMinutes(Integer durationMinutes) { this.durationMinutes = durationMinutes; }
+        public LocalDateTime getLoggedAt() { return loggedAt; }
+        public void setLoggedAt(LocalDateTime loggedAt) { this.loggedAt = loggedAt; }
+        public String getNote() { return note; }
+        public void setNote(String note) { this.note = note; }
 
         @Override
         public String toString() {

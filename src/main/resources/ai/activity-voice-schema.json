@@ -1,0 +1,22 @@
+{
+  "type": "object",
+  "properties": {
+    "activities": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "properties": {
+          "activityName": { "type": "string" },
+          "durationMinutes": { "type": "integer" },
+          "loggedAt": { "type": "string" },
+          "note": { "type": "string" }
+        },
+        "required": ["activityName", "durationMinutes", "loggedAt", "note"],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": ["activities"],
+  "additionalProperties": false
+}

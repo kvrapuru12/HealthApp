@@ -33,6 +33,11 @@ public class FoodLogCreateRequest {
     
     @Size(max = FoodLog.NOTE_MAX_LENGTH, message = "Note cannot exceed " + FoodLog.NOTE_MAX_LENGTH + " characters")
     private String note;
+
+    /** Total consumed weight in grams when provided by voice/AI parsing (overrides unit math). */
+    @DecimalMin(value = "0.0", message = "Estimated grams cannot be negative")
+    @DecimalMax(value = "5000.0", message = "Estimated grams cannot exceed 5000")
+    private Double estimatedGrams;
     
     // Constructors
     public FoodLogCreateRequest() {}
@@ -99,5 +104,13 @@ public class FoodLogCreateRequest {
     
     public void setNote(String note) {
         this.note = note;
+    }
+
+    public Double getEstimatedGrams() {
+        return estimatedGrams;
+    }
+
+    public void setEstimatedGrams(Double estimatedGrams) {
+        this.estimatedGrams = estimatedGrams;
     }
 }

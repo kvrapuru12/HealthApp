@@ -1,17 +1,35 @@
 package com.healthapp.dto;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 public class VoiceActivityLogResponse {
 
+    /**
+     * Voice activity logging may create multiple activity logs from one utterance
+     * (e.g. "cycled 40 minutes then weights 25 minutes"). {@link #activityLog} always
+     * mirrors the first entry; clients should prefer {@link #activityLogs} when present.
+     */
     private String message;
+    /** First activity for backward compatibility. */
     private ActivityLogSummary activityLog;
+    private List<ActivityLogSummary> activityLogs = new ArrayList<>();
 
     public VoiceActivityLogResponse() {}
 
     public VoiceActivityLogResponse(String message, ActivityLogSummary activityLog) {
         this.message = message;
         this.activityLog = activityLog;
+        if (activityLog != null) {
+            this.activityLogs = new ArrayList<>(List.of(activityLog));
+        }
+    }
+
+    public VoiceActivityLogResponse(String message, List<ActivityLogSummary> activityLogs) {
+        this.message = message;
+        this.activityLogs = activityLogs != null ? activityLogs : new ArrayList<>();
+        this.activityLog = this.activityLogs.isEmpty() ? null : this.activityLogs.get(0);
     }
 
     public String getMessage() {
@@ -28,6 +46,15 @@ public class VoiceActivityLogResponse {
 
     public void setActivityLog(ActivityLogSummary activityLog) {
         this.activityLog = activityLog;
+    }
+
+    public List<ActivityLogSummary> getActivityLogs() {
+        return activityLogs;
+    }
+
+    public void setActivityLogs(List<ActivityLogSummary> activityLogs) {
+        this.activityLogs = activityLogs != null ? activityLogs : new ArrayList<>();
+        this.activityLog = this.activityLogs.isEmpty() ? null : this.activityLogs.get(0);
     }
 
     public static class ActivityLogSummary {

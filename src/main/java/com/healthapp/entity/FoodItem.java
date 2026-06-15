@@ -45,6 +45,9 @@ public class FoodItem {
     
     @Column(name = "fiber_per_unit")
     private Double fiberPerUnit;
+
+    @Column(name = "fdc_id")
+    private Integer fdcId;
     
     @Enumerated(EnumType.STRING)
     private FoodVisibility visibility = FoodVisibility.PRIVATE;
@@ -159,6 +162,14 @@ public class FoodItem {
     
     public void setFiberPerUnit(Double fiberPerUnit) {
         this.fiberPerUnit = fiberPerUnit;
+    }
+
+    public Integer getFdcId() {
+        return fdcId;
+    }
+
+    public void setFdcId(Integer fdcId) {
+        this.fdcId = fdcId;
     }
     
     public FoodVisibility getVisibility() {

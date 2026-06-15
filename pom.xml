@@ -91,7 +91,7 @@
             <version>2.2.0</version>
         </dependency>
 
-        <!-- OpenAI Client -->
+        <!-- OpenAI Client (legacy — cycle-sync recommendations) -->
         <dependency>
             <groupId>com.theokanning.openai-gpt3-java</groupId>
             <artifactId>service</artifactId>
@@ -216,7 +216,7 @@
                 <configuration>
                     <url>jdbc:mysql://localhost:3306/healthapp?useSSL=false&amp;serverTimezone=UTC&amp;allowPublicKeyRetrieval=true</url>
                     <user>root</user>
-                    <password>PresentationSkills232@</password>
+                    <password>${env.DB_PASSWORD}</password>
                 </configuration>
             </plugin>
         </plugins>

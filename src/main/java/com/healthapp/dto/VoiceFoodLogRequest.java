@@ -2,6 +2,7 @@ package com.healthapp.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 
 public class VoiceFoodLogRequest {
     
@@ -9,6 +10,7 @@ public class VoiceFoodLogRequest {
     private Long userId;
     
     @NotBlank(message = "Voice text is required")
+    @Size(min = 3, max = 1000, message = "Voice text must be between 3 and 1000 characters")
     private String voiceText;
     
     // Constructors

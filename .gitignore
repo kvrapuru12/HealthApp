@@ -68,3 +68,6 @@ terraform/*.tfvars.backup
 *.tfstate.*
 .terraform/
 .terraform.lock.hcl
+
+# Local AI QA scripts and test output (dev only)
+scripts/

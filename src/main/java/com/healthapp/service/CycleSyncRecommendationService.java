@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.healthapp.dto.CyclePhaseResponse;
 import com.healthapp.dto.CycleSyncUnifiedResponse;
 import com.healthapp.entity.User;
+import com.healthapp.config.OpenAiModelProperties;
 import com.healthapp.repository.UserRepository;
 import com.theokanning.openai.completion.chat.ChatCompletionRequest;
 import com.theokanning.openai.completion.chat.ChatMessage;
@@ -77,6 +78,9 @@ public class CycleSyncRecommendationService {
     private UserRepository userRepository;
 
     @Autowired
+    private OpenAiModelProperties modelProperties;
+
+    @Autowired
     private MenstrualCycleService menstrualCycleService;
 
     @Value("${cycle.sync.ai.timeout.seconds:8}")
@@ -96,7 +100,7 @@ public class CycleSyncRecommendationService {
         try {
             String userPrompt = buildUserPrompt(user, currentPhase);
             ChatCompletionRequest request = ChatCompletionRequest.builder()
-                    .model("gpt-4o-mini")
+                    .model(modelProperties.getCycleSyncModel())
                     .messages(List.of(
                             new ChatMessage("system", SYSTEM_PROMPT),
                             new ChatMessage("user", userPrompt)

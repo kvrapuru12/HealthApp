@@ -44,6 +44,8 @@ public class FoodItemCreateRequest {
     private Double fiberPerUnit;
     
     private String visibility = "private";
+
+    private Integer fdcId;
     
     // Constructors
     public FoodItemCreateRequest() {}
@@ -140,5 +142,13 @@ public class FoodItemCreateRequest {
     
     public void setVisibility(String visibility) {
         this.visibility = visibility;
+    }
+
+    public Integer getFdcId() {
+        return fdcId;
+    }
+
+    public void setFdcId(Integer fdcId) {
+        this.fdcId = fdcId;
     }
 }

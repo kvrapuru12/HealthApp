@@ -118,6 +118,9 @@ public class FoodItemService {
             foodItem.setFiberPerUnit(request.getFiberPerUnit());
             foodItem.setVisibility(FoodItem.FoodVisibility.valueOf(request.getVisibility().toUpperCase()));
             foodItem.setCreatedBy(authenticatedUserId);
+            if (request.getFdcId() != null && request.getFdcId() > 0) {
+                foodItem.setFdcId(request.getFdcId());
+            }
             
             FoodItem savedFoodItem = foodItemRepository.save(foodItem);
             

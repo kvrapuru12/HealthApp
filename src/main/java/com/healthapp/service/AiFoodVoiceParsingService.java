@@ -2,162 +2,189 @@ package com.healthapp.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.theokanning.openai.completion.chat.ChatCompletionRequest;
-import com.theokanning.openai.completion.chat.ChatMessage;
-import com.theokanning.openai.service.OpenAiService;
+import com.healthapp.config.OpenAiModelProperties;
+import com.healthapp.service.nutrition.RecommendedPortionCatalog;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
 
+import java.io.InputStream;
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.ArrayList;
+import java.util.List;
 
 @Service
 public class AiFoodVoiceParsingService {
 
     private static final Logger logger = LoggerFactory.getLogger(AiFoodVoiceParsingService.class);
-    
+
+    @Autowired(required = false)
+    private OpenAiChatClient openAiChatClient;
+
+    @Autowired
+    private OpenAiModelProperties modelProperties;
+
+    @Autowired
+    private MealComplexityClassifier mealComplexityClassifier;
+
+    @Autowired
+    private PortionGramEstimator portionGramEstimator;
+
+    @Autowired
+    private VoiceMealComposer voiceMealComposer;
+
+    @Autowired
+    private ExplicitQuantityApplier explicitQuantityApplier;
+
+    @Autowired
+    private ExplicitMacroApplier explicitMacroApplier;
+
+    @Autowired
+    private RecommendedPortionApplicator recommendedPortionApplicator;
+
+    @Autowired
+    private PortionSanityCorrector portionSanityCorrector;
+
+    @Autowired
+    private ObjectMapper objectMapper;
+
+    private static final int SIMPLE_PARSE_MAX_TOKENS = 3500;
+    private static final int COMPLEX_PARSE_MAX_TOKENS = 5000;
+
+    private JsonNode foodVoiceSchema;
+
     private String getSystemPrompt() {
         String currentDateTime = LocalDateTime.now().toString();
         String assumptionRules = AiPromptGuidelines.SHARED_INFERENCE_PRINCIPLES
                 + "\n        "
-                + AiPromptGuidelines.FOOD_PORTION_ASSUMPTION_RULES;
+                + AiPromptGuidelines.FOOD_PORTION_ASSUMPTION_RULES
+                + "\n        "
+                + RecommendedPortionCatalog.promptReferenceLines();
         return String.format("""
         You are an AI assistant that parses natural language descriptions of food consumption into structured data.
         
         CURRENT DATE AND TIME: %s
         
-        Parse the input text and return a JSON object with this shape:
-        {
-            "compositeMeals": [],
-            "foodItems": []
-        }
+        Parse the input text and return JSON with compositeMeals and foodItems arrays.
         
-        compositeMeals — use when the user describes ONE dish or drink made from many ingredients consumed together as a single thing:
-        - Examples: a smoothie or shake listing ingredients; a blended bowl; one soup/stew with listed vegetables; one salad bowl where components are not separate orders.
-        - Return exactly ONE entry per such dish. Pick a short, natural display name (e.g. "Berry chia breakfast smoothie").
-        - approximateTotalGrams: your best estimate of total grams for everything in that dish (sum ingredient weights).
-        - nutrition: estimated macros **per 100g** for that combined mixture (not per ingredient).
-        - note: keep **user measurements** and **model guesses** in separate labeled clauses when each applies (same string, one JSON field):
-          • Include **`Stated:`** only if the user gave at least one explicit amount for this dish. Put only verbatim quantities (spoons, g, pieces, cups, etc.); semicolons between items. **Do not** add a Stated line if they stated no amounts.
-          • Include **`Assumed:`** only if you inferred at least one portion the user did not state. Put only inferred items with concrete units (g, pieces, tbsp, cup, medium fruit). **Do not** write `Assumed: none` or any Assumed section when nothing was guessed.
-          • If both apply: `Stated: … Assumed: …` (space between). If only one applies, output that single clause only.
-          Do not mix inferred grams into the Stated line. Vague size words are not enough alone; always add a number or gram estimate in Assumed.
-          Example (mixed): `Stated: 2 tbsp chia; 10 almonds; 50 g bran flakes; 2 tbsp sunflower seeds; 2 tbsp pumpkin seeds. Assumed: berries ~50 g; grapes ~12 grapes ~80 g; banana 1 medium ~120 g.`
-        - Do NOT also list those ingredients again in foodItems (no duplication).
+        CRITICAL PORTION RULES:
+        - estimatedGrams is REQUIRED for every foodItems entry and represents total edible weight consumed in grams.
+        - NEVER set estimatedGrams to the count (1 banana ≠ 1 gram). Always convert counts to realistic grams.
+        - When the user does NOT mention quantity or grams, assume ONE typical single portion (quantity=1 with the best unit).
+        - Example: "had a banana" → quantity=1, unit=medium, estimatedGrams=120.
+        - Example: "1 medium banana" → quantity=1, unit=medium, estimatedGrams=120.
+        - Example: "2 boiled eggs" → quantity=2, unit=pieces, estimatedGrams=100 (2 × ~50g).
+        - Example: "150g chicken breast" → quantity=150, unit=grams, estimatedGrams=150.
+        - Example: "1 cup cooked quinoa" → quantity=1, unit=cup, estimatedGrams=185.
+        - Example: "black coffee" → quantity=1, unit=cup, estimatedGrams=250.
+        - For foodItems (single simple foods), include nutrition per 100g (caloriesPer100g, proteinPer100g, carbsPer100g, fatPer100g, fiberPer100g) as a USDA-quality estimate.
+        - For compositeMeals, include nutrition per 100g AND a complete ingredients[] array for USDA blending.
         
-        foodItems — use when foods are **distinct** items people usually log separately:
-        - Examples: "chicken burger and chips" → TWO entries (burger, chips). "Pizza and soda" → two entries.
-        - Each entry has foodName, quantity, unit, mealType, loggedAt, note, nutrition (per 100g for that food).
-        - note: same rules as composite for this line item: include **`Stated:`** only if the user stated a quantity for this food; include **`Assumed:`** only if you inferred a portion. Never output `Assumed: none`. If fully user-stated, a single `Stated: …` line is enough.
-        - Use foodItems for separate beverages unless the user clearly blended everything into one drink.
+        VOICE-FIRST MEAL RULES (users speak in flowing sentences, not comma lists):
+        - One utterance describing one eating occasion → prefer ONE compositeMeal with ingredients[] for the plate.
+        - Example: "salmon with quinoa and broccoli for dinner" → compositeMeal with 3+ ingredients, not separate foodItems.
+        - Example: "two slices toast with butter and peanut butter" → compositeMeal with ingredients: toast, butter, peanut butter.
+        - Beverages (lassi, juice, coffee, smoothie) → separate foodItems with cup/glass unit when mentioned alongside a meal.
+        - fdcSearchTerm: use USDA-friendly English (e.g. "banana, raw", "salmon, cooked", "quinoa, cooked").
         
-        If unsure whether something is one blended dish vs separate items, prefer **foodItems** (safer).
+        compositeMeals — one plate or blended dish from ingredients:
+        - REQUIRED ingredients array: each with name, estimatedGrams, fdcSearchTerm.
+        - approximateTotalGrams = sum of ingredient grams.
+        
+        foodItems — single distinct foods OR beverages not part of the main plate.
+        
+        %s
         
         %s
         
         Shared rules:
-        - Convert time references to ISO 8601 (YYYY-MM-DDTHH:mm:ssZ) using CURRENT DATE AND TIME:
-          "this morning" → today 08:00:00; "yesterday evening" → yesterday 18:00:00; "last night" → yesterday 21:00:00;
-          "today"/"now" → use CURRENT DATE AND TIME.
+        - Replace <CURRENT> in examples with ISO 8601 (YYYY-MM-DDTHH:mm:ss) from CURRENT DATE AND TIME.
         - If no time given, use CURRENT DATE AND TIME.
         - Meal type: breakfast / lunch / dinner / snack from context.
-        - Nutrition: reasonable database-style values; composite mixture is an estimate for the blend.
-        - Every compositeMeals entry MUST include approximateTotalGrams (positive number).
-        - Notes (composite and foodItems): use **`Stated:`** and/or **`Assumed:`** labels only when that section has content; omit empty sections entirely (no placeholder "none").
-        - Return ONLY valid JSON, no markdown or extra text.
-        - loggedAt must follow ISO 8601 and align with CURRENT DATE AND TIME when inferring dates.
-        
-        Example A — distinct items:
-        Input: "chicken burger and chips for lunch"
-        Output: {
-            "compositeMeals": [],
-            "foodItems": [
-                {
-                    "foodName": "chicken burger",
-                    "quantity": 1,
-                    "unit": "serving",
-                    "mealType": "lunch",
-                    "loggedAt": "2024-01-15T12:30:00Z",
-                    "note": "Assumed: chicken burger 1 serving ~200 g (user did not state quantity).",
-                    "nutrition": {"caloriesPer100g": 250, "proteinPer100g": 15, "carbsPer100g": 22, "fatPer100g": 12, "fiberPer100g": 2}
-                },
-                {
-                    "foodName": "chips",
-                    "quantity": 1,
-                    "unit": "serving",
-                    "mealType": "lunch",
-                    "loggedAt": "2024-01-15T12:30:00Z",
-                    "note": "Assumed: potato crisps/chips 1 typical snack serving ~30 g (user did not state quantity).",
-                    "nutrition": {"caloriesPer100g": 536, "proteinPer100g": 7, "carbsPer100g": 53, "fatPer100g": 35, "fiberPer100g": 4.8}
-                }
-            ]
-        }
-        
-        Example B — multi-ingredient smoothie as ONE composite meal:
-        Input: "breakfast smoothie: chia, almonds, banana, berries, oats"
-        Output: {
-            "compositeMeals": [
-                {
-                    "displayName": "Chia almond berry breakfast smoothie",
-                    "approximateTotalGrams": 380,
-                    "mealType": "breakfast",
-                    "loggedAt": "2024-01-15T08:00:00Z",
-                    "note": "Assumed: chia ~12 g (~1 tbsp); almonds ~18 g (~15 nuts); banana 1 medium ~120 g; mixed berries ~50 g; dry oats ~40 g (user listed ingredients without amounts).",
-                    "nutrition": {"caloriesPer100g": 165, "proteinPer100g": 6, "carbsPer100g": 20, "fatPer100g": 7, "fiberPer100g": 5}
-                }
-            ],
-            "foodItems": []
-        }
-        
-        Example C — breakfast with distinct foods:
-        Input: "I ate 2 boiled eggs and 1 coffee for breakfast then I had chicken salad for lunch"
-        Output: {
-            "compositeMeals": [],
-            "foodItems": [
-                {
-                    "foodName": "boiled egg",
-                    "quantity": 2,
-                    "unit": "pieces",
-                    "mealType": "breakfast",
-                    "loggedAt": "2024-01-15T08:00:00Z",
-                    "note": "Stated: 2 boiled eggs for breakfast.",
-                    "nutrition": {"caloriesPer100g": 155, "proteinPer100g": 13, "carbsPer100g": 1.1, "fatPer100g": 11, "fiberPer100g": 0}
-                },
-                {
-                    "foodName": "coffee",
-                    "quantity": 1,
-                    "unit": "cup",
-                    "mealType": "breakfast",
-                    "loggedAt": "2024-01-15T08:00:00Z",
-                    "note": "Stated: 1 cup coffee for breakfast.",
-                    "nutrition": {"caloriesPer100g": 2, "proteinPer100g": 0.3, "carbsPer100g": 0, "fatPer100g": 0, "fiberPer100g": 0}
-                },
-                {
-                    "foodName": "chicken salad",
-                    "quantity": 1,
-                    "unit": "serving",
-                    "mealType": "lunch",
-                    "loggedAt": "2024-01-15T12:00:00Z",
-                    "note": "Assumed: chicken salad 1 serving ~200 g (user did not state quantity).",
-                    "nutrition": {"caloriesPer100g": 120, "proteinPer100g": 15, "carbsPer100g": 8, "fatPer100g": 3, "fiberPer100g": 2}
-                }
-            ]
-        }
-        """, currentDateTime, assumptionRules);
+        - Notes: use Stated:/Assumed: labels per existing guidelines.
+        """, currentDateTime, assumptionRules, AiPromptGuidelines.FOOD_VOICE_FEW_SHOT_EXAMPLES);
     }
 
-    @Autowired(required = false)
-    private OpenAiService openAiService;
+    public ParsedFoodDataList parseVoiceText(String voiceText) {
+        try {
+            String normalizedVoice = FoodVoiceTypoNormalizer.normalize(voiceText);
+            logger.debug("Parsing food voice text: {}", normalizedVoice);
 
-    @Autowired
-    private ObjectMapper objectMapper;
+            if (openAiChatClient == null || !openAiChatClient.isAvailable()) {
+                throw new RuntimeException("OpenAI service is not available. Please configure OpenAI API key.");
+            }
 
-    /**
-     * Models often wrap JSON in markdown fences or add a short preamble; extract a parseable JSON object.
-     */
+            MealComplexity complexity = mealComplexityClassifier.classify(normalizedVoice);
+            String model = resolveModel(normalizedVoice, complexity);
+            int maxTokens = complexity == MealComplexity.COMPLEX ? COMPLEX_PARSE_MAX_TOKENS : SIMPLE_PARSE_MAX_TOKENS;
+            String response = openAiChatClient.createStructuredCompletion(
+                    model,
+                    getSystemPrompt(),
+                    normalizedVoice,
+                    loadFoodVoiceSchema(),
+                    "food_voice_parse",
+                    maxTokens
+            );
+
+            logger.debug("Raw AI response: '{}'", response);
+            String jsonPayload = extractJsonObject(response);
+            JsonNode jsonNode = objectMapper.readTree(jsonPayload);
+
+            ParsedFoodDataList dataList = new ParsedFoodDataList();
+
+            JsonNode compositeNode = jsonNode.get("compositeMeals");
+            if (compositeNode != null && compositeNode.isArray()) {
+                for (JsonNode compositeMealNode : compositeNode) {
+                    ParsedFoodData data = parseCompositeMealNode(compositeMealNode);
+                    if (data != null) {
+                        dataList.addCompositeMeal(data);
+                    }
+                }
+            }
+
+            JsonNode foodItemsNode = jsonNode.get("foodItems");
+            if (foodItemsNode != null && foodItemsNode.isArray()) {
+                for (JsonNode foodItemNode : foodItemsNode) {
+                    ParsedFoodData data = parseStandardFoodItemNode(foodItemNode);
+                    if (data != null) {
+                        dataList.addFoodItem(data);
+                    }
+                }
+            }
+
+            normalizeAndMergeParsedResults(dataList, normalizedVoice);
+
+            logger.info("Successfully parsed {} composite meal(s), {} separate food item(s)",
+                    dataList.getCompositeMeals().size(), dataList.getFoodItems().size());
+            return dataList;
+
+        } catch (Exception e) {
+            logger.error("Error parsing food voice text: {}", e.getMessage(), e);
+            throw new RuntimeException("Unable to parse food information from voice text: " + e.getMessage(), e);
+        }
+    }
+
+    private String resolveModel(String voiceText, MealComplexity complexity) {
+        if (modelProperties.isComplexRoutingEnabled() && complexity == MealComplexity.COMPLEX) {
+            return modelProperties.getFoodComplexModel();
+        }
+        return modelProperties.getFoodSimpleModel();
+    }
+
+    private JsonNode loadFoodVoiceSchema() {
+        if (foodVoiceSchema != null) {
+            return foodVoiceSchema;
+        }
+        try (InputStream in = new ClassPathResource("ai/food-voice-schema.json").getInputStream()) {
+            foodVoiceSchema = objectMapper.readTree(in);
+            return foodVoiceSchema;
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to load food voice schema", e);
+        }
+    }
+
     static String extractJsonObject(String raw) {
         if (raw == null) {
             return "";
@@ -185,67 +212,6 @@ public class AiFoodVoiceParsingService {
             return s.substring(start, end + 1);
         }
         return s;
-    }
-
-    public ParsedFoodDataList parseVoiceText(String voiceText) {
-        try {
-            logger.info("Parsing food voice text: {}", voiceText);
-
-            if (openAiService == null) {
-                throw new RuntimeException("OpenAI service is not available. Please configure OpenAI API key.");
-            }
-
-            ChatCompletionRequest request = ChatCompletionRequest.builder()
-                    .model("gpt-3.5-turbo")
-                    .messages(List.of(
-                            new ChatMessage("system", getSystemPrompt()),
-                            new ChatMessage("user", voiceText)
-                    ))
-                    .maxTokens(3500)
-                    .temperature(0.1)
-                    .build();
-
-            var completion = openAiService.createChatCompletion(request);
-            String response = completion.getChoices().get(0).getMessage().getContent();
-
-            logger.info("Raw AI response: '{}'", response);
-
-            // Parse the JSON response
-            logger.info("Attempting to parse JSON from AI response");
-            String jsonPayload = extractJsonObject(response);
-            JsonNode jsonNode = objectMapper.readTree(jsonPayload);
-            
-            ParsedFoodDataList dataList = new ParsedFoodDataList();
-
-            JsonNode compositeNode = jsonNode.get("compositeMeals");
-            if (compositeNode != null && compositeNode.isArray()) {
-                for (JsonNode compositeMealNode : compositeNode) {
-                    ParsedFoodData data = parseCompositeMealNode(compositeMealNode);
-                    if (data != null) {
-                        dataList.addCompositeMeal(data);
-                    }
-                }
-            }
-
-            JsonNode foodItemsNode = jsonNode.get("foodItems");
-            if (foodItemsNode != null && foodItemsNode.isArray()) {
-                for (JsonNode foodItemNode : foodItemsNode) {
-                    ParsedFoodData data = parseStandardFoodItemNode(foodItemNode);
-                    if (data != null) {
-                        dataList.addFoodItem(data);
-                    }
-                }
-            }
-
-            logger.info("Successfully parsed {} composite meal(s), {} separate food item(s): {}",
-                    dataList.getCompositeMeals().size(), dataList.getFoodItems().size(), dataList);
-            return dataList;
-
-        } catch (Exception e) {
-            logger.error("Error parsing food voice text: {}", e.getMessage(), e);
-            logger.error("Full exception details: ", e);
-            throw new RuntimeException("Unable to parse food information from voice text: " + e.getMessage(), e);
-        }
     }
 
     private LocalDateTime parseLoggedAtFromNode(JsonNode node) {
@@ -299,7 +265,6 @@ public class AiFoodVoiceParsingService {
         Double fat = readNutritionDouble(nutritionNode, "fatPer100g");
         Double fiber = readNutritionDouble(nutritionNode, "fiberPer100g");
         if (calories == null || protein == null || carbs == null || fat == null || fiber == null) {
-            logger.warn("Skipping AI nutrition: missing or non-numeric macro field(s)");
             return null;
         }
         NutritionData nutrition = new NutritionData();
@@ -309,6 +274,24 @@ public class AiFoodVoiceParsingService {
         nutrition.setFatPer100g(fat);
         nutrition.setFiberPer100g(fiber);
         return nutrition;
+    }
+
+    private List<IngredientData> parseIngredients(JsonNode node) {
+        List<IngredientData> ingredients = new ArrayList<>();
+        if (!node.has("ingredients") || !node.get("ingredients").isArray()) {
+            return ingredients;
+        }
+        for (JsonNode ing : node.get("ingredients")) {
+            if (!ing.hasNonNull("name")) {
+                continue;
+            }
+            IngredientData data = new IngredientData();
+            data.setName(ing.get("name").asText());
+            data.setEstimatedGrams(ing.has("estimatedGrams") ? ing.get("estimatedGrams").asDouble() : 0);
+            data.setFdcSearchTerm(ing.has("fdcSearchTerm") ? ing.get("fdcSearchTerm").asText() : data.getName());
+            ingredients.add(data);
+        }
+        return ingredients;
     }
 
     private ParsedFoodData parseStandardFoodItemNode(JsonNode foodItemNode) {
@@ -322,6 +305,7 @@ public class AiFoodVoiceParsingService {
                 ? foodItemNode.get("quantity").asDouble() : 1.0);
         data.setUnit(foodItemNode.has("unit") && !foodItemNode.get("unit").isNull()
                 ? foodItemNode.get("unit").asText() : "serving");
+        data.setEstimatedGrams(readEstimatedGrams(foodItemNode));
         data.setMealType(foodItemNode.has("mealType") && !foodItemNode.get("mealType").isNull()
                 ? foodItemNode.get("mealType").asText() : "snack");
         data.setLoggedAt(parseLoggedAtFromNode(foodItemNode));
@@ -348,6 +332,7 @@ public class AiFoodVoiceParsingService {
         }
         data.setQuantity(grams);
         data.setUnit("grams");
+        data.setEstimatedGrams(grams);
         data.setMealType(node.has("mealType") && !node.get("mealType").isNull()
                 ? node.get("mealType").asText() : "snack");
         data.setLoggedAt(parseLoggedAtFromNode(node));
@@ -355,24 +340,85 @@ public class AiFoodVoiceParsingService {
             data.setNote(node.get("note").asText());
         }
         data.setNutrition(parseNutritionFromNode(node));
+        data.setIngredients(parseIngredients(node));
         return data;
     }
 
-    public static class ParsedFoodDataList {
-        private List<ParsedFoodData> compositeMeals;
-        private List<ParsedFoodData> foodItems;
-
-        public ParsedFoodDataList() {
-            this.compositeMeals = new ArrayList<>();
-            this.foodItems = new ArrayList<>();
+    private void normalizeAndMergeParsedResults(ParsedFoodDataList dataList, String voiceText) {
+        explicitQuantityApplier.apply(dataList, voiceText);
+        boolean explicitMulti = ExplicitPortionParser.hasExplicitMultiItemBreakdown(voiceText);
+        for (ParsedFoodData composite : dataList.getCompositeMeals()) {
+            normalizePortions(composite);
         }
+        for (ParsedFoodData item : dataList.getFoodItems()) {
+            normalizePortions(item);
+        }
+        portionSanityCorrector.apply(dataList);
+        if (!explicitMulti) {
+            voiceMealComposer.applyVoiceMealRules(dataList, voiceText);
+        } else {
+            logger.info("Skipping composite merge rules — user stated explicit per-item quantities");
+        }
+        explicitMacroApplier.apply(dataList, voiceText);
+    }
+
+    private void normalizePortions(ParsedFoodData data) {
+        if (data.isUserSpecifiedGrams() && data.getEstimatedGrams() != null && data.getEstimatedGrams() > 0) {
+            data.setQuantity(data.getEstimatedGrams());
+            data.setUnit("grams");
+            normalizeIngredientPortions(data);
+            return;
+        }
+        recommendedPortionApplicator.applyDefaults(data);
+        double grams = portionGramEstimator.resolveEffectiveGrams(
+                data.getFoodName(), data.getQuantity(), data.getUnit(), data.getEstimatedGrams());
+        data.setEstimatedGrams(grams);
+        if (PortionGramEstimator.isMassUnit(data.getUnit() != null ? data.getUnit().toLowerCase() : "")) {
+            data.setQuantity(grams);
+            data.setUnit("grams");
+        }
+        normalizeIngredientPortions(data);
+    }
+
+    private void normalizeIngredientPortions(ParsedFoodData data) {
+        if (data.getIngredients() == null || data.getIngredients().isEmpty()) {
+            return;
+        }
+        double total = 0;
+        String mealContext = data.getFoodName();
+        for (IngredientData ingredient : data.getIngredients()) {
+            if (ingredient.getEstimatedGrams() < 5) {
+                ingredient.setEstimatedGrams(
+                        RecommendedPortionCatalog.ingredientPortionGrams(ingredient.getName(), mealContext));
+            }
+            total += ingredient.getEstimatedGrams();
+        }
+        if (total > 0 && !data.isUserSpecifiedGrams()) {
+            data.setEstimatedGrams(total);
+            data.setQuantity(total);
+            data.setUnit("grams");
+        }
+    }
+
+    private Double readEstimatedGrams(JsonNode node) {
+        if (node.has("estimatedGrams") && !node.get("estimatedGrams").isNull()) {
+            double grams = node.get("estimatedGrams").asDouble();
+            if (grams > 0) {
+                return grams;
+            }
+        }
+        if (node.has("approximateTotalGrams") && !node.get("approximateTotalGrams").isNull()) {
+            return node.get("approximateTotalGrams").asDouble();
+        }
+        return null;
+    }
+
+    public static class ParsedFoodDataList {
+        private List<ParsedFoodData> compositeMeals = new ArrayList<>();
+        private List<ParsedFoodData> foodItems = new ArrayList<>();
 
         public List<ParsedFoodData> getCompositeMeals() {
             return compositeMeals;
-        }
-
-        public void setCompositeMeals(List<ParsedFoodData> compositeMeals) {
-            this.compositeMeals = compositeMeals;
         }
 
         public void addCompositeMeal(ParsedFoodData compositeMeal) {
@@ -383,17 +429,8 @@ public class AiFoodVoiceParsingService {
             return foodItems;
         }
 
-        public void setFoodItems(List<ParsedFoodData> foodItems) {
-            this.foodItems = foodItems;
-        }
-
         public void addFoodItem(ParsedFoodData foodItem) {
             this.foodItems.add(foodItem);
-        }
-
-        @Override
-        public String toString() {
-            return String.format("ParsedFoodDataList{compositeMeals=%s, foodItems=%s}", compositeMeals, foodItems);
         }
     }
 
@@ -401,76 +438,61 @@ public class AiFoodVoiceParsingService {
         private String foodName;
         private Double quantity;
         private String unit;
+        private Double estimatedGrams;
         private String mealType;
         private LocalDateTime loggedAt;
         private String note;
         private NutritionData nutrition;
+        private List<IngredientData> ingredients = new ArrayList<>();
+        private com.healthapp.service.nutrition.NutritionSource nutritionSource;
+        private com.healthapp.service.nutrition.NutritionConfidence nutritionConfidence;
+        private Integer fdcId;
+        private boolean userSpecifiedGrams;
+        private boolean userSpecifiedMacros;
 
-        public ParsedFoodData() {}
-
-        public String getFoodName() {
-            return foodName;
-        }
-
-        public void setFoodName(String foodName) {
-            this.foodName = foodName;
-        }
-
-        public Double getQuantity() {
-            return quantity;
-        }
-
-        public void setQuantity(Double quantity) {
-            this.quantity = quantity;
-        }
-
-        public String getUnit() {
-            return unit;
-        }
-
-        public void setUnit(String unit) {
-            this.unit = unit;
-        }
-
-        public String getMealType() {
-            return mealType;
-        }
-
-        public void setMealType(String mealType) {
-            this.mealType = mealType;
-        }
-
-        public LocalDateTime getLoggedAt() {
-            return loggedAt;
-        }
-
-        public void setLoggedAt(LocalDateTime loggedAt) {
-            this.loggedAt = loggedAt;
-        }
-
-        public String getNote() {
-            return note;
-        }
-
-        public void setNote(String note) {
-            this.note = note;
-        }
-
-        public NutritionData getNutrition() {
-            return nutrition;
-        }
-
-        public void setNutrition(NutritionData nutrition) {
-            this.nutrition = nutrition;
-        }
-
-        @Override
-        public String toString() {
-            return String.format("ParsedFoodData{foodName='%s', quantity=%.2f, unit='%s', mealType='%s', loggedAt=%s, note='%s', nutrition=%s}",
-                    foodName, quantity, unit, mealType, loggedAt, note, nutrition);
-        }
+        public String getFoodName() { return foodName; }
+        public void setFoodName(String foodName) { this.foodName = foodName; }
+        public Double getQuantity() { return quantity; }
+        public void setQuantity(Double quantity) { this.quantity = quantity; }
+        public String getUnit() { return unit; }
+        public void setUnit(String unit) { this.unit = unit; }
+        public Double getEstimatedGrams() { return estimatedGrams; }
+        public void setEstimatedGrams(Double estimatedGrams) { this.estimatedGrams = estimatedGrams; }
+        public String getMealType() { return mealType; }
+        public void setMealType(String mealType) { this.mealType = mealType; }
+        public LocalDateTime getLoggedAt() { return loggedAt; }
+        public void setLoggedAt(LocalDateTime loggedAt) { this.loggedAt = loggedAt; }
+        public String getNote() { return note; }
+        public void setNote(String note) { this.note = note; }
+        public NutritionData getNutrition() { return nutrition; }
+        public void setNutrition(NutritionData nutrition) { this.nutrition = nutrition; }
+        public List<IngredientData> getIngredients() { return ingredients; }
+        public void setIngredients(List<IngredientData> ingredients) { this.ingredients = ingredients; }
+        public com.healthapp.service.nutrition.NutritionSource getNutritionSource() { return nutritionSource; }
+        public void setNutritionSource(com.healthapp.service.nutrition.NutritionSource nutritionSource) { this.nutritionSource = nutritionSource; }
+        public com.healthapp.service.nutrition.NutritionConfidence getNutritionConfidence() { return nutritionConfidence; }
+        public void setNutritionConfidence(com.healthapp.service.nutrition.NutritionConfidence nutritionConfidence) { this.nutritionConfidence = nutritionConfidence; }
+        public Integer getFdcId() { return fdcId; }
+        public void setFdcId(Integer fdcId) { this.fdcId = fdcId; }
+        public boolean isUserSpecifiedGrams() { return userSpecifiedGrams; }
+        public void setUserSpecifiedGrams(boolean userSpecifiedGrams) { this.userSpecifiedGrams = userSpecifiedGrams; }
+        public boolean isUserSpecifiedMacros() { return userSpecifiedMacros; }
+        public void setUserSpecifiedMacros(boolean userSpecifiedMacros) { this.userSpecifiedMacros = userSpecifiedMacros; }
     }
-    
+
+    public static class IngredientData {
+        private String name;
+        private double estimatedGrams;
+        private String fdcSearchTerm;
+
+        public String getName() { return name; }
+        public void setName(String name) { this.name = name; }
+        public double getEstimatedGrams() { return estimatedGrams; }
+        public void setEstimatedGrams(double estimatedGrams) { this.estimatedGrams = estimatedGrams; }
+        public String getFdcSearchTerm() { return fdcSearchTerm; }
+        public void setFdcSearchTerm(String fdcSearchTerm) { this.fdcSearchTerm = fdcSearchTerm; }
+    }
+
     public static class NutritionData {
         private double caloriesPer100g;
         private double proteinPer100g;
@@ -478,52 +500,15 @@ public class AiFoodVoiceParsingService {
         private double fatPer100g;
         private double fiberPer100g;
 
-        public NutritionData() {}
-
-        public double getCaloriesPer100g() {
-            return caloriesPer100g;
-        }
-
-        public void setCaloriesPer100g(double caloriesPer100g) {
-            this.caloriesPer100g = caloriesPer100g;
-        }
-
-        public double getProteinPer100g() {
-            return proteinPer100g;
-        }
-
-        public void setProteinPer100g(double proteinPer100g) {
-            this.proteinPer100g = proteinPer100g;
-        }
-
-        public double getCarbsPer100g() {
-            return carbsPer100g;
-        }
-
-        public void setCarbsPer100g(double carbsPer100g) {
-            this.carbsPer100g = carbsPer100g;
-        }
-
-        public double getFatPer100g() {
-            return fatPer100g;
-        }
-
-        public void setFatPer100g(double fatPer100g) {
-            this.fatPer100g = fatPer100g;
-        }
-
-        public double getFiberPer100g() {
-            return fiberPer100g;
-        }
-
-        public void setFiberPer100g(double fiberPer100g) {
-            this.fiberPer100g = fiberPer100g;
-        }
-
-        @Override
-        public String toString() {
-            return String.format("NutritionData{calories=%.1f, protein=%.1f, carbs=%.1f, fat=%.1f, fiber=%.1f}",
-                    caloriesPer100g, proteinPer100g, carbsPer100g, fatPer100g, fiberPer100g);
-        }
+        public double getCaloriesPer100g() { return caloriesPer100g; }
+        public void setCaloriesPer100g(double caloriesPer100g) { this.caloriesPer100g = caloriesPer100g; }
+        public double getProteinPer100g() { return proteinPer100g; }
+        public void setProteinPer100g(double proteinPer100g) { this.proteinPer100g = proteinPer100g; }
+        public double getCarbsPer100g() { return carbsPer100g; }
+        public void setCarbsPer100g(double carbsPer100g) { this.carbsPer100g = carbsPer100g; }
+        public double getFatPer100g() { return fatPer100g; }
+        public void setFatPer100g(double fatPer100g) { this.fatPer100g = fatPer100g; }
+        public double getFiberPer100g() { return fiberPer100g; }
+        public void setFiberPer100g(double fiberPer100g) { this.fiberPer100g = fiberPer100g; }
     }
 }
