@@ -65,10 +65,18 @@ public class SimpleFoodNutritionResolver {
         if (parsedData.isUserSpecifiedMacros()) {
             return;
         }
-        AiFoodVoiceParsingService.NutritionData aiNutrition = parsedData.getNutrition();
         clearInvalidAiNutrition(parsedData);
 
+        if (parsedData.getNutrition() != null) {
+            parsedData.setNutritionSource(NutritionSource.LLM);
+            parsedData.setNutritionConfidence(NutritionConfidence.MEDIUM);
+            logger.info("nutritionSource=llm skippedUsda=true food='{}' cal/100g={}",
+                    parsedData.getFoodName(), parsedData.getNutrition().getCaloriesPer100g());
+            return;
+        }
+
         if (nutritionLookupService != null) {
+            long t0 = System.nanoTime();
             nutritionLookupService.lookup(parsedData.getFoodName()).ifPresent(profile -> {
                 if (applyProfile(parsedData, profile)) {
                     logger.info("nutritionSource=usda fdcId={} confidence={} food='{}' cal/100g={}",
@@ -76,16 +84,8 @@ public class SimpleFoodNutritionResolver {
                             parsedData.getFoodName(), profile.getCaloriesPer100g());
                 }
             });
-        }
-
-        if (parsedData.getNutrition() == null && aiNutrition != null) {
-            AiFoodVoiceParsingService.NutritionData validated = NutritionValidator.validateNutritionData(
-                    parsedData.getFoodName(), aiNutrition, parsedData.getEstimatedGrams());
-            if (validated != null) {
-                parsedData.setNutrition(validated);
-                logger.info("nutritionSource=llm food='{}' cal/100g={}",
-                        parsedData.getFoodName(), validated.getCaloriesPer100g());
-            }
+            logger.info("perf usdaMs={} food='{}'",
+                    (System.nanoTime() - t0) / 1_000_000, parsedData.getFoodName());
         }
 
         if (parsedData.getNutrition() == null) {

@@ -14,6 +14,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -48,24 +50,7 @@ class SimpleFoodNutritionResolverTest {
     }
 
     @Test
-    void resolve_usesUsdaWhenAvailable() {
-        when(nutritionLookupService.lookup("apple")).thenReturn(Optional.of(
-                new NutritionProfile(52, 0.3, 14, 0.2, 2.4, NutritionSource.USDA, 0.9, 171688)));
-
-        AiFoodVoiceParsingService.ParsedFoodData data = new AiFoodVoiceParsingService.ParsedFoodData();
-        data.setFoodName("apple");
-        data.setEstimatedGrams(150.0);
-
-        resolver.resolve(data);
-
-        assertEquals(52, data.getNutrition().getCaloriesPer100g(), 0.1);
-        assertEquals(NutritionSource.USDA, data.getNutritionSource());
-    }
-
-    @Test
-    void resolve_fallsBackToLlmWhenUsdaMisses() {
-        when(nutritionLookupService.lookup(anyString())).thenReturn(Optional.empty());
-
+    void resolve_skipsUsdaWhenValidLlmNutrition() {
         AiFoodVoiceParsingService.NutritionData llm = new AiFoodVoiceParsingService.NutritionData();
         llm.setCaloriesPer100g(52);
         llm.setProteinPer100g(0.3);
@@ -80,8 +65,24 @@ class SimpleFoodNutritionResolverTest {
 
         resolver.resolve(data);
 
+        verify(nutritionLookupService, never()).lookup(anyString());
         assertEquals(NutritionSource.LLM, data.getNutritionSource());
         assertEquals(52, data.getNutrition().getCaloriesPer100g(), 0.1);
+    }
+
+    @Test
+    void resolve_usesUsdaWhenNoLlmNutrition() {
+        when(nutritionLookupService.lookup("apple")).thenReturn(Optional.of(
+                new NutritionProfile(52, 0.3, 14, 0.2, 2.4, NutritionSource.USDA, 0.9, 171688)));
+
+        AiFoodVoiceParsingService.ParsedFoodData data = new AiFoodVoiceParsingService.ParsedFoodData();
+        data.setFoodName("apple");
+        data.setEstimatedGrams(150.0);
+
+        resolver.resolve(data);
+
+        assertEquals(52, data.getNutrition().getCaloriesPer100g(), 0.1);
+        assertEquals(NutritionSource.USDA, data.getNutritionSource());
     }
 
     @Test

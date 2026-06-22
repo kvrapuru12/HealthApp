@@ -102,9 +102,10 @@ class NutritionLookupServiceTest {
 
         when(cacheRepository.findByNormalizedName(anyString())).thenReturn(Optional.empty());
         when(usdaClient.isAvailable()).thenReturn(true);
-        when(usdaClient.searchFoods(anyString(), eq(5)))
+        when(usdaClient.searchFoods(argThat(term -> term != null && term.toLowerCase().contains("berr")), eq(5)))
                 .thenReturn(new UsdaFoodDataClient.UsdaSearchResponse(
-                        List.of(new UsdaFoodDataClient.UsdaSearchResult(1, "berries raw")), false))
+                        List.of(new UsdaFoodDataClient.UsdaSearchResult(1, "berries raw")), false));
+        when(usdaClient.searchFoods(argThat(term -> term != null && term.toLowerCase().contains("banana")), eq(5)))
                 .thenReturn(new UsdaFoodDataClient.UsdaSearchResponse(
                         List.of(new UsdaFoodDataClient.UsdaSearchResult(2, "banana raw")), false));
         when(usdaClient.getFoodDetails(eq(1), anyDouble())).thenReturn(UsdaFoodDataClient.UsdaDetailResponse.success(berries));
