@@ -27,25 +27,13 @@ class CompositeFoodNutritionResolverTest {
     }
 
     @Test
-    void aiIngredientCompositeSkipsUsdaBlendWhenValidLlmNutrition() {
-        AiFoodVoiceParsingService.ParsedFoodData parsed = salmonQuinoaBroccoliMeal();
-        parsed.setNutrition(llmNutrition(165, 18, 12, 7, 2));
-
-        resolver.resolve(parsed);
-
-        verify(nutritionLookupService, never()).blendIngredients(anyList());
-        assertEquals(NutritionSource.LLM, parsed.getNutritionSource());
-        assertEquals(165.0, parsed.getNutrition().getCaloriesPer100g(), 0.1);
-    }
-
-    @Test
-    void aiIngredientCompositeUsesUsdaBlendWhenLlmNutritionInvalid() {
+    void aiIngredientCompositeUsesUsdaBlend() {
         NutritionProfile blend = new NutritionProfile(
                 160, 18, 12, 7, 2, NutritionSource.USDA, 0.85, 12345);
         when(nutritionLookupService.blendIngredients(anyList())).thenReturn(java.util.Optional.of(blend));
 
         AiFoodVoiceParsingService.ParsedFoodData parsed = salmonQuinoaBroccoliMeal();
-        // no LLM meal nutrition — USDA blend should run
+        parsed.setNutrition(llmNutrition(165, 18, 12, 7, 2));
 
         resolver.resolve(parsed);
 
