@@ -11,9 +11,11 @@ import org.springframework.stereotype.Service;
 
 import jakarta.annotation.PostConstruct;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 
 @Service
 public class NutritionLookupService {
@@ -122,16 +124,30 @@ public class NutritionLookupService {
         if (ingredients == null || ingredients.isEmpty()) {
             return Optional.empty();
         }
-        BlendAccumulator acc = new BlendAccumulator();
+        List<IngredientPortion> expandedPortions = new ArrayList<>();
         for (IngredientPortion portion : ingredients) {
             if (portion.estimatedGrams() <= 0) {
                 continue;
             }
-            for (IngredientPortion expanded : expandSandwichIngredient(portion)) {
-                if (!acc.add(expanded)) {
-                    logger.info("Ingredient blend aborted — unresolved ingredient '{}'", expanded.name());
-                    return Optional.empty();
-                }
+            expandedPortions.addAll(expandSandwichIngredient(portion));
+        }
+        if (expandedPortions.isEmpty()) {
+            return Optional.empty();
+        }
+        List<CompletableFuture<ResolvedIngredient>> futures = expandedPortions.stream()
+                .map(portion -> CompletableFuture.supplyAsync(() -> resolveIngredient(portion)))
+                .toList();
+        CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new)).join();
+
+        BlendAccumulator acc = new BlendAccumulator();
+        for (CompletableFuture<ResolvedIngredient> future : futures) {
+            ResolvedIngredient resolved = future.join();
+            if (resolved == null) {
+                return Optional.empty();
+            }
+            if (!acc.addResolved(resolved.portion(), resolved.profile())) {
+                logger.info("Ingredient blend aborted — unresolved ingredient '{}'", resolved.portion().name());
+                return Optional.empty();
             }
         }
         if (acc.totalGrams <= 0) {
@@ -153,6 +169,19 @@ public class NutritionLookupService {
         ));
     }
 
+    private ResolvedIngredient resolveIngredient(IngredientPortion portion) {
+        String term = portion.fdcSearchTerm() != null && !portion.fdcSearchTerm().isBlank()
+                ? portion.fdcSearchTerm() : portion.name();
+        NutritionProfile resolved = resolveIngredientProfile(portion.name(), term);
+        if (resolved == null) {
+            logger.warn("Ingredient '{}' unresolved in blend", portion.name());
+            return null;
+        }
+        return new ResolvedIngredient(portion, resolved);
+    }
+
+    private record ResolvedIngredient(IngredientPortion portion, NutritionProfile profile) {}
+
     private final class BlendAccumulator {
         double totalGrams;
         double totalCalories;
@@ -164,14 +193,7 @@ public class NutritionLookupService {
         int usdaCount;
 
         /** @return false when the ingredient could not be resolved */
-        boolean add(IngredientPortion portion) {
-            String term = portion.fdcSearchTerm() != null && !portion.fdcSearchTerm().isBlank()
-                    ? portion.fdcSearchTerm() : portion.name();
-            NutritionProfile resolved = resolveIngredientProfile(portion.name(), term);
-            if (resolved == null) {
-                logger.warn("Ingredient '{}' unresolved in blend", portion.name());
-                return false;
-            }
+        boolean addResolved(IngredientPortion portion, NutritionProfile resolved) {
             if (resolved.getSource() == NutritionSource.USDA) {
                 usdaCount++;
             }

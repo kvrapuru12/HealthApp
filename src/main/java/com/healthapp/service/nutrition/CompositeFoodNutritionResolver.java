@@ -40,9 +40,14 @@ public class CompositeFoodNutritionResolver {
         clearInvalidAiNutrition(parsedData);
 
         boolean explicitPortions = parsedData.isUserSpecifiedGrams();
-        boolean aiIngredientBlend = !explicitPortions && hasAiIngredientBreakdown(parsedData);
+        boolean validAiMealNutrition = parsedData.getNutrition() != null;
 
-        if (explicitPortions || aiIngredientBlend) {
+        if (validAiMealNutrition && !explicitPortions) {
+            parsedData.setNutritionSource(NutritionSource.LLM);
+            parsedData.setNutritionConfidence(NutritionConfidence.MEDIUM);
+            logger.info("nutritionSource=llm skippedUsdaBlend=true composite food='{}' cal/100g={}",
+                    parsedData.getFoodName(), parsedData.getNutrition().getCaloriesPer100g());
+        } else if (explicitPortions || hasAiIngredientBreakdown(parsedData)) {
             tryIngredientBlend(parsedData);
             if (parsedData.getNutritionSource() == NutritionSource.FALLBACK_HARDCODED) {
                 logger.info("Rejecting all-fallback ingredient blend for '{}'; trying LLM estimate",
@@ -80,12 +85,15 @@ public class CompositeFoodNutritionResolver {
                 .map(i -> new NutritionLookupService.IngredientPortion(
                         i.getName(), i.getEstimatedGrams(), i.getFdcSearchTerm()))
                 .toList();
+        long t0 = System.nanoTime();
         nutritionLookupService.blendIngredients(portions).ifPresent(profile -> {
             if (applyProfile(parsedData, profile)) {
                 logger.info("Composite USDA blend for '{}': {} cal/100g source={}",
                         parsedData.getFoodName(), profile.getCaloriesPer100g(), profile.getSource());
             }
         });
+        logger.info("perf usdaMs={} food='{}'",
+                (System.nanoTime() - t0) / 1_000_000, parsedData.getFoodName());
     }
 
     private static boolean hasAiIngredientBreakdown(AiFoodVoiceParsingService.ParsedFoodData parsedData) {
