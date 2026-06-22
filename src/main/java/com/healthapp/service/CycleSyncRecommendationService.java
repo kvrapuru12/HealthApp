@@ -21,6 +21,7 @@ import java.time.Period;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
@@ -86,15 +87,40 @@ public class CycleSyncRecommendationService {
     @Value("${cycle.sync.ai.timeout.seconds:8}")
     private int aiTimeoutSeconds;
 
+    @Value("${cycle.sync.overview.cache.ttl.hours:24}")
+    private int overviewCacheTtlHours;
+
+    private final ConcurrentHashMap<String, CachedOverview> overviewCache = new ConcurrentHashMap<>();
+
     public CycleSyncUnifiedResponse getUnifiedRecommendations(Long authenticatedUserId) {
         Objects.requireNonNull(authenticatedUserId, "authenticatedUserId is required");
         CyclePhaseResponse currentPhase = menstrualCycleService.getCurrentPhase(authenticatedUserId);
-        User user = userRepository.findById(authenticatedUserId)
-                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+        String phase = normalizePhase(currentPhase.getPhase());
+        String cacheKey = overviewCacheKey(authenticatedUserId, phase);
 
+        CycleSyncUnifiedResponse cached = getCachedOverview(cacheKey);
+        if (cached != null) {
+            logger.info("perf cacheHit=true openAiMs=0 userId={} phase={}", authenticatedUserId, phase);
+            return cached;
+        }
+
+        long openAiStartNs = System.nanoTime();
+        CycleSyncUnifiedResponse result = generateOverview(authenticatedUserId, userRepository.findById(authenticatedUserId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found")), currentPhase, phase);
+        long openAiMs = (System.nanoTime() - openAiStartNs) / 1_000_000;
+        logger.info("perf cacheHit=false openAiMs={} userId={} phase={}", openAiMs, authenticatedUserId, phase);
+        putCachedOverview(cacheKey, result);
+        return result;
+    }
+
+    private CycleSyncUnifiedResponse generateOverview(
+            Long authenticatedUserId,
+            User user,
+            CyclePhaseResponse currentPhase,
+            String phase) {
         if (openAiService == null) {
             logger.warn("OpenAI service unavailable; using fallback recommendations for user {}", authenticatedUserId);
-            return buildFallbackRecommendations(normalizePhase(currentPhase.getPhase()));
+            return buildFallbackRecommendations(phase);
         }
 
         try {
@@ -117,19 +143,54 @@ public class CycleSyncRecommendationService {
                     .orTimeout(aiTimeoutSeconds, TimeUnit.SECONDS)
                     .join();
 
-            CycleSyncUnifiedResponse parsed = parseAiResponse(responseText, normalizePhase(currentPhase.getPhase()));
-            return ensureComplete(parsed, normalizePhase(currentPhase.getPhase()));
+            CycleSyncUnifiedResponse parsed = parseAiResponse(responseText, phase);
+            return ensureComplete(parsed, phase);
         } catch (CompletionException e) {
             if (e.getCause() instanceof TimeoutException) {
                 logger.warn("OpenAI request timed out after {}s; using fallback recommendations for user {}",
                         aiTimeoutSeconds, authenticatedUserId);
-                return buildFallbackRecommendations(normalizePhase(currentPhase.getPhase()));
+                return buildFallbackRecommendations(phase);
             }
             logger.error("Failed to generate unified cycle-sync recommendations: {}", e.getMessage(), e);
-            return buildFallbackRecommendations(normalizePhase(currentPhase.getPhase()));
+            return buildFallbackRecommendations(phase);
         } catch (Exception e) {
             logger.error("Failed to generate unified cycle-sync recommendations: {}", e.getMessage(), e);
-            return buildFallbackRecommendations(normalizePhase(currentPhase.getPhase()));
+            return buildFallbackRecommendations(phase);
+        }
+    }
+
+    private String overviewCacheKey(Long userId, String phase) {
+        return userId + ":" + phase;
+    }
+
+    private CycleSyncUnifiedResponse getCachedOverview(String cacheKey) {
+        CachedOverview entry = overviewCache.get(cacheKey);
+        if (entry == null) {
+            return null;
+        }
+        if (entry.expiresAtEpochMs <= System.currentTimeMillis()) {
+            overviewCache.remove(cacheKey, entry);
+            return null;
+        }
+        return entry.response;
+    }
+
+    private void putCachedOverview(String cacheKey, CycleSyncUnifiedResponse response) {
+        long ttlMs = overviewCacheTtlHours * 3_600_000L;
+        if (ttlMs <= 0) {
+            return;
+        }
+        long expiresAt = System.currentTimeMillis() + ttlMs;
+        overviewCache.put(cacheKey, new CachedOverview(response, expiresAt));
+    }
+
+    private static final class CachedOverview {
+        private final CycleSyncUnifiedResponse response;
+        private final long expiresAtEpochMs;
+
+        private CachedOverview(CycleSyncUnifiedResponse response, long expiresAtEpochMs) {
+            this.response = response;
+            this.expiresAtEpochMs = expiresAtEpochMs;
         }
     }
 
