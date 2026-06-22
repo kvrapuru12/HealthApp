@@ -116,4 +116,74 @@ class VoiceFoodLogServiceTest {
         assertEquals("Food log created from voice input", result.getMessage());
         assertEquals("eggs", result.getLogs().get(0).getFood());
     }
+
+    @Test
+    void processVoiceFoodLog_preservesOrderForMultipleItems() {
+        VoiceFoodLogRequest request = new VoiceFoodLogRequest(10L, "eggs and toast");
+
+        AiFoodVoiceParsingService.ParsedFoodData eggs = new AiFoodVoiceParsingService.ParsedFoodData();
+        eggs.setFoodName("Eggs");
+        eggs.setQuantity(2.0);
+        eggs.setUnit("pieces");
+        eggs.setMealType("breakfast");
+        eggs.setLoggedAt(LocalDateTime.now().minusMinutes(1));
+        eggs.setEstimatedGrams(100.0);
+
+        AiFoodVoiceParsingService.ParsedFoodData toast = new AiFoodVoiceParsingService.ParsedFoodData();
+        toast.setFoodName("Toast");
+        toast.setQuantity(1.0);
+        toast.setUnit("slice");
+        toast.setMealType("breakfast");
+        toast.setLoggedAt(LocalDateTime.now().minusMinutes(1));
+        toast.setEstimatedGrams(30.0);
+
+        AiFoodVoiceParsingService.ParsedFoodDataList parsedList = new AiFoodVoiceParsingService.ParsedFoodDataList();
+        parsedList.addFoodItem(eggs);
+        parsedList.addFoodItem(toast);
+
+        FoodItem eggsItem = new FoodItem();
+        eggsItem.setId(5L);
+        eggsItem.setName("eggs");
+        eggsItem.setCreatedBy(10L);
+        eggsItem.setCaloriesPerUnit(155);
+        eggsItem.setStatus(FoodItem.FoodStatus.ACTIVE);
+
+        FoodItem toastItem = new FoodItem();
+        toastItem.setId(6L);
+        toastItem.setName("toast");
+        toastItem.setCreatedBy(10L);
+        toastItem.setCaloriesPerUnit(80);
+        toastItem.setStatus(FoodItem.FoodStatus.ACTIVE);
+
+        FoodLogCreateResponse eggsResponse = new FoodLogCreateResponse();
+        eggsResponse.setCalories(150.0);
+        eggsResponse.setProtein(12.0);
+        eggsResponse.setCarbs(1.0);
+        eggsResponse.setFat(10.0);
+        eggsResponse.setFiber(0.0);
+
+        FoodLogCreateResponse toastResponse = new FoodLogCreateResponse();
+        toastResponse.setCalories(80.0);
+        toastResponse.setProtein(3.0);
+        toastResponse.setCarbs(15.0);
+        toastResponse.setFat(1.0);
+        toastResponse.setFiber(2.0);
+
+        when(userRepository.findById(10L)).thenReturn(Optional.of(new User()));
+        when(aiFoodProperties.isShowConfidence()).thenReturn(false);
+        when(portionGramEstimator.resolveEffectiveGrams(any(), any(), any(), any())).thenReturn(100.0, 30.0);
+        when(aiFoodVoiceParsingService.parseVoiceText("eggs and toast")).thenReturn(parsedList);
+        when(foodItemRepository.findByNameIgnoreCaseAndStatusAndCreatedBy(eq("eggs"), eq(FoodItem.FoodStatus.ACTIVE), eq(10L)))
+                .thenReturn(Optional.of(eggsItem));
+        when(foodItemRepository.findByNameIgnoreCaseAndStatusAndCreatedBy(eq("toast"), eq(FoodItem.FoodStatus.ACTIVE), eq(10L)))
+                .thenReturn(Optional.of(toastItem));
+        when(foodLogService.createFoodLog(any(), eq(10L))).thenReturn(eggsResponse, toastResponse);
+
+        VoiceFoodLogResponse result = voiceFoodLogService.processVoiceFoodLog(request, 10L);
+
+        assertEquals(2, result.getLogs().size());
+        assertEquals("eggs", result.getLogs().get(0).getFood());
+        assertEquals("toast", result.getLogs().get(1).getFood());
+        assertEquals("Created 2 food logs from voice input", result.getMessage());
+    }
 }
