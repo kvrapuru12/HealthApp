@@ -13,6 +13,8 @@ import java.io.InputStream;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 
 @Service
 public class AiActivityVoiceParsingService {
@@ -29,28 +31,35 @@ public class AiActivityVoiceParsingService {
     private ObjectMapper objectMapper;
 
     private JsonNode activityVoiceSchema;
+    private volatile String cachedSystemPrompt;
+
+    private static final int ACTIVITY_PARSE_MAX_TOKENS = 550;
 
     private String getSystemPrompt() {
-        String currentDateTime = LocalDateTime.now().toString();
-        return String.format("""
+        if (cachedSystemPrompt != null) {
+            return cachedSystemPrompt;
+        }
+        cachedSystemPrompt = """
         You are an AI assistant that parses natural language descriptions of physical activities into structured data.
-        
-        CURRENT DATE AND TIME: %s
         
         Parse the input text and return a JSON object with an activities array (one entry per distinct activity).
         
         Rules:
         1. Extract each activity clearly (e.g., "brisk walk", "yoga", "weight training")
         2. When the user describes multiple activities (e.g. "cycled 40 minutes then did 25 minutes weights"), return multiple activities entries
-        3. Convert time references to ISO 8601 using CURRENT DATE AND TIME
-        4. If no specific time is mentioned, use CURRENT DATE AND TIME for loggedAt
+        3. Convert time references to ISO 8601 using CURRENT DATETIME from the user message
+        4. If no specific time is mentioned, use CURRENT DATETIME for loggedAt
         5. Each note field is required with Voice: line plus optional Stated:/Assumed:
         
-        %s
-        %s
-        """, currentDateTime,
-                AiPromptGuidelines.SHARED_INFERENCE_PRINCIPLES,
-                AiPromptGuidelines.ACTIVITY_DURATION_ASSUMPTION_RULES);
+        """
+                + AiPromptGuidelines.SHARED_INFERENCE_PRINCIPLES
+                + "\n"
+                + AiPromptGuidelines.ACTIVITY_DURATION_ASSUMPTION_RULES;
+        return cachedSystemPrompt;
+    }
+
+    private static String buildUserMessage(String voiceText) {
+        return "CURRENT DATETIME: " + LocalDateTime.now() + "\n\n" + voiceText;
     }
 
     public ParsedActivityData parseVoiceText(String voiceText) {
@@ -62,23 +71,30 @@ public class AiActivityVoiceParsingService {
     }
 
     public List<ParsedActivityData> parseAllActivities(String voiceText) {
+        return parseAllActivities(voiceText, true);
+    }
+
+    private List<ParsedActivityData> parseAllActivities(String voiceText, boolean allowCompoundSplit) {
+        long startNs = System.nanoTime();
         try {
-            logger.info("Parsing activity voice text: {}", voiceText);
+            logger.debug("Parsing activity voice text: {}", voiceText);
 
             if (openAiChatClient == null || !openAiChatClient.isAvailable()) {
                 throw new RuntimeException("OpenAI service is not available. Please configure OpenAI API key.");
             }
 
+            long openAiStartNs = System.nanoTime();
             String response = openAiChatClient.createStructuredCompletion(
                     modelProperties.getVoiceActivityModel(),
                     getSystemPrompt(),
-                    voiceText,
+                    buildUserMessage(voiceText),
                     loadActivityVoiceSchema(),
                     "activity_voice_parse",
-                    800
+                    ACTIVITY_PARSE_MAX_TOKENS
             );
+            long openAiMs = (System.nanoTime() - openAiStartNs) / 1_000_000;
 
-            logger.info("Raw AI response: '{}'", response);
+            logger.debug("Raw AI response: '{}'", response);
             JsonNode jsonNode = objectMapper.readTree(AiFoodVoiceParsingService.extractJsonObject(response));
 
             List<ParsedActivityData> results = new ArrayList<>();
@@ -99,11 +115,13 @@ public class AiActivityVoiceParsingService {
                 throw new RuntimeException("No activities parsed from voice text");
             }
 
-            if (results.size() == 1) {
+            if (allowCompoundSplit && results.size() == 1) {
                 results = maybeSplitCompoundActivities(voiceText, results.get(0));
             }
 
-            logger.info("Successfully parsed {} activity/activities", results.size());
+            long totalMs = (System.nanoTime() - startNs) / 1_000_000;
+            logger.info("perf activityVoiceParse totalMs={} openAiMs={} model={} maxTokens={} activities={}",
+                    totalMs, openAiMs, modelProperties.getVoiceActivityModel(), ACTIVITY_PARSE_MAX_TOKENS, results.size());
             return results;
 
         } catch (RuntimeException e) {
@@ -128,14 +146,34 @@ public class AiActivityVoiceParsingService {
         if (parts.length > MAX_COMPOUND_ACTIVITY_SEGMENTS) {
             logger.warn("Truncating compound activity voice text from {} to {} segments", parts.length, limit);
         }
-        List<ParsedActivityData> split = new ArrayList<>();
+        List<String> segments = new ArrayList<>();
         for (int i = 0; i < limit; i++) {
             String trimmed = parts[i].trim();
-            if (trimmed.isEmpty()) {
-                continue;
+            if (!trimmed.isEmpty()) {
+                segments.add(trimmed);
             }
-            ParsedActivityData segment = parseAllActivities(trimmed).get(0);
-            split.add(segment);
+        }
+        if (segments.isEmpty()) {
+            return List.of(single);
+        }
+        if (segments.size() == 1) {
+            return List.of(single);
+        }
+        List<CompletableFuture<List<ParsedActivityData>>> futures = segments.stream()
+                .map(segment -> CompletableFuture.supplyAsync(() -> parseAllActivities(segment, false)))
+                .toList();
+        try {
+            CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new)).get();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return List.of(single);
+        } catch (ExecutionException e) {
+            logger.warn("Parallel compound activity parse failed, using single result: {}", e.getCause().getMessage());
+            return List.of(single);
+        }
+        List<ParsedActivityData> split = new ArrayList<>();
+        for (CompletableFuture<List<ParsedActivityData>> future : futures) {
+            split.addAll(future.join());
         }
         return split.isEmpty() ? List.of(single) : split;
     }
