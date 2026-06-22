@@ -20,9 +20,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 
 @Service
 public class VoiceFoodLogService {
@@ -91,14 +92,11 @@ public class VoiceFoodLogService {
                     HttpStatus.UNPROCESSABLE_ENTITY);
         }
 
-        List<VoiceFoodLogResponse.LoggedFoodItem> loggedItems = new ArrayList<>();
-
-        for (AiFoodVoiceParsingService.ParsedFoodData parsedData : parsedDataList.getCompositeMeals()) {
-            appendParsedFoodLog(request, authenticatedUserId, parsedData, true, loggedItems);
-        }
-        for (AiFoodVoiceParsingService.ParsedFoodData parsedData : parsedDataList.getFoodItems()) {
-            appendParsedFoodLog(request, authenticatedUserId, parsedData, false, loggedItems);
-        }
+        long persistStart = System.nanoTime();
+        List<VoiceFoodLogResponse.LoggedFoodItem> loggedItems =
+                persistParsedItems(request, authenticatedUserId, parsedDataList);
+        logger.info("perf persistMs={} itemCount={}",
+                (System.nanoTime() - persistStart) / 1_000_000, loggedItems.size());
 
         if (loggedItems.isEmpty()) {
             throw new VoiceFoodLogException(
@@ -126,9 +124,41 @@ public class VoiceFoodLogService {
         return new VoiceFoodLogResponse(message, loggedItems);
     }
 
-    private void appendParsedFoodLog(VoiceFoodLogRequest request, Long authenticatedUserId,
-            AiFoodVoiceParsingService.ParsedFoodData parsedData, boolean compositeMeal,
-            List<VoiceFoodLogResponse.LoggedFoodItem> loggedItems) {
+    private List<VoiceFoodLogResponse.LoggedFoodItem> persistParsedItems(
+            VoiceFoodLogRequest request, Long authenticatedUserId,
+            AiFoodVoiceParsingService.ParsedFoodDataList parsedDataList) {
+        List<ParsedItemTask> tasks = new ArrayList<>();
+        for (AiFoodVoiceParsingService.ParsedFoodData parsedData : parsedDataList.getCompositeMeals()) {
+            tasks.add(new ParsedItemTask(parsedData, true));
+        }
+        for (AiFoodVoiceParsingService.ParsedFoodData parsedData : parsedDataList.getFoodItems()) {
+            tasks.add(new ParsedItemTask(parsedData, false));
+        }
+
+        if (tasks.size() <= 1) {
+            List<VoiceFoodLogResponse.LoggedFoodItem> results = new ArrayList<>(tasks.size());
+            for (ParsedItemTask task : tasks) {
+                results.add(appendParsedFoodLog(request, authenticatedUserId, task.parsedData(), task.compositeMeal()));
+            }
+            return results;
+        }
+
+        List<CompletableFuture<VoiceFoodLogResponse.LoggedFoodItem>> futures = tasks.stream()
+                .map(task -> CompletableFuture.supplyAsync(() ->
+                        appendParsedFoodLog(request, authenticatedUserId, task.parsedData(), task.compositeMeal())))
+                .toList();
+
+        CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new)).join();
+
+        return futures.stream()
+                .map(CompletableFuture::join)
+                .toList();
+    }
+
+    private record ParsedItemTask(AiFoodVoiceParsingService.ParsedFoodData parsedData, boolean compositeMeal) {}
+
+    private VoiceFoodLogResponse.LoggedFoodItem appendParsedFoodLog(VoiceFoodLogRequest request, Long authenticatedUserId,
+            AiFoodVoiceParsingService.ParsedFoodData parsedData, boolean compositeMeal) {
         String foodLabel = parsedData.getFoodName() != null && !parsedData.getFoodName().isBlank()
                 ? parsedData.getFoodName()
                 : "this item";
@@ -176,7 +206,7 @@ public class VoiceFoodLogService {
                     ? parsedData.getNutritionConfidence().name()
                     : null;
 
-            loggedItems.add(new VoiceFoodLogResponse.LoggedFoodItem(
+            return new VoiceFoodLogResponse.LoggedFoodItem(
                     foodItem.getName(),
                     parsedData.getQuantity(),
                     normalizedGrams,
@@ -189,7 +219,7 @@ public class VoiceFoodLogService {
                     logResponse.getFiber(),
                     loggedAt.toString(),
                     confidenceLabel
-            ));
+            );
         } catch (IllegalArgumentException e) {
             logger.warn("Validation failed for voice food item \"{}\": {}", foodLabel, e.getMessage());
             throw new IllegalArgumentException("Could not log \"" + foodLabel + "\": " + e.getMessage(), e);
