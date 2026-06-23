@@ -5,8 +5,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
-import java.util.Locale;
-
 /**
  * Raises AI-estimated portions that are far below typical single servings when the user did not
  * state an explicit quantity.
@@ -73,6 +71,9 @@ public class PortionSanityCorrector {
             return currentGrams;
         }
         double typical = RecommendedPortionCatalog.typicalMinimumServingGrams(foodName, mealContext);
+        if (typical <= 0) {
+            typical = RecommendedPortionCatalog.ingredientPortionGrams(foodName, mealContext);
+        }
         if (typical <= 0) {
             return currentGrams;
         }

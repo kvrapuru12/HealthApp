@@ -46,6 +46,36 @@ class ExplicitQuantityApplierTest {
     }
 
     @Test
+    void splitsMultiIngredientCompositeWhenVoiceListsMultipleItems() {
+        AiFoodVoiceParsingService.ParsedFoodDataList dataList = new AiFoodVoiceParsingService.ParsedFoodDataList();
+        AiFoodVoiceParsingService.ParsedFoodData composite = new AiFoodVoiceParsingService.ParsedFoodData();
+        composite.setFoodName("steak with mashed potatoes and green beans");
+        AiFoodVoiceParsingService.IngredientData steak = new AiFoodVoiceParsingService.IngredientData();
+        steak.setName("steak");
+        steak.setEstimatedGrams(227.0);
+        AiFoodVoiceParsingService.IngredientData potatoes = new AiFoodVoiceParsingService.IngredientData();
+        potatoes.setName("mashed potatoes");
+        potatoes.setEstimatedGrams(60.0);
+        AiFoodVoiceParsingService.IngredientData beans = new AiFoodVoiceParsingService.IngredientData();
+        beans.setName("green beans");
+        beans.setEstimatedGrams(48.0);
+        composite.getIngredients().add(steak);
+        composite.getIngredients().add(potatoes);
+        composite.getIngredients().add(beans);
+        dataList.addCompositeMeal(composite);
+
+        applier.apply(dataList, "8 oz steak, half cup mashed potatoes, and green beans");
+
+        assertEquals(0, dataList.getCompositeMeals().size());
+        assertEquals(3, dataList.getFoodItems().size());
+        AiFoodVoiceParsingService.ParsedFoodData steakItem = dataList.getFoodItems().stream()
+                .filter(i -> i.getFoodName().toLowerCase().contains("steak"))
+                .findFirst()
+                .orElseThrow();
+        assertEquals(226.8, steakItem.getEstimatedGrams(), 0.5);
+    }
+
+    @Test
     void skipsCountOverrideWhenAiSetPortionUnit() {
         AiFoodVoiceParsingService.ParsedFoodDataList dataList = new AiFoodVoiceParsingService.ParsedFoodDataList();
         AiFoodVoiceParsingService.ParsedFoodData item = new AiFoodVoiceParsingService.ParsedFoodData();
@@ -59,5 +89,26 @@ class ExplicitQuantityApplierTest {
 
         assertEquals(182, dataList.getFoodItems().get(0).getEstimatedGrams(), 0.1);
         assertEquals("medium", dataList.getFoodItems().get(0).getUnit());
+    }
+
+    @Test
+    void keepsThaliCompositeWhenVoiceListsPlateItems() {
+        AiFoodVoiceParsingService.ParsedFoodDataList dataList = new AiFoodVoiceParsingService.ParsedFoodDataList();
+        AiFoodVoiceParsingService.ParsedFoodData composite = new AiFoodVoiceParsingService.ParsedFoodData();
+        composite.setFoodName("Indian thali with dal, rice, roti, and paneer curry");
+        AiFoodVoiceParsingService.IngredientData dal = new AiFoodVoiceParsingService.IngredientData();
+        dal.setName("dal");
+        dal.setEstimatedGrams(80.0);
+        AiFoodVoiceParsingService.IngredientData rice = new AiFoodVoiceParsingService.IngredientData();
+        rice.setName("cooked rice");
+        rice.setEstimatedGrams(100.0);
+        composite.getIngredients().add(dal);
+        composite.getIngredients().add(rice);
+        dataList.addCompositeMeal(composite);
+
+        applier.apply(dataList, "Indian thali with dal rice roti and paneer curry");
+
+        assertEquals(1, dataList.getCompositeMeals().size());
+        assertEquals(0, dataList.getFoodItems().size());
     }
 }

@@ -9,6 +9,7 @@ import org.springframework.stereotype.Component;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.regex.Pattern;
 
 /**
@@ -35,6 +36,7 @@ public class VoiceMealComposer {
         if (dataList == null || voiceText == null) {
             return;
         }
+        maybeMergeBlendedOrThaliPlate(dataList, voiceText);
         splitBeveragesFromFoodItems(dataList);
         promoteCompoundFoodItemsToComposites(dataList);
         maybeMergePlateItems(dataList, voiceText);
@@ -85,7 +87,7 @@ public class VoiceMealComposer {
     }
 
     private static final Pattern BEVERAGE_WORD = Pattern.compile(
-            "\\b(lassi|smoothie|milkshake|juice|soda|cola|coffee|latte|espresso|beer|wine|cocktail)\\b",
+            "\\b(lassi|smoothie|milkshake|juice|soda|cola|coke|coffee|latte|espresso|beer|wine|cocktail)\\b",
             Pattern.CASE_INSENSITIVE);
     private static final Pattern TEA_WORD = Pattern.compile("\\btea\\b", Pattern.CASE_INSENSITIVE);
     private static final Pattern MILK_WORD = Pattern.compile("\\bmilk\\b", Pattern.CASE_INSENSITIVE);
@@ -106,6 +108,58 @@ public class VoiceMealComposer {
             return true;
         }
         return SHAKE_WORD.matcher(n).find() && !n.contains("steak") && !n.contains("milkshake");
+    }
+
+    /**
+     * Blended drinks and thali plates are often split into simple foodItems; merge before per-item persist.
+     */
+    private void maybeMergeBlendedOrThaliPlate(AiFoodVoiceParsingService.ParsedFoodDataList dataList, String voiceText) {
+        if (!dataList.getCompositeMeals().isEmpty()) {
+            return;
+        }
+        String lower = voiceText.toLowerCase(Locale.ROOT);
+        boolean blendedDrink = lower.contains("smoothie") || lower.contains("milkshake");
+        boolean thaliPlate = lower.contains("thali");
+        if (!blendedDrink && !thaliPlate) {
+            return;
+        }
+        if (LATER_SEGMENT.matcher(voiceText).find()) {
+            return;
+        }
+        List<AiFoodVoiceParsingService.ParsedFoodData> items = new ArrayList<>(dataList.getFoodItems());
+        if (items.size() < 2) {
+            return;
+        }
+        List<AiFoodVoiceParsingService.ParsedFoodData> toMerge = blendedDrink
+                ? items
+                : items.stream().filter(i -> !isBeverage(i.getFoodName())).toList();
+        if (toMerge.size() < 2) {
+            return;
+        }
+        AiFoodVoiceParsingService.ParsedFoodData composite = buildComposite(toMerge, voiceText);
+        if (blendedDrink) {
+            composite.setFoodName(blendedDrinkName(voiceText));
+        } else {
+            composite.setFoodName("Indian thali plate");
+        }
+        dataList.getCompositeMeals().add(composite);
+        dataList.getFoodItems().removeAll(toMerge);
+        logger.info("Forced {} merge: {} items -> composite '{}'",
+                blendedDrink ? "blended drink" : "thali", toMerge.size(), composite.getFoodName());
+    }
+
+    private static String blendedDrinkName(String voiceText) {
+        String lower = voiceText.toLowerCase(Locale.ROOT);
+        if (lower.contains("green smoothie")) {
+            return "green smoothie";
+        }
+        if (lower.contains("protein smoothie")) {
+            return "protein smoothie";
+        }
+        if (lower.contains("milkshake")) {
+            return "milkshake";
+        }
+        return "smoothie";
     }
 
     private void splitBeveragesFromFoodItems(AiFoodVoiceParsingService.ParsedFoodDataList dataList) {
@@ -132,6 +186,9 @@ public class VoiceMealComposer {
     }
 
     private void maybeMergePlateItems(AiFoodVoiceParsingService.ParsedFoodDataList dataList, String voiceText) {
+        if (!dataList.getCompositeMeals().isEmpty()) {
+            return;
+        }
         List<AiFoodVoiceParsingService.ParsedFoodData> items = new ArrayList<>();
         for (AiFoodVoiceParsingService.ParsedFoodData item : dataList.getFoodItems()) {
             if (!isBeverage(item.getFoodName())) {
@@ -151,6 +208,13 @@ public class VoiceMealComposer {
         if (voiceText == null || plateItems.size() < 2) {
             return false;
         }
+        if (plateItems.stream().anyMatch(AiFoodVoiceParsingService.ParsedFoodData::isUserSpecifiedGrams)) {
+            return false;
+        }
+        String lower = voiceText.toLowerCase(Locale.ROOT);
+        if (lower.contains("thali")) {
+            return !LATER_SEGMENT.matcher(voiceText).find();
+        }
         if (plateItems.stream().anyMatch(i -> i.getMealType() == null)) {
             return false;
         }
@@ -161,7 +225,6 @@ public class VoiceMealComposer {
         if (LATER_SEGMENT.matcher(voiceText).find()) {
             return false;
         }
-        String lower = voiceText.toLowerCase(Locale.ROOT);
         return lower.contains(" with ") || MEAL_OCCASION.matcher(lower).find();
     }
 
@@ -169,7 +232,11 @@ public class VoiceMealComposer {
             List<AiFoodVoiceParsingService.ParsedFoodData> items, String voiceText) {
         AiFoodVoiceParsingService.ParsedFoodData composite = new AiFoodVoiceParsingService.ParsedFoodData();
         composite.setFoodName(buildPlateName(items, voiceText));
-        composite.setMealType(items.get(0).getMealType());
+        composite.setMealType(items.stream()
+                .map(AiFoodVoiceParsingService.ParsedFoodData::getMealType)
+                .filter(Objects::nonNull)
+                .findFirst()
+                .orElse("SNACK"));
         composite.setLoggedAt(items.get(0).getLoggedAt());
         composite.setNote(items.get(0).getNote());
         composite.setUnit("grams");

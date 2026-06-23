@@ -14,9 +14,23 @@ public final class NutritionValidator {
         return isLowCalBeverage(foodName) || isCaloricBeverage(foodName);
     }
 
+    public static boolean isDietOrZeroCalBeverage(String foodName) {
+        if (foodName == null) {
+            return false;
+        }
+        String n = foodName.toLowerCase();
+        return n.contains("diet ") || n.contains("diet-") || n.startsWith("diet")
+                || n.contains("zero sugar") || n.contains("zero-sugar")
+                || n.contains("sugar-free") || n.contains("sugar free")
+                || n.contains("zero cal") || n.contains("zero-cal");
+    }
+
     public static boolean isLowCalBeverage(String foodName) {
         if (foodName == null) {
             return false;
+        }
+        if (isDietOrZeroCalBeverage(foodName)) {
+            return true;
         }
         String n = foodName.toLowerCase();
         if (n.contains("wine") || n.contains("beer") || n.contains("cocktail")
@@ -31,6 +45,9 @@ public final class NutritionValidator {
 
     public static boolean isCaloricBeverage(String foodName) {
         if (foodName == null) {
+            return false;
+        }
+        if (isDietOrZeroCalBeverage(foodName)) {
             return false;
         }
         if (isLikelyDessert(foodName)) {
@@ -67,13 +84,18 @@ public final class NutritionValidator {
         if (nutrition == null) {
             return null;
         }
+        boolean dietZeroBeverage = isDietOrZeroCalBeverage(foodName);
         boolean lowCalBeverage = isLowCalBeverage(foodName);
         boolean caloricBeverage = isCaloricBeverage(foodName);
-        if (nutrition.getCaloriesPer100g() < 1 || nutrition.getProteinPer100g() < 0
+        if ((!dietZeroBeverage && nutrition.getCaloriesPer100g() < 1) || nutrition.getProteinPer100g() < 0
                 || nutrition.getCarbsPer100g() < 0 || nutrition.getFatPer100g() < 0) {
             return null;
         }
-        if (!lowCalBeverage && !caloricBeverage && nutrition.getCaloriesPer100g() < 30) {
+        if (!lowCalBeverage && !caloricBeverage && !isLikelyVegetable(foodName)
+                && nutrition.getCaloriesPer100g() < 30) {
+            return null;
+        }
+        if (dietZeroBeverage && nutrition.getCaloriesPer100g() > 5) {
             return null;
         }
         if (lowCalBeverage && nutrition.getCaloriesPer100g() > 50) {
@@ -190,6 +212,9 @@ public final class NutritionValidator {
         if (isLikelyDessert(foodName) && caloriesPer100g < 200) {
             return true;
         }
+        if (isDietOrZeroCalBeverage(foodName)) {
+            return caloriesPer100g > 5;
+        }
         if (isLowCalBeverage(foodName)) {
             return caloriesPer100g > 50;
         }
@@ -242,7 +267,8 @@ public final class NutritionValidator {
         String n = foodName.toLowerCase();
         return n.contains("cake") || n.contains("ice cream") || n.contains("cookie")
                 || n.contains("brownie") || n.contains("pie") || n.contains("donut")
-                || n.contains("doughnut") || n.contains("pastry") || n.contains("cupcake");
+                || n.contains("doughnut") || n.contains("pastry") || n.contains("cupcake")
+                || n.contains("muffin");
     }
 
     public static boolean isLikelyFruit(String foodName) {

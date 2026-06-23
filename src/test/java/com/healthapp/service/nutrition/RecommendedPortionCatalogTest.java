@@ -35,10 +35,10 @@ class RecommendedPortionCatalogTest {
     }
 
     @Test
-    void latteMediumCupIs300g() {
-        assertEquals(300, RecommendedPortionCatalog.lattePortionGrams("latte with oat milk", "medium"));
+    void latteMediumCupIs250g() {
+        assertEquals(250, RecommendedPortionCatalog.lattePortionGrams("latte with oat milk", "medium"));
         var rec = RecommendedPortionCatalog.singlePortion("latte with oat milk");
-        assertEquals(300, rec.totalGrams());
+        assertEquals(250, rec.totalGrams());
     }
 
     @Test

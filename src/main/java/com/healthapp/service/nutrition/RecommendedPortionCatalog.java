@@ -226,7 +226,7 @@ public final class RecommendedPortionCatalog {
             return 14.0;
         }
         if (n.contains("muffin") || n.contains("cookie")) {
-            return 110.0;
+            return 95.0;
         }
         if (n.contains("latte") || n.contains("cappuccino")) {
             return lattePortionGrams(n, "medium");
@@ -289,7 +289,7 @@ public final class RecommendedPortionCatalog {
         return switch (normalizedSize) {
             case "small" -> 240.0;
             case "large" -> 425.0;
-            default -> 300.0;
+            default -> 250.0;
         };
     }
 
@@ -308,10 +308,10 @@ public final class RecommendedPortionCatalog {
         return """
         Recommended single portions when the user gives NO quantity or grams (quantity=1 unless stated):
         - banana / apple → medium, ~120–150g | boiled egg → 1 piece ~50g, two eggs → 2 pieces ~100g
-        - black coffee → 1 cup ~250g | latte/cappuccino → 1 medium cup ~300g (small ~240g, large ~425g) | espresso → 1 shot ~30g
+        - black coffee → 1 cup ~250g | latte/cappuccino → 1 medium cup ~250g (small ~240g, large ~425g) | espresso → 1 shot ~30g
         - juice/soda/coke → 1 glass ~330ml | wine → 1 glass ~150ml | beer → 1 can/glass ~355ml
         - mango lassi / smoothie → 1 glass ~300g | milk → 1 glass ~240g
-        - muffin/croissant → 1 serving ~110g | cookie → 1 piece ~32g
+        - muffin/croissant → 1 serving ~95g | cookie → 1 piece ~32g
         - crisps/chips snack bag → 1 serving ~32g | sandwich/wrap → 1 serving ~220g
         - cooked rice/quinoa/pasta → 1 cup ~185g | standalone salad → 1 serving ~200g | side salad with sandwich → ~100g
         - chicken breast / salmon fillet → 1 serving ~150g | burger → ~200g | fries side → ~130g
@@ -405,7 +405,7 @@ public final class RecommendedPortionCatalog {
             return 32.0;
         }
         if (foodName.contains("cookie")) return 90.0;
-        if (foodName.contains("muffin")) return 110.0;
+        if (foodName.contains("muffin")) return 95.0;
         if (foodName.contains("burger")) return 200.0;
         if (foodName.contains("salad")) {
             return 200.0;

@@ -131,6 +131,24 @@ class NutritionValidatorTest {
                 "grilled salmon with quinoa and broccoli", 160));
     }
 
+    @Test
+    void rejectsImplausibleStoredDietCokeCalories() {
+        assertTrue(NutritionValidator.hasImplausibleStoredNutrition("diet coke", 42));
+    }
+
+    @Test
+    void acceptsDietCokeZeroCalories() {
+        AiFoodVoiceParsingService.NutritionData data = nutrition(0, 0, 0, 0, 0);
+        assertNotNull(NutritionValidator.validateNutritionData("diet coke", data, 330.0));
+    }
+
+    @Test
+    void acceptsSpinachBelowThirtyCaloriesPer100g() {
+        AiFoodVoiceParsingService.NutritionData data = nutrition(23, 2.9, 3.6, 0.4, 2.2);
+        assertNotNull(NutritionValidator.validateNutritionData("spinach", data, 80.0));
+        assertNotNull(NutritionValidator.validateNutritionData("raw spinach", data, 80.0));
+    }
+
     private static AiFoodVoiceParsingService.NutritionData nutrition(
             double cal, double protein, double carbs, double fat, double fiber) {
         AiFoodVoiceParsingService.NutritionData data = new AiFoodVoiceParsingService.NutritionData();

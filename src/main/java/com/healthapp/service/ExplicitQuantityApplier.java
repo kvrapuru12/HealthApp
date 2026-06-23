@@ -6,6 +6,7 @@ import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * When users state explicit grams/ml/oz per item, replace vague composites with separate food rows.
@@ -35,7 +36,7 @@ public class ExplicitQuantityApplier {
                 AiFoodVoiceParsingService.ParsedFoodData composite = dataList.getCompositeMeals().get(0);
                 rebuildFromCompositeIngredients(dataList, composite, voiceText);
                 logger.info("Explicit quantities: split composite '{}' into {} separate food item(s) from AI ingredients",
-                        composite.getFoodName(), composite.getIngredients().size());
+                        composite.getFoodName(), dataList.getFoodItems().size());
             }
             return;
         }
@@ -50,8 +51,9 @@ public class ExplicitQuantityApplier {
         if (shouldSplitCompositeIngredients(dataList, voiceText)) {
             AiFoodVoiceParsingService.ParsedFoodData composite = dataList.getCompositeMeals().get(0);
             rebuildFromCompositeIngredients(dataList, composite, voiceText);
+            applyExplicitPortionsToItems(dataList, portions);
             logger.info("Explicit quantities: split composite '{}' into {} separate food item(s) from AI ingredients",
-                    composite.getFoodName(), composite.getIngredients().size());
+                    composite.getFoodName(), dataList.getFoodItems().size());
             return;
         }
 
@@ -86,6 +88,13 @@ public class ExplicitQuantityApplier {
 
         if (dataList.getCompositeMeals().size() == 1 && dataList.getFoodItems().isEmpty()) {
             AiFoodVoiceParsingService.ParsedFoodData composite = dataList.getCompositeMeals().get(0);
+            if (composite.getIngredients() != null && composite.getIngredients().size() >= 2) {
+                rebuildFromCompositeIngredients(dataList, composite, voiceText);
+                applyExplicitPortionsToItems(dataList, portions);
+                logger.info("Explicit quantities: split multi-ingredient composite '{}' into {} food item(s)",
+                        composite.getFoodName(), dataList.getFoodItems().size());
+                return;
+            }
             applyPortionToItem(composite, single);
             enrichCompositeIngredients(composite, portions);
             logger.info("Explicit quantity applied to composite: {}g {}", single.grams(), single.foodName());
@@ -99,14 +108,53 @@ public class ExplicitQuantityApplier {
 
     private boolean shouldSplitCompositeIngredients(
             AiFoodVoiceParsingService.ParsedFoodDataList dataList, String voiceText) {
-        if (!ExplicitPortionParser.hasExplicitMultiItemBreakdown(voiceText)) {
-            return false;
-        }
         if (dataList.getCompositeMeals().size() != 1 || !dataList.getFoodItems().isEmpty()) {
             return false;
         }
         AiFoodVoiceParsingService.ParsedFoodData composite = dataList.getCompositeMeals().get(0);
-        return composite.getIngredients() != null && composite.getIngredients().size() >= 2;
+        if (composite.getIngredients() == null || composite.getIngredients().size() < 2) {
+            return false;
+        }
+        if (shouldKeepCompositePlate(voiceText)) {
+            return false;
+        }
+        return ExplicitPortionParser.hasExplicitMultiItemBreakdown(voiceText)
+                || hasListedMultiItemVoice(voiceText);
+    }
+
+    private static boolean shouldKeepCompositePlate(String voiceText) {
+        if (voiceText == null || voiceText.isBlank()) {
+            return false;
+        }
+        String lower = voiceText.toLowerCase(Locale.ROOT);
+        return lower.contains("thali") || lower.contains("smoothie") || lower.contains("milkshake");
+    }
+
+    private static boolean hasListedMultiItemVoice(String voiceText) {
+        if (voiceText == null || voiceText.isBlank()) {
+            return false;
+        }
+        List<String> segments = ExplicitPortionParser.splitSegments(voiceText);
+        return segments.size() >= 2;
+    }
+
+    private void applyExplicitPortionsToItems(
+            AiFoodVoiceParsingService.ParsedFoodDataList dataList,
+            List<ExplicitPortionParser.ExplicitPortion> portions) {
+        if (portions.isEmpty()) {
+            return;
+        }
+        for (ExplicitPortionParser.ExplicitPortion portion : portions) {
+            String target = portion.foodName().toLowerCase(Locale.ROOT);
+            for (AiFoodVoiceParsingService.ParsedFoodData item : dataList.getFoodItems()) {
+                String name = item.getFoodName() != null ? item.getFoodName().toLowerCase(Locale.ROOT) : "";
+                if (name.contains(target) || target.contains(name)) {
+                    applyPortionToItem(item, portion);
+                    logger.info("Explicit quantity applied to split item: {}g {}", portion.grams(), portion.foodName());
+                    break;
+                }
+            }
+        }
     }
 
     private void rebuildFromCompositeIngredients(

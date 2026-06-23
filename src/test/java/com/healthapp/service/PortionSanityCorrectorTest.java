@@ -66,6 +66,39 @@ class PortionSanityCorrectorTest {
         assertEquals(30.0, powder.getEstimatedGrams(), 0.1);
     }
 
+    @Test
+    void doesNotReduceExplicitLookingEggPortion() {
+        AiFoodVoiceParsingService.ParsedFoodDataList dataList = new AiFoodVoiceParsingService.ParsedFoodDataList();
+        AiFoodVoiceParsingService.ParsedFoodData item = new AiFoodVoiceParsingService.ParsedFoodData();
+        item.setFoodName("boiled eggs");
+        item.setEstimatedGrams(100.0);
+        item.setQuantity(2.0);
+        item.setUnit("pieces");
+        dataList.addFoodItem(item);
+
+        corrector.apply(dataList);
+
+        assertEquals(100.0, item.getEstimatedGrams(), 0.1);
+    }
+
+    @Test
+    void doesNotReduceSushiCompositePortion() {
+        AiFoodVoiceParsingService.ParsedFoodDataList dataList = new AiFoodVoiceParsingService.ParsedFoodDataList();
+        AiFoodVoiceParsingService.ParsedFoodData composite = new AiFoodVoiceParsingService.ParsedFoodData();
+        composite.setFoodName("salmon avocado sushi roll");
+        composite.setEstimatedGrams(240.0);
+        composite.setQuantity(240.0);
+        composite.setUnit("grams");
+        AiFoodVoiceParsingService.IngredientData sushi = ingredient("salmon avocado sushi", 240);
+        composite.getIngredients().add(sushi);
+        dataList.addCompositeMeal(composite);
+
+        corrector.apply(dataList);
+
+        assertEquals(240.0, sushi.getEstimatedGrams(), 0.1);
+        assertEquals(240.0, composite.getEstimatedGrams(), 0.1);
+    }
+
     private static AiFoodVoiceParsingService.IngredientData ingredient(String name, double grams) {
         AiFoodVoiceParsingService.IngredientData data = new AiFoodVoiceParsingService.IngredientData();
         data.setName(name);

@@ -32,6 +32,10 @@ public class FoodNutritionFallback {
             case "salmon" -> new Macros(208, 25.0, 0.0, 12.0, 0.0);
             case "eggs", "egg" -> new Macros(155, 13.0, 1.1, 11.0, 0.0);
             case "broccoli" -> new Macros(34, 2.8, 7.0, 0.4, 2.6);
+            case "spinach" -> new Macros(23, 2.9, 3.6, 0.4, 2.2);
+            case "dal", "lentils", "lentil dal" -> new Macros(116, 9.0, 20.0, 0.4, 2.0);
+            case "roti", "chapati" -> new Macros(297, 9.0, 46.0, 7.0, 4.0);
+            case "paneer" -> new Macros(265, 18.0, 2.0, 20.0, 0.0);
             case "peanut butter" -> new Macros(588, 25.0, 20.0, 50.0, 8.0);
             case "butter" -> new Macros(717, 0.9, 0.1, 81.0, 0.0);
             case "olive oil" -> new Macros(884, 0.0, 0.0, 100.0, 0.0);
@@ -63,7 +67,7 @@ public class FoodNutritionFallback {
             case "whole milk" -> new Macros(61, 3.2, 4.8, 3.3, 0.0);
             case "crisps", "potato chips" -> new Macros(536, 7.0, 53.0, 34.0, 4.0);
             case "oatmeal", "porridge" -> new Macros(71, 2.5, 12.0, 1.5, 1.7);
-            case "greek yogurt" -> new Macros(59, 10.0, 3.6, 0.4, 0.0);
+            case "greek yogurt", "plain greek yogurt" -> new Macros(59, 10.0, 3.6, 0.4, 0.0);
             case "pad thai" -> new Macros(180, 9.0, 24.0, 6.0, 2.0);
             case "fish and chips" -> new Macros(220, 12.0, 22.0, 10.0, 2.0);
             case "croissant" -> new Macros(406, 8.2, 45.0, 21.0, 2.6);
@@ -73,6 +77,13 @@ public class FoodNutritionFallback {
             case "espresso" -> new Macros(9, 0.1, 1.7, 0.2, 0.0);
             case "protein shake" -> new Macros(120, 20.0, 8.0, 2.0, 1.0);
             case "thai iced tea" -> new Macros(80, 1.0, 18.0, 2.0, 0.0);
+            case "side salad", "salad", "mixed greens salad" -> new Macros(40, 1.8, 7.0, 0.6, 2.5);
+            case "garlic knots", "garlic knot" -> new Macros(330, 9.0, 52.0, 9.0, 2.5);
+            case "masala dosa" -> new Macros(210, 4.5, 30.0, 8.0, 3.0);
+            case "coconut chutney" -> new Macros(260, 3.0, 10.0, 24.0, 4.0);
+            case "sambar" -> new Macros(55, 2.5, 8.0, 1.2, 2.0);
+            case "salmon avocado sushi", "salmon avocado sushi roll" -> new Macros(180, 9.0, 24.0, 5.0, 1.0);
+            case "tuna rolls", "tuna roll" -> new Macros(155, 8.0, 22.0, 2.5, 0.8);
             default -> macrosFromContains(n);
         };
     }
@@ -111,6 +122,27 @@ public class FoodNutritionFallback {
         if (n.contains("greek yogurt")) {
             return new Macros(59, 10.0, 3.6, 0.4, 0.0);
         }
+        if (n.contains("side salad") || (n.contains("salad") && !n.contains("chicken salad"))) {
+            return new Macros(40, 1.8, 7.0, 0.6, 2.5);
+        }
+        if (n.contains("garlic knot")) {
+            return new Macros(330, 9.0, 52.0, 9.0, 2.5);
+        }
+        if (n.contains("masala dosa")) {
+            return new Macros(210, 4.5, 30.0, 8.0, 3.0);
+        }
+        if (n.contains("coconut chutney")) {
+            return new Macros(260, 3.0, 10.0, 24.0, 4.0);
+        }
+        if (n.contains("sambar")) {
+            return new Macros(55, 2.5, 8.0, 1.2, 2.0);
+        }
+        if (n.contains("salmon avocado sushi")) {
+            return new Macros(180, 9.0, 24.0, 5.0, 1.0);
+        }
+        if (n.contains("tuna roll")) {
+            return new Macros(155, 8.0, 22.0, 2.5, 0.8);
+        }
         if (n.contains("tuna") && n.contains("wrap")) {
             return new Macros(220, 14.0, 22.0, 9.0, 2.0);
         }
@@ -131,6 +163,18 @@ public class FoodNutritionFallback {
         }
         if (n.contains("broccoli")) {
             return new Macros(34, 2.8, 7.0, 0.4, 2.6);
+        }
+        if (n.contains("spinach")) {
+            return new Macros(23, 2.9, 3.6, 0.4, 2.2);
+        }
+        if (n.equals("dal") || n.contains("lentil")) {
+            return new Macros(116, 9.0, 20.0, 0.4, 2.0);
+        }
+        if (n.contains("roti") || n.contains("chapati")) {
+            return new Macros(297, 9.0, 46.0, 7.0, 4.0);
+        }
+        if (n.contains("paneer")) {
+            return new Macros(265, 18.0, 2.0, 20.0, 0.0);
         }
         if (n.contains("peanut butter")) {
             return new Macros(588, 25.0, 20.0, 50.0, 8.0);
@@ -153,6 +197,9 @@ public class FoodNutritionFallback {
         if (n.contains("biryani") || n.contains("curry") || n.contains("rice")) {
             return new Macros(180, 8.0, 22.0, 7.0, 1.5);
         }
+        if (n.contains("thali")) {
+            return new Macros(170, 6.0, 25.0, 5.0, 3.0);
+        }
         if (n.contains("avocado")) {
             return new Macros(160, 2.0, 8.5, 14.7, 6.7);
         }
@@ -170,6 +217,9 @@ public class FoodNutritionFallback {
         }
         if (n.contains("wine")) {
             return new Macros(85, 0.1, 2.6, 0.0, 0.0);
+        }
+        if (NutritionValidator.isDietOrZeroCalBeverage(n)) {
+            return new Macros(0, 0.0, 0.0, 0.0, 0.0);
         }
         if ((n.contains("coke") || n.contains("cola") || n.contains("soda")) && !n.contains("chocolate")) {
             return new Macros(42, 0.0, 10.6, 0.0, 0.0);

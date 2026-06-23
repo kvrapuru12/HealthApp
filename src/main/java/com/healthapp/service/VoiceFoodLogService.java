@@ -213,6 +213,7 @@ public class VoiceFoodLogService {
         if (simple) {
             Optional<FoodItem> trusted = findTrustedFoodItem(normalizedName, userId);
             if (trusted.isPresent()
+                    && hasUsdaAnchor(trusted.get())
                     && !parsedData.isUserSpecifiedMacros()
                     && !parsedData.isUserSpecifiedGrams()) {
                 simpleFoodNutritionResolver.applyFoodItemToParsedData(parsedData, trusted.get());
@@ -344,8 +345,10 @@ public class VoiceFoodLogService {
         }
         if (SimpleFoodNutritionResolver.isTrustedFoodItem(item) && !parsedData.isUserSpecifiedMacros()
                 && !isHighConfidenceNutrition(parsedData)) {
-            logger.info("Keeping trusted nutrition for existing food item: {}", item.getName());
-            return item;
+            if (hasUsdaAnchor(item)) {
+                logger.info("Keeping trusted nutrition for existing food item: {}", item.getName());
+                return item;
+            }
         }
         item.setCaloriesPerUnit((int) Math.round(parsedData.getNutrition().getCaloriesPer100g()));
         item.setProteinPerUnit(parsedData.getNutrition().getProteinPer100g());
@@ -363,5 +366,9 @@ public class VoiceFoodLogService {
         return (parsedData.getFdcId() != null && parsedData.getFdcId() > 0)
                 || (parsedData.getNutritionSource() == NutritionSource.USDA
                 && parsedData.getNutritionConfidence() == NutritionConfidence.HIGH);
+    }
+
+    private static boolean hasUsdaAnchor(FoodItem item) {
+        return item.getFdcId() != null && item.getFdcId() > 0;
     }
 }

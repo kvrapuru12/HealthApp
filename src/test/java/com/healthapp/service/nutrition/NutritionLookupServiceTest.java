@@ -193,7 +193,7 @@ class NutritionLookupServiceTest {
         when(usdaClient.isAvailable()).thenReturn(false);
 
         var portions = List.of(
-                new NutritionLookupService.IngredientPortion("side salad", 100, "mixed salad greens")
+                new NutritionLookupService.IngredientPortion("mystery garnish", 100, "unknown garnish xyz")
         );
         assertTrue(nutritionLookupService.blendIngredients(portions).isEmpty());
     }
