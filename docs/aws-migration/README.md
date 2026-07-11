@@ -7,8 +7,9 @@ Production URL: `http://api.thanafit.com/api` (DNS unchanged until approved).
 
 | Phase | Status | Description |
 |-------|--------|-------------|
-| **A** | **Complete** | Read-only discovery, gap analysis, terraform plan (no AWS writes) |
-| **B** | Pending approval | Provision target infra, deploy, validate target ALB |
+| **A** | **Complete** | Read-only discovery, gap analysis, terraform plan |
+| **B** | **Complete** | Target infra, GitHub deploy, target ALB health 200 |
+| **DNS cutover** | Pending approval | `api.thanafit.com` still points to source |
 
 ## Documentation index
 
@@ -39,23 +40,25 @@ Production URL: `http://api.thanafit.com/api` (DNS unchanged until approved).
 - **Secrets:** `terraform/terraform.tfvars` prepared (gitignored, not in docs)
 - **No changes made** to source resources or DNS
 
-## Phase B status
+## Phase B status (complete)
 
 | Step | Status |
 |------|--------|
 | Terraform backend + apply (45 resources) | Done |
-| Target ALB | `healthapp-alb-1602639566.us-east-1.elb.amazonaws.com` |
+| IAM user `healthapp-github-deploy` + GitHub secrets | Done |
+| Target GitHub Action deploy | Done ([run 29151330815](https://github.com/kvrapuru12/HealthApp/actions/runs/29151330815)) |
+| Target ALB health | **HTTP 200** — `{"status":"UP"}` |
 | Target RDS | `healthapp-db.ci124w0qqo5j.us-east-1.rds.amazonaws.com:3306` |
-| App deploy (ECR image + ECS healthy) | **Pending** — run target GitHub Action |
+| Production `api.thanafit.com` | **Unchanged** — HTTP 200 via source ALB |
 
-### Deploy target app (no local Docker)
+### Target URLs (until DNS cutover)
 
-1. Add GitHub secrets: `AWS_TARGET_ACCESS_KEY_ID`, `AWS_TARGET_SECRET_ACCESS_KEY` (target account IAM user)
-2. Merge/push `.github/workflows/deploy-aws-target.yml`
-3. Actions → **Deploy HealthApp to AWS (Target Account)** → Run workflow
-4. Validate `http://healthapp-alb-1602639566.us-east-1.elb.amazonaws.com/api/actuator/health`
+- API: http://healthapp-alb-1602639566.us-east-1.elb.amazonaws.com/api
+- Health: http://healthapp-alb-1602639566.us-east-1.elb.amazonaws.com/api/actuator/health
 
-See [05-secrets-cicd.md](05-secrets-cicd.md).
+### Next: DNS cutover (approval required)
+
+See [07-dns-cutover.md](07-dns-cutover.md). Do not change `api.thanafit.com` until you approve.
 
 ## Hard constraints
 

@@ -50,7 +50,22 @@ Record `rds_endpoint` in `04-migration-plan.md` for separate DB migration handof
 
 ---
 
-## Phase B — application validation (after deploy)
+## Phase B — application validation (2026-07-11)
+
+Target deploy via GitHub Actions workflow **Deploy HealthApp to AWS (Target Account)**.
+
+| Check | Result |
+|-------|--------|
+| Target ALB health | **HTTP 200** — `status: UP`, db: UP |
+| ECS running/desired | 1 / 1 |
+| ECR image tags | `latest`, commit SHA |
+| Production api.thanafit.com | **HTTP 200** (source, unchanged) |
+
+Target ALB DNS: `healthapp-alb-1602639566.us-east-1.elb.amazonaws.com`
+
+---
+
+## Phase B — application validation (reference commands)
 
 Replace `<ALB_DNS>` with `terraform output -raw alb_dns_name`.
 

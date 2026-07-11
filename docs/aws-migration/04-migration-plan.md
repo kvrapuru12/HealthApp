@@ -78,11 +78,13 @@ State: Fresh local state (source state backed up to `terraform.tfstate.source-11
 | Public access | false (production) | false |
 | Schema | — | Flyway on first ECS deploy |
 
-### Target RDS endpoint (fill after Phase B apply)
+### Target RDS endpoint (Phase B apply complete)
 
 ```
-RDS_ENDPOINT=<pending terraform output rds_endpoint>
+RDS_ENDPOINT=healthapp-db.ci124w0qqo5j.us-east-1.rds.amazonaws.com:3306
 ```
+
+Use this host for a **separate DB data migration** (dump/restore or DMS). Schema already created by Flyway on first deploy.
 
 ---
 
