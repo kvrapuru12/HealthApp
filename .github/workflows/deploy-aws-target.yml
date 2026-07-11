@@ -1,0 +1,188 @@
+# Deploy to the migration/target AWS account (192033640931).
+# Does NOT replace deploy.yml (source/production on push to main).
+#
+# Required GitHub secrets:
+#   AWS_TARGET_ACCESS_KEY_ID
+#   AWS_TARGET_SECRET_ACCESS_KEY
+#
+# Run manually: Actions → "Deploy HealthApp to AWS (Target Account)" → Run workflow
+
+name: Deploy HealthApp to AWS (Target Account)
+
+on:
+  workflow_dispatch:
+    inputs:
+      skip_tests:
+        description: Skip Maven tests (use only for hotfix redeploys)
+        required: false
+        default: false
+        type: boolean
+
+env:
+  AWS_REGION: us-east-1
+  EXPECTED_AWS_ACCOUNT_ID: "192033640931"
+  ECR_REPOSITORY: healthapp
+  ECS_CLUSTER: healthapp-cluster
+  ECS_SERVICE: healthapp-service
+  ECS_TASK_DEFINITION: healthapp-task
+
+jobs:
+  test:
+    name: Test Application
+    runs-on: ubuntu-latest
+    if: ${{ inputs.skip_tests != true }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: "17"
+          distribution: "temurin"
+
+      - name: Cache Maven packages
+        uses: actions/cache@v3
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-m2
+
+      - name: Run unit + integration tests with coverage
+        run: mvn clean verify
+
+      - name: Build application
+        run: mvn -DskipTests package
+
+  build-and-deploy:
+    name: Build and Deploy to Target AWS
+    needs: test
+    if: always() && (needs.test.result == 'success' || needs.test.result == 'skipped')
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: "17"
+          distribution: "temurin"
+
+      - name: Cache Maven packages
+        uses: actions/cache@v3
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-m2
+
+      - name: Build application
+        run: mvn clean package -DskipTests
+
+      - name: Configure AWS credentials (target account)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_TARGET_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_TARGET_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Verify target AWS account
+        run: |
+          ACTUAL=$(aws sts get-caller-identity --query Account --output text)
+          echo "Deploying to AWS account: $ACTUAL"
+          if [ "$ACTUAL" != "${{ env.EXPECTED_AWS_ACCOUNT_ID }}" ]; then
+            echo "::error::Wrong AWS account. Expected ${{ env.EXPECTED_AWS_ACCOUNT_ID }}, got $ACTUAL."
+            echo "Check GitHub secrets AWS_TARGET_ACCESS_KEY_ID / AWS_TARGET_SECRET_ACCESS_KEY."
+            exit 1
+          fi
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build, tag, and push image to Amazon ECR
+        id: build-image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:latest .
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+      - name: Download task definition
+        run: |
+          aws ecs describe-task-definition --task-definition ${{ env.ECS_TASK_DEFINITION }} \
+            --query taskDefinition > task-definition.json
+
+      - name: Fill in the new image ID in the Amazon ECS task definition
+        id: task-def
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: task-definition.json
+          container-name: healthapp
+          image: ${{ steps.build-image.outputs.image }}
+
+      - name: Deploy Amazon ECS task definition
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+        with:
+          task-definition: ${{ steps.task-def.outputs.task-definition }}
+          service: ${{ env.ECS_SERVICE }}
+          cluster: ${{ env.ECS_CLUSTER }}
+          wait-for-service-stability: true
+          wait-for-minutes: 45
+
+      - name: Get ALB DNS name
+        id: alb-dns
+        run: |
+          ALB_DNS=$(aws elbv2 describe-load-balancers \
+            --names healthapp-alb \
+            --region ${{ env.AWS_REGION }} \
+            --query 'LoadBalancers[0].DNSName' \
+            --output text)
+          echo "alb-dns=$ALB_DNS" >> $GITHUB_OUTPUT
+
+      - name: Wait for application to be ready
+        run: sleep 60
+
+      - name: Test deployment
+        run: |
+          ALB_DNS=${{ steps.alb-dns.outputs.alb-dns }}
+          echo "Testing target health endpoint: http://$ALB_DNS/api/actuator/health"
+          echo "(Production api.thanafit.com is unchanged until DNS cutover.)"
+
+          for i in {1..30}; do
+            echo "Attempt $i/30..."
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "http://$ALB_DNS/api/actuator/health" || echo "000")
+            if [ "$HTTP_CODE" = "200" ]; then
+              echo "Health check passed (HTTP $HTTP_CODE)"
+              curl -s "http://$ALB_DNS/api/actuator/health" | head -20
+              exit 0
+            fi
+            echo "HTTP $HTTP_CODE — waiting 20s..."
+            sleep 20
+          done
+
+          echo "Health check failed after 30 attempts"
+          aws ecs describe-services --cluster ${{ env.ECS_CLUSTER }} --services ${{ env.ECS_SERVICE }} \
+            --region ${{ env.AWS_REGION }} \
+            --query 'services[0].{status:status,runningCount:runningCount,desiredCount:desiredCount,events:events[0:3]}' \
+            --output json
+          aws logs tail /ecs/healthapp --since 10m --format short | tail -50 || true
+          exit 1
+
+      - name: Deployment Summary
+        run: |
+          echo "Target account deployment completed."
+          echo ""
+          echo "Target API (use until DNS cutover):"
+          echo "  http://${{ steps.alb-dns.outputs.alb-dns }}/api"
+          echo "  http://${{ steps.alb-dns.outputs.alb-dns }}/api/actuator/health"
+          echo ""
+          echo "Production (unchanged): http://api.thanafit.com/api"
+          echo ""
+          echo "ECS: https://console.aws.amazon.com/ecs/home?region=${{ env.AWS_REGION }}#/clusters/${{ env.ECS_CLUSTER }}"

@@ -7,15 +7,13 @@ terraform {
     }
   }
 
-  # Backend configuration - uncomment and configure for remote state
-  # Uncomment after creating S3 bucket and DynamoDB table (see README.md)
-  # backend "s3" {
-  #   bucket         = "healthapp-terraform-state"
-  #   key            = "terraform.tfstate"
-  #   region         = "us-east-1"
-  #   encrypt        = true
-  #   dynamodb_table = "terraform-state-lock"
-  # }
+  backend "s3" {
+    bucket         = "healthapp-terraform-state-192033640931"
+    key            = "terraform.tfstate"
+    region         = "us-east-1"
+    encrypt        = true
+    dynamodb_table = "terraform-state-lock"
+  }
 }
 
 provider "aws" {
@@ -254,7 +252,7 @@ resource "aws_db_subnet_group" "healthapp_db_subnet" {
 resource "aws_db_instance" "healthapp_db" {
   identifier             = "healthapp-db"
   engine                 = "mysql"
-  engine_version         = "8.0.44"
+  engine_version         = "8.4.9"
   instance_class         = "db.t3.micro"
   allocated_storage      = 20
   storage_type           = "gp2"
