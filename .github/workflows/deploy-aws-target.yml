@@ -1,15 +1,17 @@
-# Deploy to the migration/target AWS account (192033640931).
-# Does NOT replace deploy.yml (source/production on push to main).
+# Deploy to the target AWS account (192033640931).
+# Auto-deploys on push to any branch and on merge to main.
+# deploy.yml is manual-only for the old source/production account.
 #
 # Required GitHub secrets:
 #   AWS_TARGET_ACCESS_KEY_ID
 #   AWS_TARGET_SECRET_ACCESS_KEY
-#
-# Run manually: Actions → "Deploy HealthApp to AWS (Target Account)" → Run workflow
 
 name: Deploy HealthApp to AWS (Target Account)
 
 on:
+  push:
+    branches:
+      - "**"
   workflow_dispatch:
     inputs:
       skip_tests:
@@ -17,6 +19,10 @@ on:
         required: false
         default: false
         type: boolean
+
+concurrency:
+  group: deploy-aws-target
+  cancel-in-progress: false
 
 env:
   AWS_REGION: us-east-1

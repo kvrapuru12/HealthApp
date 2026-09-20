@@ -55,13 +55,21 @@ S3 backend is **commented out** in `main.tf`. Default is local state. Phase B bo
 - Waits for `services-stable`
 - Env: `AWS_REGION` (default `us-east-1`); credentials via `AWS_PROFILE` or default chain
 
-### `.github/workflows/deploy.yml`
+### `.github/workflows/deploy-aws-target.yml`
 
-- Trigger: push to `main`
+- Trigger: push to any branch, merge to `main`, or `workflow_dispatch`
+- Account: target `192033640931` (`AWS_TARGET_*` secrets; verifies caller identity)
 - Job 1: `mvn clean verify` + package
 - Job 2: build, ECR push (`$GITHUB_SHA` + `latest`), download/register/deploy task definition with SHA image
 - Post-deploy: poll `http://<ALB_DNS>/api/actuator/health` (30 retries)
-- Secrets: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` (source account today)
+
+### `.github/workflows/deploy.yml`
+
+- Trigger: **manual only** (`workflow_dispatch`)
+- Job 1: `mvn clean verify` + package
+- Job 2: build, ECR push (`$GITHUB_SHA` + `latest`), download/register/deploy task definition with SHA image
+- Post-deploy: poll `http://<ALB_DNS>/api/actuator/health` (30 retries)
+- Secrets: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` (source account `114749311002`)
 
 ---
 

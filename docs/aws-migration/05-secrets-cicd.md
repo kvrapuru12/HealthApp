@@ -84,12 +84,12 @@ ecs_desired_count   = 1
 
 ## GitHub Actions CI/CD
 
-Two workflows — **source production** and **target migration** stay separate.
+Two workflows — **source production** and **target** stay separate.
 
 | Workflow | File | Trigger | AWS account |
 |----------|------|---------|-------------|
-| Production | `.github/workflows/deploy.yml` | Push to `main` | Source `114749311002` |
-| Target (migration) | `.github/workflows/deploy-aws-target.yml` | **Manual only** (`workflow_dispatch`) | Target `192033640931` |
+| Target (current auto-deploy) | `.github/workflows/deploy-aws-target.yml` | Push to any branch, merge to `main`, or manual (`workflow_dispatch`) | Target `192033640931` |
+| Source / production (legacy) | `.github/workflows/deploy.yml` | **Manual only** (`workflow_dispatch`) | Source `114749311002` |
 
 ### GitHub secrets — production (unchanged)
 
@@ -111,11 +111,11 @@ The target workflow verifies `sts get-caller-identity` equals `192033640931` bef
 
 ### Run target deploy (no local Docker)
 
-1. GitHub → **Actions** → **Deploy HealthApp to AWS (Target Account)**
-2. **Run workflow** (branch: `main`)
-3. Wait for green — health check hits target ALB only (not `api.thanafit.com`)
+Auto-deploy: push any branch or merge to `main`. That starts **Deploy HealthApp to AWS (Target Account)** against `192033640931`. Health check hits the target ALB only (not `api.thanafit.com` until DNS cutover).
 
-Optional input: `skip_tests` for emergency redeploys only.
+Manual: GitHub → **Actions** → **Deploy HealthApp to AWS (Target Account)** → **Run workflow**. Optional input: `skip_tests` for emergency redeploys only.
+
+Source-account `deploy.yml` is manual-only and does not run on push.
 
 ### Deploy paths
 

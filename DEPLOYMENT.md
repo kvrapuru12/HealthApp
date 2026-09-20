@@ -345,14 +345,16 @@ For CI/CD pipeline to work, configure these secrets in GitHub:
 
 ### Pipeline Overview
 
-There is **one** GitHub Actions workflow for AWS deploy: **Deploy HealthApp to AWS** (file: `.github/workflows/deploy.yml`). It runs only on **`push` to `main`** (not on pull requests).
+There is **one auto-deploy** workflow for AWS: **Deploy HealthApp to AWS (Target Account)** (file: `.github/workflows/deploy-aws-target.yml`). It runs on **push to any branch** and on **merge to `main`**, into account `192033640931`.
+
+The legacy **Deploy HealthApp to AWS** workflow (`.github/workflows/deploy.yml`) is **manual only** and targets the old source account `114749311002`. Do not re-add `on.push` there or both accounts will deploy.
 
 | Job | Purpose |
 |-----|---------|
 | **Test Application** | `mvn test`, then `mvn clean package` |
 | **Build and Deploy to AWS** | Runs after tests pass: `mvn clean package`, Docker build, push image to **ECR** (commit SHA tag and `latest`), render task definition, **ECS** service update, wait for service stability, then ALB health checks |
 
-**Why a single workflow:** Previously a second workflow also deployed the same ECS service on every `main` push. That caused parallel rollouts, race conditions, and flaky `servicesStable` failures. **Do not add another workflow** that deploys `healthapp-service` on the same trigger unless you intentionally replace this one.
+**Concurrency:** Target deploys share group `deploy-aws-target` so two branch/main pushes do not roll ECS at the same time. Do not re-enable `on.push` on `deploy.yml` or source and target will both ship.
 
 ### ECS deploy step timeout (wait-for-minutes)
 
@@ -360,7 +362,7 @@ The **Deploy Amazon ECS task definition** step sets `wait-for-minutes: 45`. That
 
 ### Automated Deployment
 
-The pipeline automatically deploys when you push to the main branch:
+The pipeline automatically deploys to the **target** AWS account when you push any branch or merge to main.
 
 ```bash
 git push origin main
@@ -375,7 +377,8 @@ Monitor deployment progress:
 
 | Path | Description |
 |------|-------------|
-| `.github/workflows/deploy.yml` | Sole pipeline: tests, build, ECR push, ECS deploy, post-deploy health verification |
+| `.github/workflows/deploy-aws-target.yml` | Auto-deploy: tests, build, ECR push, ECS deploy to target account `192033640931` |
+| `.github/workflows/deploy.yml` | Manual-only redeploy to source/production account `114749311002` |
 
 ---
 

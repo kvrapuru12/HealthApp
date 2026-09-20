@@ -1,8 +1,9 @@
+# Manual-only redeploy to the source/production AWS account (114749311002).
+# Auto-deploy now uses deploy-aws-target.yml (account 192033640931).
 name: Deploy HealthApp to AWS
 
 on:
-  push:
-    branches: [ main ]
+  workflow_dispatch:
 
 env:
   AWS_REGION: us-east-1
