@@ -48,8 +48,7 @@ Use when `api.thanafit.com` was pointed at target ALB and production is broken.
    ```
    IPs should return to `3.229.100.70`, `54.166.175.90`.
 
-4. **Revert GitHub secrets** if already rotated to target:
-   - Restore `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` to source deploy user
+4. **Do not use GitHub Actions to redeploy source.** CI has no source-account workflow or secrets. Rollback is DNS only.
 
 5. **Communicate** — production restored on source; investigate target separately.
 

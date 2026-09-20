@@ -63,14 +63,6 @@ S3 backend is **commented out** in `main.tf`. Default is local state. Phase B bo
 - Job 2: build, ECR push (`$GITHUB_SHA` + `latest`), download/register/deploy task definition with SHA image
 - Post-deploy: poll `http://<ALB_DNS>/api/actuator/health` (30 retries)
 
-### `.github/workflows/deploy.yml`
-
-- Trigger: **manual only** (`workflow_dispatch`)
-- Job 1: `mvn clean verify` + package
-- Job 2: build, ECR push (`$GITHUB_SHA` + `latest`), download/register/deploy task definition with SHA image
-- Post-deploy: poll `http://<ALB_DNS>/api/actuator/health` (30 retries)
-- Secrets: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` (source account `114749311002`)
-
 ---
 
 ## Application AWS config
