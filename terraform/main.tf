@@ -102,21 +102,8 @@ resource "aws_internet_gateway" "healthapp_igw" {
   })
 }
 
-resource "aws_eip" "nat_eip" {
-  vpc = true
-  tags = merge(local.common_tags, {
-    Name = "healthapp-nat-eip"
-  })
-}
-
-resource "aws_nat_gateway" "healthapp_nat" {
-  allocation_id = aws_eip.nat_eip.id
-  subnet_id     = aws_subnet.public_1a.id
-  tags = merge(local.common_tags, {
-    Name = "healthapp-nat"
-  })
-  depends_on = [aws_internet_gateway.healthapp_igw]
-}
+# NAT Gateway removed: ECS runs in public subnets with assign_public_ip for
+# outbound (OpenAI/ECR). RDS stays in private subnets (no internet route needed).
 
 resource "aws_route_table" "public" {
   vpc_id = aws_vpc.healthapp_vpc.id
@@ -131,10 +118,7 @@ resource "aws_route_table" "public" {
 
 resource "aws_route_table" "private" {
   vpc_id = aws_vpc.healthapp_vpc.id
-  route {
-    cidr_block     = "0.0.0.0/0"
-    nat_gateway_id = aws_nat_gateway.healthapp_nat.id
-  }
+  # No default route — private subnets are for RDS only (no outbound internet).
   tags = merge(local.common_tags, {
     Name = "healthapp-private-rt"
   })
@@ -660,16 +644,24 @@ resource "aws_ecs_service" "healthapp_service" {
   deployment_minimum_healthy_percent = 50
   force_new_deployment               = true
 
+  # Public subnets + public IP: outbound (OpenAI, ECR) via IGW — no NAT needed.
+  # Inbound API traffic still only via ALB; ecs_sg allows 8080 from alb_sg only.
   network_configuration {
-    subnets          = [aws_subnet.private_1a.id, aws_subnet.private_1b.id]
+    subnets          = [aws_subnet.public_1a.id, aws_subnet.public_1b.id]
     security_groups  = [aws_security_group.ecs_sg.id]
-    assign_public_ip = false
+    assign_public_ip = true
   }
 
   load_balancer {
     target_group_arn = aws_lb_target_group.healthapp_tg.arn
     container_name   = "healthapp"
     container_port   = 8080
+  }
+
+  # CI/CD registers new task definition revisions; keep networking managed here
+  # without rolling the service back to an older Terraform revision.
+  lifecycle {
+    ignore_changes = [task_definition]
   }
 
   depends_on = [aws_lb_listener.healthapp_listener]
