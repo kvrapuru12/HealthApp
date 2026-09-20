@@ -285,15 +285,15 @@ For CI/CD pipeline to work, configure these secrets in GitHub:
 2. Click **Settings** → **Secrets and variables** → **Actions**
 3. Click **New repository secret** and add:
 
-#### AWS_ACCESS_KEY_ID
-- **Purpose**: AWS access key for authentication
+#### AWS_TARGET_ACCESS_KEY_ID
+- **Purpose**: Deploy IAM user in target AWS account `192033640931`
 - **Format**: `AKIA...` (20 characters)
-- **Permissions**: Should have ECR, ECS permissions
+- **Permissions**: ECR, ECS, ELB describe, CloudWatch Logs read
 
-#### AWS_SECRET_ACCESS_KEY
-- **Purpose**: AWS secret key for authentication
+#### AWS_TARGET_SECRET_ACCESS_KEY
+- **Purpose**: Matching secret for `AWS_TARGET_ACCESS_KEY_ID`
 - **Format**: Secret string (40 characters)
-- **Security**: Keep this highly secure
+- **Security**: Keep this highly secure; do not add source-account keys
 
 ### AWS IAM User Setup
 
@@ -345,16 +345,14 @@ For CI/CD pipeline to work, configure these secrets in GitHub:
 
 ### Pipeline Overview
 
-There is **one auto-deploy** workflow for AWS: **Deploy HealthApp to AWS (Target Account)** (file: `.github/workflows/deploy-aws-target.yml`). It runs on **push to any branch** and on **merge to `main`**, into account `192033640931`.
-
-The legacy **Deploy HealthApp to AWS** workflow (`.github/workflows/deploy.yml`) is **manual only** and targets the old source account `114749311002`. Do not re-add `on.push` there or both accounts will deploy.
+There is **one** GitHub Actions workflow for AWS: **Deploy HealthApp to AWS (Target Account)** (file: `.github/workflows/deploy-aws-target.yml`). It runs on **push to any branch** and on **merge to `main`**, into account `192033640931`. There is no workflow for the old source account.
 
 | Job | Purpose |
 |-----|---------|
 | **Test Application** | `mvn test`, then `mvn clean package` |
 | **Build and Deploy to AWS** | Runs after tests pass: `mvn clean package`, Docker build, push image to **ECR** (commit SHA tag and `latest`), render task definition, **ECS** service update, wait for service stability, then ALB health checks |
 
-**Concurrency:** Target deploys share group `deploy-aws-target` so two branch/main pushes do not roll ECS at the same time. Do not re-enable `on.push` on `deploy.yml` or source and target will both ship.
+**Concurrency:** Deploys share group `deploy-aws-target` so two branch/main pushes do not roll ECS at the same time.
 
 ### ECS deploy step timeout (wait-for-minutes)
 
@@ -377,8 +375,7 @@ Monitor deployment progress:
 
 | Path | Description |
 |------|-------------|
-| `.github/workflows/deploy-aws-target.yml` | Auto-deploy: tests, build, ECR push, ECS deploy to target account `192033640931` |
-| `.github/workflows/deploy.yml` | Manual-only redeploy to source/production account `114749311002` |
+| `.github/workflows/deploy-aws-target.yml` | Sole pipeline: tests, build, ECR push, ECS deploy to account `192033640931` |
 
 ---
 

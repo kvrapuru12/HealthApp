@@ -1,6 +1,5 @@
-# Deploy to the target AWS account (192033640931).
+# Sole GitHub Actions deploy. Always targets AWS account 192033640931.
 # Auto-deploys on push to any branch and on merge to main.
-# deploy.yml is manual-only for the old source/production account.
 #
 # Required GitHub secrets:
 #   AWS_TARGET_ACCESS_KEY_ID

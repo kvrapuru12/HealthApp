@@ -84,48 +84,37 @@ ecs_desired_count   = 1
 
 ## GitHub Actions CI/CD
 
-Two workflows — **source production** and **target** stay separate.
+One workflow. It deploys only to target account `192033640931`. There is no source-account workflow.
 
 | Workflow | File | Trigger | AWS account |
 |----------|------|---------|-------------|
-| Target (current auto-deploy) | `.github/workflows/deploy-aws-target.yml` | Push to any branch, merge to `main`, or manual (`workflow_dispatch`) | Target `192033640931` |
-| Source / production (legacy) | `.github/workflows/deploy.yml` | **Manual only** (`workflow_dispatch`) | Source `114749311002` |
+| Deploy | `.github/workflows/deploy-aws-target.yml` | Push to any branch, merge to `main`, or manual (`workflow_dispatch`) | Target `192033640931` |
 
-### GitHub secrets — production (unchanged)
-
-| GitHub secret | Purpose |
-|---------------|---------|
-| `AWS_ACCESS_KEY_ID` | Deploy IAM user in **source** `114749311002` |
-| `AWS_SECRET_ACCESS_KEY` | Matching secret |
-
-### GitHub secrets — target (add these)
+### GitHub secrets
 
 | GitHub secret | Purpose |
 |---------------|---------|
 | `AWS_TARGET_ACCESS_KEY_ID` | Deploy IAM user in **target** `192033640931` |
 | `AWS_TARGET_SECRET_ACCESS_KEY` | Matching secret |
 
+Do not store `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` (those were source-account `114749311002` deploy keys). Delete them from the repo if they still exist.
+
 Create IAM user `healthapp-deploy` in target account (avoid long-term root keys). Attach policy: ECR push/pull, ECS describe/register/update, `elbv2:DescribeLoadBalancers`, CloudWatch Logs read.
 
-The target workflow verifies `sts get-caller-identity` equals `192033640931` before deploy.
+The workflow verifies `sts get-caller-identity` equals `192033640931` before deploy.
 
-### Run target deploy (no local Docker)
+### Run deploy (no local Docker)
 
 Auto-deploy: push any branch or merge to `main`. That starts **Deploy HealthApp to AWS (Target Account)** against `192033640931`. Health check hits the target ALB only (not `api.thanafit.com` until DNS cutover).
 
 Manual: GitHub → **Actions** → **Deploy HealthApp to AWS (Target Account)** → **Run workflow**. Optional input: `skip_tests` for emergency redeploys only.
-
-Source-account `deploy.yml` is manual-only and does not run on push.
 
 ### Deploy paths
 
 | Method | Profile / creds | Image tag | Task definition |
 |--------|-----------------|-----------|-----------------|
 | `deploy-aws-target.yml` | `AWS_TARGET_*` secrets | `$GITHUB_SHA` + `:latest` | Registers new revision |
-| `deploy.yml` | `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` | `$GITHUB_SHA` + `:latest` | Source production |
 | `deploy-aws.sh` | `AWS_PROFILE=healthapp-target` | `:latest` + git SHA | Force redeploy only (local Docker) |
-
-**Recommendation:** Use `deploy-aws-target.yml` for target bootstrap and ongoing target deploys until DNS cutover.
 
 ---
 
