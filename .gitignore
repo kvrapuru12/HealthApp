@@ -69,5 +69,8 @@ terraform/*.tfvars.backup
 .terraform/
 .terraform.lock.hcl
 
+# AWS migration local notes (credentials)
+docs/aws-migration/*.local.md
+
 # Local AI QA scripts and test output (dev only)
 scripts/
