@@ -6,6 +6,7 @@
 #   AWS_TARGET_SECRET_ACCESS_KEY
 #
 # Run manually: Actions → "Deploy HealthApp to AWS (Target Account)" → Run workflow
+# Trigger check 2026-09-20: a branch push must NOT start this workflow.
 
 name: Deploy HealthApp to AWS (Target Account)
 
